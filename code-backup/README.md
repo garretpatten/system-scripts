@@ -40,6 +40,7 @@ After running the script:
 
 ```bash
 chmod +x ~/backup-projects.sh
+```
 
 3. Run the script:
 
