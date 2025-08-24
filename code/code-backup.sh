@@ -3,29 +3,30 @@
 set -euo pipefail
 
 PROJECTS_DIR="$HOME/Projects"
-BACKUP_DIR="$HOME/Projects-Backup"
+DATESTAMP=$(date +%F)  # YYYY-MM-DD
+BACKUP_DIR="$HOME/Projects-Backup-$DATESTAMP"
 
-# Create backup dir if it doesn't exist, or clear it if it does
-if [ -d "$BACKUP_DIR" ]; then
-    echo "Clearing existing backup directory..."
-    rm -rf "$BACKUP_DIR"
-fi
+echo "📁 Source: $PROJECTS_DIR"
+echo "💾 Backup: $BACKUP_DIR"
+
+# Create backup dir
 mkdir -p "$BACKUP_DIR"
 
-echo "Starting backup process..."
+echo "🚀 Starting backup process..."
 
 for repo in "$PROJECTS_DIR"/*; do
     if [ -d "$repo/.git" ]; then
-        echo "Processing repository: $(basename "$repo")"
-        cd "$repo"
+        REPO_NAME=$(basename "$repo")
+        echo "🔄 Processing repository: $REPO_NAME"
 
-        # Fetch the latest from origin
+        pushd "$repo" > /dev/null
+
+        # Fetch latest
         git fetch origin
 
-        # Determine default branch (main, master, or fallback)
-        DEFAULT_BRANCH=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
+        # Determine default branch
+        DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}')
         if [ -z "$DEFAULT_BRANCH" ]; then
-            # Fallback if remote info fails
             if git show-ref --verify --quiet refs/heads/main; then
                 DEFAULT_BRANCH="main"
             elif git show-ref --verify --quiet refs/heads/master; then
@@ -33,29 +34,28 @@ for repo in "$PROJECTS_DIR"/*; do
             elif git show-ref --verify --quiet refs/heads/release; then
                 DEFAULT_BRANCH="release"
             else
-                echo "Warning: Could not determine default branch for $repo"
-                cd - > /dev/null
+                echo "⚠️  Skipping $REPO_NAME: no valid default branch found."
+                popd > /dev/null
                 continue
             fi
         fi
 
-        # Checkout and pull the default branch
         git checkout "$DEFAULT_BRANCH"
         git pull origin "$DEFAULT_BRANCH"
 
-        # Now copy the working directory to the backup directory
-        DEST="$BACKUP_DIR/$(basename "$repo")"
-        echo "Copying updated repo to backup: $DEST"
+        # Copy to backup dir
+        DEST="$BACKUP_DIR/$REPO_NAME"
+        mkdir -p "$DEST"
+        echo "📦 Copying to $DEST"
         rsync -a --exclude=".git" ./ "$DEST"
 
-        cd - > /dev/null
+        popd > /dev/null
     else
-        echo "Skipping non-git directory: $repo"
+        echo "⏭ Skipping non-git directory: $(basename "$repo")"
     fi
 done
 
-if [[ ! -f "$HOME/Projects-Backup/.DS_Store" ]]; then
-	rm "$HOME/Projects-Backup/.DS_Store"
-fi
+# Cleanup .DS_Store if somehow copied
+find "$BACKUP_DIR" -name ".DS_Store" -type f -delete
 
-echo "✅ Backup complete. All repositories have been updated and copied to the backup directory."
+echo "✅ Backup complete: $BACKUP_DIR"
