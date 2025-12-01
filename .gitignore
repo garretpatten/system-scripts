@@ -16,6 +16,9 @@ Projects-Backup_*.zip
 ehthumbs.db
 Thumbs.db
 
+# Node
+node_modules/
+
 # Temporary files
 *.tmp
 *.temp
