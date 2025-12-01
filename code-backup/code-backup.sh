@@ -7,10 +7,15 @@ set -euo pipefail
 
 # Configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECTS_DIR="$HOME/Projects"
 readonly LOG_DIR="$SCRIPT_DIR/logs"
 readonly LOG_FILE="$LOG_DIR/code-backup-$(date +%Y%m%d-%H%M%S).log"
 readonly ERROR_LOG="$LOG_DIR/errors-$(date +%Y%m%d-%H%M%S).log"
+
+# Backup directory will be created with date format
+readonly BACKUP_DATE=$(date +%m-%d-%y)
+readonly BACKUP_DIR_NAME="Code-Backup_${BACKUP_DATE}"
+readonly BACKUP_DIR="$HOME/$BACKUP_DIR_NAME"
+readonly PROJECTS_DIR="$BACKUP_DIR"
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -120,27 +125,31 @@ get_github_username() {
 
 # Create necessary directories
 setup_directories() {
-    echo "Setting up directories..."
+    log_info "Setting up directories..."
 
-    # Create Projects directory
-    if [ ! -d "$PROJECTS_DIR" ]; then
-        echo "Creating Projects directory: $PROJECTS_DIR"
-        mkdir -p "$PROJECTS_DIR" || {
-            echo "Error: Failed to create Projects directory"
-            exit 1
+    # Create backup directory (dated)
+    if [ -d "$BACKUP_DIR" ]; then
+        log_warning "Backup directory already exists: $BACKUP_DIR"
+        log_info "Removing existing backup directory..."
+        rm -rf "$BACKUP_DIR" || {
+            error_exit "Failed to remove existing backup directory"
         }
     fi
+
+    log_info "Creating backup directory: $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR" || {
+        error_exit "Failed to create backup directory"
+    }
 
     # Create log directory
     if [ ! -d "$LOG_DIR" ]; then
-        echo "Creating log directory: $LOG_DIR"
+        log_info "Creating log directory: $LOG_DIR"
         mkdir -p "$LOG_DIR" || {
-            echo "Error: Failed to create log directory"
-            exit 1
+            error_exit "Failed to create log directory"
         }
     fi
 
-    echo "Directories set up successfully"
+    log_success "Directories set up successfully"
 }
 
 # Get all GitHub repositories
@@ -151,16 +160,35 @@ get_github_repos() {
     local per_page=100
     local all_repos=()
 
+    # Check for GitHub token for private repos
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        log_info "Using GitHub token for authentication" >&2
+    fi
+
     while true; do
         log_info "Fetching page $page..." >&2
 
-        # Use the user-specific endpoint instead of /user/repos
-        local url="https://api.github.com/users/$GITHUB_USERNAME/repos?page=$page&per_page=$per_page&type=all&sort=updated"
-        local response
-        local repos
+        # Use /user/repos endpoint for authenticated access to private repos
+        # Fall back to /users/$GITHUB_USERNAME/repos if no token
+        local url
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
+            url="https://api.github.com/user/repos?page=$page&per_page=$per_page&type=all&sort=updated"
+        else
+            url="https://api.github.com/users/$GITHUB_USERNAME/repos?page=$page&per_page=$per_page&type=all&sort=updated"
+        fi
 
-        if ! response=$(curl -s "$url" 2>/dev/null); then
-            error_exit "Failed to fetch repositories from GitHub API"
+        local response
+        local repos_json
+
+        # Make API call with authentication if token is available
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
+            if ! response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "$url" 2>/dev/null); then
+                error_exit "Failed to fetch repositories from GitHub API"
+            fi
+        else
+            if ! response=$(curl -s "$url" 2>/dev/null); then
+                error_exit "Failed to fetch repositories from GitHub API"
+            fi
         fi
 
         # Check if we got an error response
@@ -169,11 +197,12 @@ get_github_repos() {
             error_exit "GitHub API error: $error_msg"
         fi
 
-        if ! repos=$(echo "$response" | jq -r '.[].clone_url' 2>/dev/null); then
+        # Get repository data, filtering out archived repos
+        if ! repos_json=$(echo "$response" | jq -r '.[] | select(.archived == false) | .clone_url' 2>/dev/null); then
             error_exit "Failed to parse repository data from GitHub API"
         fi
 
-        if [ -z "$repos" ] || [ "$repos" = "null" ]; then
+        if [ -z "$repos_json" ] || [ "$repos_json" = "null" ]; then
             break
         fi
 
@@ -181,10 +210,10 @@ get_github_repos() {
             if [ -n "$repo_url" ] && [ "$repo_url" != "null" ]; then
                 all_repos+=("$repo_url")
             fi
-        done <<< "$repos"
+        done <<< "$repos_json"
 
         # Check if we got fewer repos than requested (last page)
-        local repo_count=$(echo "$repos" | wc -l)
+        local repo_count=$(echo "$repos_json" | grep -c . || echo "0")
         if [ "$repo_count" -lt "$per_page" ]; then
             break
         fi
@@ -193,7 +222,7 @@ get_github_repos() {
     done
 
     TOTAL_REPOS=${#all_repos[@]}
-    log_success "Found $TOTAL_REPOS repositories" >&2
+    log_success "Found $TOTAL_REPOS repositories (excluding archived)" >&2
 
     # Return the array to stdout only
     printf '%s\n' "${all_repos[@]}"
@@ -255,18 +284,20 @@ clone_repository() {
     local repo_url="$1"
     local repo_path="$2"
     local repo_name="$3"
+    local original_dir=$(pwd)
 
     if git clone "$repo_url" "$repo_path" 2>>"$ERROR_LOG"; then
         log_success "Successfully cloned: $repo_name"
         ((SUCCESSFUL_REPOS++))
 
         # Checkout default branch
-        cd "$repo_path" || return 1
-        local default_branch
-        if default_branch=$(get_default_branch "$repo_url" "$repo_name"); then
-            git checkout "$default_branch" 2>>"$ERROR_LOG" || log_warning "Could not checkout $default_branch for $repo_name"
+        if cd "$repo_path" 2>/dev/null; then
+            local default_branch
+            if default_branch=$(get_default_branch "$repo_url" "$repo_name" 2>/dev/null); then
+                git checkout "$default_branch" 2>>"$ERROR_LOG" || log_warning "Could not checkout $default_branch for $repo_name"
+            fi
+            cd "$original_dir" 2>/dev/null || true
         fi
-        cd - > /dev/null || return 1
     else
         log_error "Failed to clone: $repo_name"
         ((FAILED_REPOS++))
@@ -277,14 +308,19 @@ clone_repository() {
 update_repository() {
     local repo_path="$1"
     local repo_name="$2"
+    local original_dir=$(pwd)
 
-    cd "$repo_path" || return 1
+    if ! cd "$repo_path" 2>/dev/null; then
+        log_error "Failed to change to repository directory: $repo_name"
+        ((FAILED_REPOS++))
+        return 1
+    fi
 
     # Fetch latest changes
     if ! git fetch origin 2>>"$ERROR_LOG"; then
         log_error "Failed to fetch updates for: $repo_name"
         ((FAILED_REPOS++))
-        cd - > /dev/null || return 1
+        cd "$original_dir" 2>/dev/null || true
         return 1
     fi
 
@@ -294,10 +330,10 @@ update_repository() {
 
     # Get default branch
     local default_branch
-    if ! default_branch=$(get_default_branch "" "$repo_name"); then
+    if ! default_branch=$(get_default_branch "" "$repo_name" 2>/dev/null); then
         log_warning "Could not determine default branch for $repo_name, skipping"
         ((FAILED_REPOS++))
-        cd - > /dev/null || return 1
+        cd "$original_dir" 2>/dev/null || true
         return 1
     fi
 
@@ -307,7 +343,7 @@ update_repository() {
         if ! git checkout "$default_branch" 2>>"$ERROR_LOG"; then
             log_error "Failed to checkout $default_branch for $repo_name"
             ((FAILED_REPOS++))
-            cd - > /dev/null || return 1
+            cd "$original_dir" 2>/dev/null || true
             return 1
         fi
     fi
@@ -321,24 +357,27 @@ update_repository() {
         ((FAILED_REPOS++))
     fi
 
-    cd - > /dev/null || return 1
+    cd "$original_dir" 2>/dev/null || true
 }
 
 # Create backup zip file
 create_backup() {
     log_info "Creating backup zip file..."
 
-    local timestamp=$(date +%Y-%m-%d_%H-%M-%S)
-    local backup_name="Projects-Backup_${timestamp}.zip"
+    local backup_name="${BACKUP_DIR_NAME}.zip"
     local backup_path="$HOME/$backup_name"
 
-    # Change to Projects directory parent to maintain directory structure in zip
+    # Change to home directory to create zip
     local original_dir=$(pwd)
-    cd "$(dirname "$PROJECTS_DIR")" || error_exit "Failed to change to Projects parent directory"
+    cd "$HOME" || error_exit "Failed to change to home directory"
 
-    if zip -r "$backup_path" "$(basename "$PROJECTS_DIR")" -x "*.git/*" "*.DS_Store" "*.log" 2>>"$ERROR_LOG"; then
+    if zip -r "$backup_path" "$BACKUP_DIR_NAME" -x "*.git/*" "*.DS_Store" "*.log" 2>>"$ERROR_LOG"; then
         log_success "Backup created successfully: $backup_path"
         log_info "Backup size: $(du -h "$backup_path" | cut -f1)"
+
+        # Optionally remove the directory after zipping (uncomment if desired)
+        # log_info "Removing backup directory after zipping..."
+        # rm -rf "$BACKUP_DIR"
     else
         error_exit "Failed to create backup zip file"
     fi
@@ -361,22 +400,64 @@ main() {
 
     # Get all repositories
     local repos=()
+    local temp_file=$(mktemp)
+    # get_github_repos outputs logs to stderr and repos to stdout
+    get_github_repos > "$temp_file"
+
+    # Read repos from temp file
     while IFS= read -r repo_url; do
-        if [ -n "$repo_url" ] && [[ "$repo_url" =~ ^https://github\.com/ ]]; then
+        if [ -n "$repo_url" ] && [[ "$repo_url" =~ ^https:// ]]; then
             repos+=("$repo_url")
         fi
-    done < <(get_github_repos)
+    done < "$temp_file"
+    rm -f "$temp_file"
+
+    log_info "Loaded ${#repos[@]} repository URLs into array"
 
     if [ ${#repos[@]} -eq 0 ]; then
         log_warning "No repositories found"
         exit 0
     fi
 
+    # Debug: Show first few repos
+    if [ ${#repos[@]} -gt 0 ]; then
+        log_info "First repository URL: ${repos[0]}"
+    fi
+
     # Process each repository
-    log_info "Processing $TOTAL_REPOS repositories..."
-    for repo_url in "${repos[@]}"; do
-        process_repository "$repo_url"
+    local total_repos=${#repos[@]}
+    log_info "Starting to process $total_repos repositories..."
+    local repo_count=0
+
+    # Temporarily disable ALL strict error handling for the loop
+    set +e
+    set +u
+    set +o pipefail
+
+    local i=0
+    log_info "Entering repository processing loop (i=$i, total=$total_repos)..."
+    while [ $i -lt ${#repos[@]} ]; do
+        local repo_url="${repos[$i]}"
+        if [ -z "$repo_url" ]; then
+            log_warning "Skipping empty repository URL at index $i"
+            i=$((i + 1))
+            continue
+        fi
+        repo_count=$((repo_count + 1))
+        local repo_name=$(basename "$repo_url" .git 2>/dev/null || echo "unknown")
+        log_info "Processing repository $repo_count of ${#repos[@]}: $repo_name"
+        if ! process_repository "$repo_url"; then
+            log_warning "Repository processing failed for: $repo_name"
+        fi
+        i=$((i + 1))
     done
+
+    # Re-enable strict error handling
+    set -e
+    set -u
+    set -o pipefail
+
+    log_info "Finished processing loop. Processed $repo_count repositories."
 
     # Create backup
     create_backup
