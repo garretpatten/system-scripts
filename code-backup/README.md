@@ -103,7 +103,6 @@ chmod +x code-backup.sh
 ```
 
 3. The script will:
-
    - Check all dependencies
    - Create necessary directories
    - Fetch your GitHub username
