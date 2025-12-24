@@ -1,16 +1,27 @@
-#!/bin/bash
-
-# GitHub Projects Backup Script
-# Backs up all GitHub repositories for a user by cloning/updating them and creating a timestamped zip backup
+#!/usr/bin/env bash
+# GitHub Projects Local Backup Script
+# - Lists all non-archived GitHub repos you can access
+# - Clones/updates them locally
+# - Creates a timestamped zip backup
 
 set -euo pipefail
 
 # Configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECTS_DIR="$HOME/Projects"
+readonly PROJECTS_DIR="${PROJECTS_DIR:-$HOME/Projects}"
 readonly LOG_DIR="$SCRIPT_DIR/logs"
-readonly LOG_FILE="$LOG_DIR/code-backup-$(date +%Y%m%d-%H%M%S).log"
-readonly ERROR_LOG="$LOG_DIR/errors-$(date +%Y%m%d-%H%M%S).log"
+readonly RUN_TS="$(date +%Y%m%d-%H%M%S)"
+readonly LOG_FILE="$LOG_DIR/code-backup-$RUN_TS.log"
+readonly ERROR_LOG="$LOG_DIR/errors-$RUN_TS.log"
+
+# Optional: GitHub token for private repos
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+
+# Optional: GitHub username (auto-detected if token provided)
+GITHUB_USERNAME="${GITHUB_USERNAME:-}"
+
+# Prefer SSH clone from GitHub? (requires your SSH keys set up for GitHub)
+USE_GITHUB_SSH="${USE_GITHUB_SSH:-false}"
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -20,7 +31,6 @@ readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 # Global variables
-GITHUB_USERNAME=""
 TOTAL_REPOS=0
 SUCCESSFUL_REPOS=0
 FAILED_REPOS=0
@@ -98,105 +108,105 @@ check_dependencies() {
 
 # Get GitHub username
 get_github_username() {
-    log_info "Getting GitHub username..."
-
-    # Try to get from git remote if available (most reliable)
-    GITHUB_USERNAME=$(git config --get remote.origin.url 2>/dev/null | sed -n 's/.*github\.com[:/]\([^/]*\).*/\1/p' || echo "")
-
-    if [ -z "$GITHUB_USERNAME" ]; then
-        # Try to get from GitHub API (requires authentication)
-        GITHUB_USERNAME=$(curl -s https://api.github.com/user 2>/dev/null | jq -r '.login' 2>/dev/null || echo "")
+    if [ -n "${GITHUB_USERNAME:-}" ]; then
+        log_success "Using GitHub username from env: $GITHUB_USERNAME"
+        return 0
     fi
 
-    if [ -z "$GITHUB_USERNAME" ] || [ "$GITHUB_USERNAME" = "null" ]; then
-        read -p "Please enter your GitHub username: " GITHUB_USERNAME
-        if [ -z "$GITHUB_USERNAME" ]; then
-            error_exit "GitHub username is required"
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        log_info "Detecting GitHub username via API (/user)..."
+        local resp
+        resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user 2>>"$ERROR_LOG" || true)"
+        local login
+        login="$(echo "$resp" | jq -r '.login // empty' 2>>"$ERROR_LOG" || true)"
+        if [ -n "$login" ] && [ "$login" != "null" ]; then
+            GITHUB_USERNAME="$login"
+            log_success "Detected GitHub username: $GITHUB_USERNAME"
+            return 0
         fi
+        log_warning "Could not detect GitHub username from token; will prompt."
     fi
 
+    read -r -p "Enter your GitHub username: " GITHUB_USERNAME
+    [ -n "$GITHUB_USERNAME" ] || error_exit "GitHub username is required"
     log_success "Using GitHub username: $GITHUB_USERNAME"
 }
 
 # Create necessary directories
 setup_directories() {
-    echo "Setting up directories..."
+    # Create log directory first (needed for logging)
+    mkdir -p "$LOG_DIR" || {
+        echo "Error: Failed to create log directory: $LOG_DIR" >&2
+        exit 1
+    }
 
     # Create Projects directory
     if [ ! -d "$PROJECTS_DIR" ]; then
-        echo "Creating Projects directory: $PROJECTS_DIR"
+        log_info "Creating Projects directory: $PROJECTS_DIR"
         mkdir -p "$PROJECTS_DIR" || {
-            echo "Error: Failed to create Projects directory"
+            log_error "Failed to create Projects directory: $PROJECTS_DIR"
             exit 1
         }
     fi
 
-    # Create log directory
-    if [ ! -d "$LOG_DIR" ]; then
-        echo "Creating log directory: $LOG_DIR"
-        mkdir -p "$LOG_DIR" || {
-            echo "Error: Failed to create log directory"
-            exit 1
-        }
-    fi
-
-    echo "Directories set up successfully"
+    log_success "Directories set up successfully"
 }
 
-# Get all GitHub repositories
+# Get all GitHub repositories (non-archived only)
+# Returns lines: "<clone_url>"
 get_github_repos() {
-    log_info "Fetching GitHub repositories for user: $GITHUB_USERNAME" >&2
+    log_info "Fetching GitHub repos (excluding archived) for: $GITHUB_USERNAME"
 
     local page=1
     local per_page=100
-    local all_repos=()
 
     while true; do
-        log_info "Fetching page $page..." >&2
+        local url
+        local resp
 
-        # Use the user-specific endpoint instead of /user/repos
-        local url="https://api.github.com/users/$GITHUB_USERNAME/repos?page=$page&per_page=$per_page&type=all&sort=updated"
-        local response
-        local repos
-
-        if ! response=$(curl -s "$url" 2>/dev/null); then
-            error_exit "Failed to fetch repositories from GitHub API"
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
+            # Authenticated: includes private repos you can access
+            url="https://api.github.com/user/repos?page=$page&per_page=$per_page&type=all&sort=updated"
+            resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" "$url" 2>>"$ERROR_LOG" || true)"
+        else
+            # Unauthenticated: only public repos
+            url="https://api.github.com/users/$GITHUB_USERNAME/repos?page=$page&per_page=$per_page&type=all&sort=updated"
+            resp="$(curl -sS "$url" 2>>"$ERROR_LOG" || true)"
         fi
 
-        # Check if we got an error response
-        if echo "$response" | jq -e '.message' >/dev/null 2>&1; then
-            local error_msg=$(echo "$response" | jq -r '.message')
-            error_exit "GitHub API error: $error_msg"
+        # Error?
+        if echo "$resp" | jq -e '.message? // empty' >/dev/null 2>&1; then
+            local msg; msg="$(echo "$resp" | jq -r '.message' 2>>"$ERROR_LOG" || echo "unknown")"
+            error_exit "GitHub API error: $msg"
         fi
 
-        if ! repos=$(echo "$response" | jq -r '.[].clone_url' 2>/dev/null); then
-            error_exit "Failed to parse repository data from GitHub API"
+        # Choose clone URL style
+        local jq_clone_field
+        if [ "$USE_GITHUB_SSH" = "true" ]; then
+            jq_clone_field='.ssh_url'
+        else
+            jq_clone_field='.clone_url'
         fi
 
-        if [ -z "$repos" ] || [ "$repos" = "null" ]; then
+        # Emit clone URLs, excluding archived
+        local lines
+        lines="$(echo "$resp" | jq -r --argjson _ 0 \
+            ".[] | select(.archived == false) | ${jq_clone_field}" 2>>"$ERROR_LOG" || true)"
+
+        [ -n "$lines" ] || break
+
+        # Print for caller
+        echo "$lines"
+
+        # Last page?
+        local count
+        count="$(echo "$lines" | wc -l | tr -d ' ')"
+        if [ "$count" -lt "$per_page" ]; then
             break
         fi
 
-        while IFS= read -r repo_url; do
-            if [ -n "$repo_url" ] && [ "$repo_url" != "null" ]; then
-                all_repos+=("$repo_url")
-            fi
-        done <<< "$repos"
-
-        # Check if we got fewer repos than requested (last page)
-        local repo_count=$(echo "$repos" | wc -l)
-        if [ "$repo_count" -lt "$per_page" ]; then
-            break
-        fi
-
-        ((page++))
+        page=$((page + 1))
     done
-
-    TOTAL_REPOS=${#all_repos[@]}
-    log_success "Found $TOTAL_REPOS repositories" >&2
-
-    # Return the array to stdout only
-    printf '%s\n' "${all_repos[@]}"
 }
 
 # Get default branch for a repository
@@ -256,7 +266,14 @@ clone_repository() {
     local repo_path="$2"
     local repo_name="$3"
 
-    if git clone "$repo_url" "$repo_path" 2>>"$ERROR_LOG"; then
+    # If using HTTPS and token exists, inject it (so private clones work non-interactively)
+    local effective_clone_url="$repo_url"
+    if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
+        # GitHub supports token auth via x-access-token username.
+        effective_clone_url="$(echo "$repo_url" | sed "s#https://#https://x-access-token:${GITHUB_TOKEN}@#")"
+    fi
+
+    if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
         log_success "Successfully cloned: $repo_name"
         ((SUCCESSFUL_REPOS++))
 
@@ -351,44 +368,49 @@ main() {
     # Setup directories first before any logging
     setup_directories
 
-    log_info "Starting GitHub Projects Backup Script"
+    log_info "Starting GitHub Projects Local Backup"
+    log_info "Projects directory: $PROJECTS_DIR"
     log_info "Log file: $LOG_FILE"
     log_info "Error log: $ERROR_LOG"
 
-    # Continue with other setup
     check_dependencies
     get_github_username
 
-    # Get all repositories
-    local repos=()
+    local total=0 ok=0 fail=0
+
+    # Stream repos line-by-line
     while IFS= read -r repo_url; do
-        if [ -n "$repo_url" ] && [[ "$repo_url" =~ ^https://github\.com/ ]]; then
-            repos+=("$repo_url")
+        [ -n "${repo_url:-}" ] || continue
+        total=$((total + 1))
+
+        if process_repository "$repo_url"; then
+            ok=$((ok + 1))
+        else
+            fail=$((fail + 1))
         fi
     done < <(get_github_repos)
 
-    if [ ${#repos[@]} -eq 0 ]; then
+    TOTAL_REPOS=$total
+    SUCCESSFUL_REPOS=$ok
+    FAILED_REPOS=$fail
+
+    if [ "$total" -eq 0 ]; then
         log_warning "No repositories found"
         exit 0
     fi
-
-    # Process each repository
-    log_info "Processing $TOTAL_REPOS repositories..."
-    for repo_url in "${repos[@]}"; do
-        process_repository "$repo_url"
-    done
 
     # Create backup
     create_backup
 
     # Summary
     log_success "Backup process completed!"
-    log_info "Total repositories: $TOTAL_REPOS"
-    log_info "Successful: $SUCCESSFUL_REPOS"
-    log_info "Failed: $FAILED_REPOS"
+    log_info "Total repositories: $total"
+    log_info "Successful: $ok"
+    log_info "Failed: $fail"
 
-    if [ $FAILED_REPOS -gt 0 ]; then
+    if [ "$fail" -gt 0 ]; then
         log_warning "Some repositories failed to process. Check error log: $ERROR_LOG"
+        exit 1
     fi
 }
 
