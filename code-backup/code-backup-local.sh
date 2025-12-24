@@ -8,7 +8,6 @@ set -euo pipefail
 
 # Configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECTS_DIR="${PROJECTS_DIR:-$HOME/Projects}"
 readonly LOG_DIR="$SCRIPT_DIR/logs"
 readonly RUN_TS="$(date +%Y%m%d-%H%M%S)"
 readonly LOG_FILE="$LOG_DIR/code-backup-$RUN_TS.log"
@@ -409,10 +408,7 @@ main() {
         else
             fail=$((fail + 1))
         fi
-    done < "$temp_file"
-    rm -f "$temp_file"
-
-    log_info "Loaded ${#repos[@]} repository URLs into array"
+    done < <(get_github_repos)
 
     TOTAL_REPOS=$total
     SUCCESSFUL_REPOS=$ok

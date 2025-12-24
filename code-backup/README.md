@@ -17,6 +17,7 @@ Both scripts require:
 - `jq` (for JSON parsing)
 
 The local backup script also requires:
+
 - `zip` (for creating backup archives)
 
 ### Installing Dependencies
@@ -65,6 +66,7 @@ export GITHUB_TOKEN="your_token_here"
 ```
 
 To create a token:
+
 1. Go to GitHub Settings → Developer settings → Personal access tokens
 2. Generate a new token with `repo` scope for full repository access
 
@@ -168,14 +170,17 @@ export GITHUB_TOKEN="your_github_token"
 Both scripts create detailed logs in the `logs/` directory:
 
 **Local Backup:**
+
 - `code-backup-YYYYMMDD-HHMMSS.log` - General execution log
 - `errors-YYYYMMDD-HHMMSS.log` - Error-specific log
 
 **GitLab Mirror:**
+
 - `gh-gl-backup-YYYYMMDD-HHMMSS.log` - General execution log
 - `gh-gl-errors-YYYYMMDD-HHMMSS.log` - Error-specific log
 
 Logs include:
+
 - Timestamped entries
 - Color-coded output levels (INFO, SUCCESS, WARNING, ERROR)
 - Detailed error messages
@@ -267,12 +272,14 @@ Both scripts only process **non-archived** repositories. Archived repositories a
 ### SSH vs HTTPS
 
 Both scripts support both SSH and HTTPS for GitHub operations:
+
 - Set `USE_GITHUB_SSH="true"` to use SSH (requires SSH keys configured)
 - Default is HTTPS with token authentication
 
 ### GitLab Project Creation
 
 The GitLab mirror script can automatically create GitLab projects if they don't exist:
+
 - Set `AUTO_CREATE_GITLAB_PROJECTS="true"` (default)
 - New projects will be created with visibility set by `GITLAB_VISIBILITY` (default: `private`)
 
