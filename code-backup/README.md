@@ -1,22 +1,24 @@
-# GitHub Projects Backup Script
+# GitHub Projects Backup Scripts
 
-This script automatically backs up all of your GitHub repositories (both public and private) by:
+This directory contains two scripts for backing up your GitHub repositories:
 
-- Fetching all repositories from your GitHub account using the GitHub API
-- Creating a `~/Projects` directory if it doesn't exist
-- Cloning new repositories or updating existing ones to their latest default branch
-- Creating a timestamped zip backup of all projects: `~/Projects-Backup_YYYY-MM-DD_HH-MM-SS.zip`
+1. **`code-backup-local.sh`** - Creates a local, zipped directory of all your non-archived projects
+2. **`code-backup-gitlab.sh`** - Mirrors all non-archived public and private projects to similarly named GitLab projects
 
 ---
 
 ## 🛠 Requirements
 
+Both scripts require:
+
 - Bash shell (version 4.0+)
 - `git` CLI
-- `curl` (for GitHub API calls)
+- `curl` (for GitHub/GitLab API calls)
 - `jq` (for JSON parsing)
+
+The local backup script also requires:
+
 - `zip` (for creating backup archives)
-- GitHub account with API access
 
 ### Installing Dependencies
 
@@ -41,104 +43,141 @@ sudo yum install git curl jq zip
 
 ---
 
-## 🔐 GitHub Authentication
+## 📦 Script 1: Local Backup (`code-backup-local.sh`)
 
-The script will attempt to automatically detect your GitHub username from:
+Creates a local, zipped directory of all your non-archived GitHub repositories.
 
-1. Git global configuration (`git config --global user.name`)
-2. GitHub API (if authenticated)
-3. Manual input prompt
+### Features
 
-For private repositories, you'll need to authenticate with GitHub. You can either:
+- Fetches all non-archived repositories from your GitHub account
+- Creates a `~/Projects` directory (or custom via `PROJECTS_DIR` env var)
+- Clones new repositories or updates existing ones to their latest default branch
+- Creates a timestamped zip backup: `~/Projects-Backup_YYYY-MM-DD_HH-MM-SS.zip`
+- Excludes `.git` directories and system files from the zip archive
 
-- Use a Personal Access Token (recommended)
-- Set up SSH keys for Git operations
+### 🔐 Authentication
 
-### Using a Personal Access Token
+The script supports both public and private repositories:
+
+**For private repositories**, set a GitHub Personal Access Token:
+
+```bash
+export GITHUB_TOKEN="your_token_here"
+```
+
+To create a token:
 
 1. Go to GitHub Settings → Developer settings → Personal access tokens
 2. Generate a new token with `repo` scope for full repository access
-3. Set the token as an environment variable:
 
-   ```bash
-   export GITHUB_TOKEN="your_token_here"
-   ```
-
----
-
-## 📦 Directory Structure
-
-**Before running:**
-
-```text
-~/Projects/ (created if doesn't exist)
-```
-
-**After running:**
-
-```text
-~/Projects/
-├── repo-a/
-├── repo-b/
-├── private-repo/
-└── …
-
-~/Projects-Backup_2025-01-15_14-30-25.zip
-```
-
----
-
-## 🚀 Usage
-
-1. Make the script executable:
+**Optional environment variables:**
 
 ```bash
-chmod +x code-backup.sh
+export GITHUB_USERNAME="your-username"  # Auto-detected if token provided
+export PROJECTS_DIR="$HOME/MyProjects"  # Default: ~/Projects
+export USE_GITHUB_SSH="true"            # Use SSH instead of HTTPS (default: false)
 ```
 
-2. Run the script:
+### Usage
 
 ```bash
-./code-backup.sh
+chmod +x code-backup-local.sh
+./code-backup-local.sh
 ```
 
-3. The script will:
-   - Check all dependencies
-   - Create necessary directories
-   - Fetch your GitHub username
-   - Download/update all repositories
-   - Create a timestamped backup zip file
+### Output
+
+- **Local repositories**: `~/Projects/` (or `$PROJECTS_DIR`)
+- **Backup archive**: `~/Projects-Backup_YYYY-MM-DD_HH-MM-SS.zip`
+- **Logs**: `logs/code-backup-YYYYMMDD-HHMMSS.log`
+- **Errors**: `logs/errors-YYYYMMDD-HHMMSS.log`
 
 ---
 
-## 📊 Features
+## 📦 Script 2: GitLab Mirror (`code-backup-gitlab.sh`)
 
-### ✅ What it does:
+Mirrors all non-archived public and private GitHub repositories to similarly named GitLab projects.
 
-- **Automatic Discovery**: Uses GitHub API to find all your repositories
-- **Smart Updates**: Clones new repos, updates existing ones
-- **Default Branch Detection**: Automatically detects and checks out the correct default branch
-- **Comprehensive Logging**: Detailed logs with timestamps and error tracking
-- **Error Handling**: Robust error handling with detailed error reporting
-- **Progress Tracking**: Shows progress and summary statistics
-- **Clean Backups**: Excludes `.git` directories and system files from backups
+### Features
 
-### 🔧 Advanced Features:
+- Lists all non-archived GitHub repos you can access
+- Creates/updates a local mirror clone (bare repo) for each
+- Ensures a same-named GitLab project exists under your namespace
+- Pushes a full mirror to GitLab (all branches, tags, and refs)
+- Automatically creates GitLab projects if they don't exist (optional)
 
-- **Pagination Support**: Handles users with many repositories
-- **Branch Management**: Automatically switches to default branch before updating
-- **Log Management**: Separate log files for general output and errors
-- **Dependency Checking**: Validates all required tools before starting
-- **Cleanup**: Automatic cleanup of temporary files
+### 🔐 Authentication
+
+**Required environment variables:**
+
+```bash
+export GITLAB_TOKEN="your_gitlab_pat"           # GitLab.com Personal Access Token
+export GITLAB_NAMESPACE="your-username"         # Your GitLab username or group
+```
+
+**Optional environment variables:**
+
+```bash
+export GITHUB_TOKEN="your_github_token"         # For private GitHub repos
+export GITHUB_USERNAME="your-username"          # Auto-detected if token provided
+export USE_GITHUB_SSH="true"                    # Use SSH for GitHub (default: false)
+export AUTO_CREATE_GITLAB_PROJECTS="true"       # Auto-create missing projects (default: true)
+export GITLAB_VISIBILITY="private"              # Visibility for new projects: private/internal/public (default: private)
+export GITLAB_HOST="https://gitlab.com"         # GitLab instance URL (default: gitlab.com)
+export BACKUP_ROOT="$HOME/GitHub-GitLab-Backup" # Where to store local mirrors
+```
+
+### Creating GitLab Token
+
+1. Go to GitLab.com → Settings → Access Tokens
+2. Create a token with `api` scope (and `write_repository` if needed)
+3. Set it as `GITLAB_TOKEN` environment variable
+
+### Usage
+
+```bash
+chmod +x code-backup-gitlab.sh
+
+# Set required environment variables
+export GITLAB_TOKEN="your_token"
+export GITLAB_NAMESPACE="your-username"
+
+# Optional: for private GitHub repos
+export GITHUB_TOKEN="your_github_token"
+
+./code-backup-gitlab.sh
+```
+
+### How It Works
+
+1. Fetches all non-archived repositories from GitHub
+2. For each repository:
+   - Creates/updates a local bare mirror clone
+   - Checks if a GitLab project exists (creates it if `AUTO_CREATE_GITLAB_PROJECTS=true`)
+   - Pushes all branches, tags, and refs to GitLab as a mirror
+3. Assumes GitHub and GitLab usernames are the same, and projects have the same name
+
+### Output
+
+- **Local mirrors**: `$BACKUP_ROOT/mirrors-YYYYMMDD-HHMMSS/` (bare repos)
+- **Logs**: `logs/gh-gl-backup-YYYYMMDD-HHMMSS.log`
+- **Errors**: `logs/gh-gl-errors-YYYYMMDD-HHMMSS.log`
 
 ---
 
 ## 📝 Logging
 
-The script creates detailed logs in the `logs/` directory:
+Both scripts create detailed logs in the `logs/` directory:
+
+**Local Backup:**
 
 - `code-backup-YYYYMMDD-HHMMSS.log` - General execution log
 - `errors-YYYYMMDD-HHMMSS.log` - Error-specific log
+
+**GitLab Mirror:**
+
+- `gh-gl-backup-YYYYMMDD-HHMMSS.log` - General execution log
+- `gh-gl-errors-YYYYMMDD-HHMMSS.log` - Error-specific log
 
 Logs include:
 
@@ -150,20 +189,9 @@ Logs include:
 
 ---
 
-## ⚙️ Configuration
-
-You can customize the script by modifying these variables at the top:
-
-```bash
-readonly PROJECTS_DIR="$HOME/Projects"  # Where to store repositories
-readonly LOG_DIR="$SCRIPT_DIR/logs"     # Where to store logs
-```
-
----
-
 ## 🚨 Troubleshooting
 
-### Common Issues:
+### Common Issues
 
 1. **"Missing required dependencies"**
    - Install missing tools using the commands above
@@ -171,7 +199,7 @@ readonly LOG_DIR="$SCRIPT_DIR/logs"     # Where to store logs
 2. **"Failed to fetch repositories from GitHub API"**
    - Check your internet connection
    - Verify GitHub API access
-   - Consider using a Personal Access Token
+   - For private repos, ensure `GITHUB_TOKEN` is set correctly
 
 3. **"Could not determine default branch"**
    - Repository might be empty or have no branches
@@ -179,37 +207,95 @@ readonly LOG_DIR="$SCRIPT_DIR/logs"     # Where to store logs
 
 4. **"Failed to clone/update repository"**
    - Check repository permissions
-   - Verify SSH keys or authentication
+   - Verify SSH keys or authentication tokens
    - Check error log for specific details
 
-### Getting Help:
+5. **GitLab: "Could not find GitLab namespace"**
+   - Verify `GITLAB_NAMESPACE` is set correctly
+   - Ensure your GitLab token has proper permissions
+   - Check that the namespace exists (username or group)
 
-Check the error log file for detailed error messages:
+6. **GitLab: "Failed to push mirror"**
+   - Verify `GITLAB_TOKEN` has `write_repository` scope
+   - Check that the GitLab project exists or auto-create is enabled
+   - Review error log for specific GitLab API errors
+
+### Getting Help
+
+Check the error log files for detailed error messages:
 
 ```bash
+# Local backup errors
 cat logs/errors-*.log
+
+# GitLab mirror errors
+cat logs/gh-gl-errors-*.log
 ```
 
 ---
 
 ## 🔄 Automation
 
-To run this script automatically, you can set up a cron job:
+To run these scripts automatically, you can set up cron jobs:
 
 ```bash
 # Edit crontab
 crontab -e
 
-# Add entry to run daily at 2 AM
-0 2 * * * /path/to/code-backup.sh
+# Run local backup daily at 2 AM
+0 2 * * * /path/to/code-backup-local.sh
+
+# Run GitLab mirror weekly on Sundays at 3 AM
+0 3 * * 0 /path/to/code-backup-gitlab.sh
+```
+
+**Note:** When using cron, make sure to set environment variables in your crontab or in a script that sources them:
+
+```bash
+# In crontab
+0 2 * * * source ~/.bashrc && /path/to/code-backup-gitlab.sh
 ```
 
 ---
 
-## 📂 Related
+## 📂 Notes
+
+### Repository Filtering
+
+Both scripts only process **non-archived** repositories. Archived repositories are automatically excluded.
+
+### Private Repositories
+
+- **Local backup**: Requires `GITHUB_TOKEN` to access private repos
+- **GitLab mirror**: Requires both `GITHUB_TOKEN` (for GitHub) and `GITLAB_TOKEN` (for GitLab)
+
+### SSH vs HTTPS
+
+Both scripts support both SSH and HTTPS for GitHub operations:
+
+- Set `USE_GITHUB_SSH="true"` to use SSH (requires SSH keys configured)
+- Default is HTTPS with token authentication
+
+### GitLab Project Creation
+
+The GitLab mirror script can automatically create GitLab projects if they don't exist:
+
+- Set `AUTO_CREATE_GITLAB_PROJECTS="true"` (default)
+- New projects will be created with visibility set by `GITLAB_VISIBILITY` (default: `private`)
+
+### Submodules
 
 For repositories with submodules, ensure they're properly initialized:
 
 ```bash
 git submodule update --init --recursive
 ```
+
+---
+
+## 🔗 Related
+
+- [GitHub API Documentation](https://docs.github.com/en/rest)
+- [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
+- [Git Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+- [GitLab Personal Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
