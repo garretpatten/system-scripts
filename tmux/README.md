@@ -97,6 +97,7 @@ This directory contains enhanced tmux session management scripts that follow bas
 ### Customization
 
 You can customize the scripts by modifying:
+
 - Session names in the configuration section
 - Window layouts and commands
 - Status bar appearance
@@ -105,6 +106,7 @@ You can customize the scripts by modifying:
 ### Logging
 
 All scripts log their activities to:
+
 - `~/.tmux-session-main.log` (main session)
 - `~/.tmux-session-dev.log` (dev session)
 - `~/.tmux-session-manager.log` (session manager)
