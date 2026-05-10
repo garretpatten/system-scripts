@@ -20,7 +20,7 @@ show_usage() {
 Usage: $0 [OPTIONS] [SESSION_TYPE]
 
 Session Types:
-    main    - General purpose session with system monitoring
+    main    - btop, home (~ + neo), projects (~/Projects + lls)
     dev     - Development-focused session with project tools
     list    - List all active sessions
     kill    - Kill specified session
@@ -41,47 +41,28 @@ Examples:
 EOF
 }
 
-# Create main session
+# Create main session (aligned with setup-main.sh)
 create_main_session() {
     local session_name="${MAIN_SESSION}"
     log "${session_name}" "Creating main session: ${session_name}"
 
-    create_tmux_session "${session_name}"
+    if ! tmux new-session -d -s "${session_name}" -c "${HOME}" -n 'btop'; then
+        error_exit "Failed to create tmux session: ${session_name}"
+    fi
+
     configure_session_options "${session_name}" "green"
 
-    # Window 0: Home/Overview
-    create_window "${session_name}" "home" 0 "${HOME}" \
-        "clear" \
-        'echo "Welcome to Main Session!"' \
-        'echo "Available commands: htop, nvtop, neofetch"' \
-        "pwd"
+    tmux send-keys -t "${session_name}:btop" 'btop' C-m
 
-    # Window 1: Documentation
-    create_window "${session_name}" "docs" 1 "${HOME}/Projects/documentation" \
-        "clear" \
-        'echo "Documentation workspace"' \
-        "ls -la"
+    tmux new-window -t "${session_name}" -n 'home' -c "${HOME}"
+    prime_user_shell_env "${session_name}:home"
+    tmux send-keys -t "${session_name}:home" 'neo' C-m
 
-    # Window 2: Projects
-    create_window "${session_name}" "projects" 2 "${HOME}/Projects" \
-        "clear" \
-        'echo "Projects workspace"' \
-        "ls -la"
+    tmux new-window -t "${session_name}" -n 'projects' -c "${HOME}/Projects"
+    prime_user_shell_env "${session_name}:projects"
+    tmux send-keys -t "${session_name}:projects" 'lls' C-m
 
-    # Window 3: System monitoring
-    create_window "${session_name}" "monitor" 3 "" \
-        "clear" \
-        'echo "System monitoring - press Ctrl+C to exit htop"' \
-        "htop"
-
-    # Window 4: Development tools
-    create_window "${session_name}" "tools" 4 "" \
-        "clear" \
-        'echo "Development tools workspace"' \
-        'echo "Available: git, docker, kubectl, etc."' \
-        "pwd"
-
-    log "${session_name}" "Main session created successfully with 5 windows"
+    log "${session_name}" "Main session created (windows: btop, home, projects)"
 }
 
 # Create development session
@@ -170,7 +151,7 @@ handle_session() {
                 error_exit "Unknown session type: ${session_type}"
                 ;;
         esac
-        tmux select-window -t "${session_name}:0"
+        tmux select-window -t "${session_name}:home"
         attach_to_session "${session_name}"
     fi
 }

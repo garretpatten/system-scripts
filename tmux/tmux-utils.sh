@@ -11,9 +11,11 @@ readonly BLUE='\033[0;34m'
 readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
-# Logging function
+# Logging function — first argument is session key for ~/.tmux-session-<key>.log
 log() {
-    local log_file="${HOME}/.tmux-session-${1:-general}.log"
+    local session_key="${1:-general}"
+    shift
+    local log_file="${HOME}/.tmux-session-${session_key}.log"
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $*" | tee -a "${log_file}"
 }
 
@@ -50,13 +52,30 @@ configure_session_options() {
     local session_name="$1"
     local status_color="${2:-green}"
 
-    tmux set-option -t "${session_name}" -g status on
-    tmux set-option -t "${session_name}" -g status-interval 1
-    tmux set-option -t "${session_name}" -g status-left-length 20
-    tmux set-option -t "${session_name}" -g status-right-length 50
-    tmux set-option -t "${session_name}" -g status-left "#[fg=${status_color}]#S #[fg=white]| "
-    tmux set-option -t "${session_name}" -g status-right '#[fg=yellow]%Y-%m-%d %H:%M:%S'
-    tmux set-option -t "${session_name}" -g default-terminal "screen-256color"
+    # Per-session options only (-g here would set global defaults for all sessions)
+    tmux set-option -t "${session_name}" status on
+    tmux set-option -t "${session_name}" status-interval 1
+    tmux set-option -t "${session_name}" status-left-length 20
+    tmux set-option -t "${session_name}" status-right-length 50
+    tmux set-option -t "${session_name}" status-left "#[fg=${status_color}]#S #[fg=white]| "
+    tmux set-option -t "${session_name}" status-right '#[fg=yellow]%Y-%m-%d %H:%M:%S'
+    tmux set-option -t "${session_name}" default-terminal "screen-256color"
+}
+
+# Best-effort: source usual interactive rc so aliases (e.g. neo, lls) exist before send-keys commands.
+prime_user_shell_env() {
+    local target="$1"
+    local shell_base="${SHELL##*/}"
+    case "${shell_base}" in
+        zsh)
+            [[ -f "${HOME}/.zshrc" ]] &&
+                tmux send-keys -t "${target}" "source \"${HOME}/.zshrc\" 2>/dev/null || true" C-m
+            ;;
+        bash)
+            [[ -f "${HOME}/.bashrc" ]] &&
+                tmux send-keys -t "${target}" "source \"${HOME}/.bashrc\" 2>/dev/null || true" C-m
+            ;;
+    esac
 }
 
 # Send keys to a tmux window

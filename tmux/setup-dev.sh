@@ -42,14 +42,14 @@ create_session() {
         error_exit "Failed to create tmux session: ${SESSION_NAME}"
     fi
 
-    # Configure session options for development
-    tmux set-option -t "${SESSION_NAME}" -g status on
-    tmux set-option -t "${SESSION_NAME}" -g status-interval 1
-    tmux set-option -t "${SESSION_NAME}" -g status-left-length 20
-    tmux set-option -t "${SESSION_NAME}" -g status-right-length 50
-    tmux set-option -t "${SESSION_NAME}" -g status-left '#[fg=cyan]#S #[fg=white]| '
-    tmux set-option -t "${SESSION_NAME}" -g status-right '#[fg=yellow]%Y-%m-%d %H:%M:%S'
-    tmux set-option -t "${SESSION_NAME}" -g default-terminal "screen-256color"
+    # Configure session options for development (no -g: options apply only to this session)
+    tmux set-option -t "${SESSION_NAME}" status on
+    tmux set-option -t "${SESSION_NAME}" status-interval 1
+    tmux set-option -t "${SESSION_NAME}" status-left-length 20
+    tmux set-option -t "${SESSION_NAME}" status-right-length 50
+    tmux set-option -t "${SESSION_NAME}" status-left '#[fg=cyan]#S #[fg=white]| '
+    tmux set-option -t "${SESSION_NAME}" status-right '#[fg=yellow]%Y-%m-%d %H:%M:%S'
+    tmux set-option -t "${SESSION_NAME}" default-terminal "screen-256color"
 
     # Window 0: Development Home
     tmux rename-window -t "${SESSION_NAME}:0" 'dev-home'
