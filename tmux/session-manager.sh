@@ -21,7 +21,7 @@ Usage: $0 [OPTIONS] [SESSION_TYPE]
 
 Session Types:
     main    - btop, home (~ + neo), projects (~/Projects + lls)
-    dev     - Development-focused session with project tools
+    dev     - main layout plus git window (~/Projects)
     list    - List all active sessions
     kill    - Kill specified session
     killall - Kill all sessions
@@ -65,70 +65,31 @@ create_main_session() {
     log "${session_name}" "Main session created (windows: btop, home, projects)"
 }
 
-# Create development session
+# Create development session (aligned with setup-dev.sh)
 create_dev_session() {
     local session_name="${DEV_SESSION}"
     log "${session_name}" "Creating development session: ${session_name}"
 
-    create_tmux_session "${session_name}"
+    if ! tmux new-session -d -s "${session_name}" -c "${HOME}" -n 'btop'; then
+        error_exit "Failed to create tmux session: ${session_name}"
+    fi
+
     configure_session_options "${session_name}" "cyan"
 
-    # Window 0: Development Home
-    create_window "${session_name}" "dev-home" 0 "" \
-        "clear" \
-        'echo "Development Session Ready!"' \
-        'echo "Quick commands: git status, docker ps, kubectl get pods"' \
-        "pwd"
+    tmux send-keys -t "${session_name}:btop" 'btop' C-m
 
-    # Window 1: Active Project (with split panes)
-    create_window "${session_name}" "project" 1 "${HOME}/Projects" \
-        "clear" \
-        'echo "Active project workspace"' \
-        "ls -la"
+    tmux new-window -t "${session_name}" -n 'home' -c "${HOME}"
+    prime_user_shell_env "${session_name}:home"
+    tmux send-keys -t "${session_name}:home" 'neo' C-m
 
-    # Split the project window horizontally
-    split_window_horizontal "${session_name}" 1 \
-        'echo "Right pane - logs, monitoring, etc."' \
-        "pwd"
+    tmux new-window -t "${session_name}" -n 'projects' -c "${HOME}/Projects"
+    prime_user_shell_env "${session_name}:projects"
+    tmux send-keys -t "${session_name}:projects" 'lls' C-m
 
-    # Window 2: Git/Version Control
-    create_window "${session_name}" "git" 2 "" \
-        "clear" \
-        'echo "Git workspace - check status, branches, etc."' \
-        "git status 2>/dev/null || echo 'Not in a git repository'"
+    tmux new-window -t "${session_name}" -n 'git' -c "${HOME}/Projects"
+    prime_user_shell_env "${session_name}:git"
 
-    # Window 3: Docker/Containers
-    create_window "${session_name}" "docker" 3 "" \
-        "clear" \
-        'echo "Docker workspace"' \
-        "docker ps 2>/dev/null || echo 'Docker not running or not installed'"
-
-    # Window 4: Testing/CI
-    create_window "${session_name}" "test" 4 "" \
-        "clear" \
-        'echo "Testing workspace"' \
-        'echo "Run tests, linting, etc. here"' \
-        "pwd"
-
-    # Window 5: Database/Backend
-    create_window "${session_name}" "db" 5 "" \
-        "clear" \
-        'echo "Database workspace"' \
-        'echo "Connect to databases, run queries, etc."' \
-        "pwd"
-
-    # Window 6: Logs/Monitoring
-    create_window "${session_name}" "logs" 6 "" \
-        "clear" \
-        'echo "Logs and monitoring"' \
-        'echo "Tail logs, monitor system, etc."' \
-        "pwd"
-
-    # Set up window layout for project window (1)
-    tmux select-window -t "${session_name}:1"
-    tmux select-pane -t "${session_name}:1.0"
-
-    log "${session_name}" "Development session created successfully with 7 windows"
+    log "${session_name}" "Development session created (windows: btop, home, projects, git)"
 }
 
 # Handle session creation or attachment
