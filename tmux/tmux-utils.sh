@@ -11,9 +11,11 @@ readonly BLUE='\033[0;34m'
 readonly CYAN='\033[0;36m'
 readonly NC='\033[0m' # No Color
 
-# Logging function
+# Logging function — first argument is session key for ~/.tmux-session-<key>.log
 log() {
-    local log_file="${HOME}/.tmux-session-${1:-general}.log"
+    local session_key="${1:-general}"
+    shift
+    local log_file="${HOME}/.tmux-session-${session_key}.log"
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $*" | tee -a "${log_file}"
 }
 
@@ -50,13 +52,61 @@ configure_session_options() {
     local session_name="$1"
     local status_color="${2:-green}"
 
-    tmux set-option -t "${session_name}" -g status on
-    tmux set-option -t "${session_name}" -g status-interval 1
-    tmux set-option -t "${session_name}" -g status-left-length 20
-    tmux set-option -t "${session_name}" -g status-right-length 50
-    tmux set-option -t "${session_name}" -g status-left "#[fg=${status_color}]#S #[fg=white]| "
-    tmux set-option -t "${session_name}" -g status-right '#[fg=yellow]%Y-%m-%d %H:%M:%S'
-    tmux set-option -t "${session_name}" -g default-terminal "screen-256color"
+    # Per-session options only (-g here would set global defaults for all sessions)
+    tmux set-option -t "${session_name}" status on
+    tmux set-option -t "${session_name}" status-interval 1
+    tmux set-option -t "${session_name}" status-left-length 20
+    tmux set-option -t "${session_name}" status-right-length 50
+    tmux set-option -t "${session_name}" status-left "#[fg=${status_color}]#S #[fg=white]| "
+    tmux set-option -t "${session_name}" status-right '#[fg=yellow]%Y-%m-%d %H:%M:%S'
+    tmux set-option -t "${session_name}" default-terminal "screen-256color"
+}
+
+# Source interactive shell config (themes, aliases) in a tmux pane.
+source_user_runtime_config() {
+    local target="$1"
+    local shell_base="${SHELL##*/}"
+    local rc_file=""
+
+    case "${shell_base}" in
+        zsh) rc_file="${HOME}/.zshrc" ;;
+        bash) rc_file="${HOME}/.bashrc" ;;
+        *) return 0 ;;
+    esac
+
+    [[ -f "${rc_file}" ]] &&
+        tmux send-keys -t "${target}" "source \"${rc_file}\"" C-m
+}
+
+# Shared main layout: btop (0), home (1), projects (2).
+create_main_session_windows() {
+    local session_name="$1"
+
+    prepare_tmux_pane "${session_name}:btop" "${HOME}" 'btop'
+
+    tmux new-window -t "${session_name}" -n 'home' -c "${HOME}"
+    prepare_tmux_pane "${session_name}:home" "${HOME}" 'clear' 'neo'
+
+    tmux new-window -t "${session_name}" -n 'projects' -c "${HOME}/Projects"
+    prepare_tmux_pane "${session_name}:projects" "${HOME}/Projects" 'clear' 'lls'
+}
+
+# Prime a pane: runtime config, explicit cwd, then startup commands (e.g. clear, neo).
+prepare_tmux_pane() {
+    local target="$1"
+    local working_dir="$2"
+    shift 2
+
+    sleep 0.15
+    source_user_runtime_config "${target}"
+
+    if [[ -n "${working_dir}" ]]; then
+        tmux send-keys -t "${target}" "cd \"${working_dir}\" || cd \"${HOME}\"" C-m
+    fi
+
+    for cmd in "$@"; do
+        tmux send-keys -t "${target}" "${cmd}" C-m
+    done
 }
 
 # Send keys to a tmux window
