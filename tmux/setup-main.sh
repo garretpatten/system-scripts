@@ -18,16 +18,7 @@ create_session() {
     fi
 
     configure_session_options "${SESSION_NAME}" "green"
-
-    tmux send-keys -t "${SESSION_NAME}:btop" 'btop' C-m
-
-    tmux new-window -t "${SESSION_NAME}" -n 'home' -c "${HOME}"
-    prime_user_shell_env "${SESSION_NAME}:home"
-    tmux send-keys -t "${SESSION_NAME}:home" 'neo' C-m
-
-    tmux new-window -t "${SESSION_NAME}" -n 'projects' -c "${HOME}/Projects"
-    prime_user_shell_env "${SESSION_NAME}:projects"
-    tmux send-keys -t "${SESSION_NAME}:projects" 'lls' C-m
+    create_main_session_windows "${SESSION_NAME}"
 
     log "${SESSION_NAME}" "Session ${SESSION_NAME} created (windows: btop, home, projects)"
 }

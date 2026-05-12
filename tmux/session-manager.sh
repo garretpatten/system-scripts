@@ -21,7 +21,7 @@ Usage: $0 [OPTIONS] [SESSION_TYPE]
 
 Session Types:
     main    - btop, home (~ + neo), projects (~/Projects + lls)
-    dev     - main layout plus git window (~/Projects)
+    dev     - btop, home (~ + neo), projects (~/Projects + lls), git (~/Projects)
     list    - List all active sessions
     kill    - Kill specified session
     killall - Kill all sessions
@@ -51,16 +51,7 @@ create_main_session() {
     fi
 
     configure_session_options "${session_name}" "green"
-
-    tmux send-keys -t "${session_name}:btop" 'btop' C-m
-
-    tmux new-window -t "${session_name}" -n 'home' -c "${HOME}"
-    prime_user_shell_env "${session_name}:home"
-    tmux send-keys -t "${session_name}:home" 'neo' C-m
-
-    tmux new-window -t "${session_name}" -n 'projects' -c "${HOME}/Projects"
-    prime_user_shell_env "${session_name}:projects"
-    tmux send-keys -t "${session_name}:projects" 'lls' C-m
+    create_main_session_windows "${session_name}"
 
     log "${session_name}" "Main session created (windows: btop, home, projects)"
 }
@@ -75,19 +66,10 @@ create_dev_session() {
     fi
 
     configure_session_options "${session_name}" "cyan"
-
-    tmux send-keys -t "${session_name}:btop" 'btop' C-m
-
-    tmux new-window -t "${session_name}" -n 'home' -c "${HOME}"
-    prime_user_shell_env "${session_name}:home"
-    tmux send-keys -t "${session_name}:home" 'neo' C-m
-
-    tmux new-window -t "${session_name}" -n 'projects' -c "${HOME}/Projects"
-    prime_user_shell_env "${session_name}:projects"
-    tmux send-keys -t "${session_name}:projects" 'lls' C-m
+    create_main_session_windows "${session_name}"
 
     tmux new-window -t "${session_name}" -n 'git' -c "${HOME}/Projects"
-    prime_user_shell_env "${session_name}:git"
+    prepare_tmux_pane "${session_name}:git" "${HOME}/Projects"
 
     log "${session_name}" "Development session created (windows: btop, home, projects, git)"
 }

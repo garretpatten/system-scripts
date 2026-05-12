@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Development tmux session — main layout plus git window at index 3 (~/Projects)
+# Development tmux session — main layout plus git (index 3, ~/Projects)
 
 set -euo pipefail
 
@@ -18,19 +18,10 @@ create_session() {
     fi
 
     configure_session_options "${SESSION_NAME}" "cyan"
-
-    tmux send-keys -t "${SESSION_NAME}:btop" 'btop' C-m
-
-    tmux new-window -t "${SESSION_NAME}" -n 'home' -c "${HOME}"
-    prime_user_shell_env "${SESSION_NAME}:home"
-    tmux send-keys -t "${SESSION_NAME}:home" 'neo' C-m
-
-    tmux new-window -t "${SESSION_NAME}" -n 'projects' -c "${HOME}/Projects"
-    prime_user_shell_env "${SESSION_NAME}:projects"
-    tmux send-keys -t "${SESSION_NAME}:projects" 'lls' C-m
+    create_main_session_windows "${SESSION_NAME}"
 
     tmux new-window -t "${SESSION_NAME}" -n 'git' -c "${HOME}/Projects"
-    prime_user_shell_env "${SESSION_NAME}:git"
+    prepare_tmux_pane "${SESSION_NAME}:git" "${HOME}/Projects"
 
     log "${SESSION_NAME}" "Session ${SESSION_NAME} created (windows: btop, home, projects, git)"
 }

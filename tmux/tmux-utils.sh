@@ -62,20 +62,51 @@ configure_session_options() {
     tmux set-option -t "${session_name}" default-terminal "screen-256color"
 }
 
-# Best-effort: source usual interactive rc so aliases (e.g. neo, lls) exist before send-keys commands.
-prime_user_shell_env() {
+# Source interactive shell config (themes, aliases) in a tmux pane.
+source_user_runtime_config() {
     local target="$1"
     local shell_base="${SHELL##*/}"
+    local rc_file=""
+
     case "${shell_base}" in
-        zsh)
-            [[ -f "${HOME}/.zshrc" ]] &&
-                tmux send-keys -t "${target}" "source \"${HOME}/.zshrc\" 2>/dev/null || true" C-m
-            ;;
-        bash)
-            [[ -f "${HOME}/.bashrc" ]] &&
-                tmux send-keys -t "${target}" "source \"${HOME}/.bashrc\" 2>/dev/null || true" C-m
-            ;;
+        zsh) rc_file="${HOME}/.zshrc" ;;
+        bash) rc_file="${HOME}/.bashrc" ;;
+        *) return 0 ;;
     esac
+
+    [[ -f "${rc_file}" ]] &&
+        tmux send-keys -t "${target}" "source \"${rc_file}\"" C-m
+}
+
+# Shared main layout: btop (0), home (1), projects (2).
+create_main_session_windows() {
+    local session_name="$1"
+
+    prepare_tmux_pane "${session_name}:btop" "${HOME}" 'btop'
+
+    tmux new-window -t "${session_name}" -n 'home' -c "${HOME}"
+    prepare_tmux_pane "${session_name}:home" "${HOME}" 'clear' 'neo'
+
+    tmux new-window -t "${session_name}" -n 'projects' -c "${HOME}/Projects"
+    prepare_tmux_pane "${session_name}:projects" "${HOME}/Projects" 'clear' 'lls'
+}
+
+# Prime a pane: runtime config, explicit cwd, then startup commands (e.g. clear, neo).
+prepare_tmux_pane() {
+    local target="$1"
+    local working_dir="$2"
+    shift 2
+
+    sleep 0.15
+    source_user_runtime_config "${target}"
+
+    if [[ -n "${working_dir}" ]]; then
+        tmux send-keys -t "${target}" "cd \"${working_dir}\" || cd \"${HOME}\"" C-m
+    fi
+
+    for cmd in "$@"; do
+        tmux send-keys -t "${target}" "${cmd}" C-m
+    done
 }
 
 # Send keys to a tmux window
