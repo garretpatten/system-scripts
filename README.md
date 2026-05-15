@@ -7,6 +7,7 @@ A collection of system administration and development workflow scripts for macOS
 ```text
 system-scripts/
 ├── code-backup/          # Repository backup and management
+├── git-scripts/          # Git repository utilities
 ├── tmux/                 # Enhanced tmux session management
 └── README.md            # This file
 ```
@@ -29,6 +30,19 @@ Comprehensive repository backup and management system with:
 - ✅ Comprehensive logging system
 - ✅ Error handling and recovery
 - ✅ Progress indicators and reporting
+
+### 🔧 Git Utilities (`git-scripts/`)
+
+Utilities for managing multiple git repositories:
+
+- `sync-all.sh` - Find all git repos in a path and update their default branch
+
+**Key Features:**
+
+- ✅ **Automatic Detection**: Identifies default branch (main/master/HEAD)
+- ✅ **Safe Updates**: Skips repositories with uncommitted changes
+- ✅ **Recursive Discovery**: Finds all git repos within a given path
+- ✅ **Clean Fetch**: Prunes deleted remote branches during fetch
 
 ### 🖥️ Tmux Session Management (`tmux/`)
 
@@ -64,6 +78,13 @@ Enhanced tmux session management following bash and tmux best practices:
 # Use comprehensive manager
 ./tmux/session-manager.sh main
 ./tmux/session-manager.sh dev
+```
+
+### Git Utilities
+
+```bash
+# Sync all repositories in a directory
+./git-scripts/sync-all.sh ~/Projects
 ```
 
 ### Code Backup

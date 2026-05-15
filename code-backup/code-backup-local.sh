@@ -219,40 +219,6 @@ get_github_repos() {
     done
 }
 
-# Get default branch for a repository
-get_default_branch() {
-    local repo_url="$1"
-    local repo_name="$2"
-
-    # Try to get default branch from remote
-    local default_branch
-    if default_branch=$(git remote show origin 2>/dev/null | awk '/HEAD branch/ {print $NF}' 2>/dev/null); then
-        if [ -n "$default_branch" ]; then
-            echo "$default_branch"
-            return 0
-        fi
-    fi
-
-    # Fallback: check common branch names
-    for branch in main master develop; do
-        if git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
-            echo "$branch"
-            return 0
-        fi
-    done
-
-    # Last resort: use the first available branch
-    local first_branch
-    first_branch=$(git branch -r --format='%(refname:short)' | head -1 | sed 's/origin\///')
-    if [ -n "$first_branch" ]; then
-        echo "$first_branch"
-        return 0
-    fi
-
-    log_warning "Could not determine default branch for $repo_name"
-    return 1
-}
-
 # Clone or update repository
 process_repository() {
     local repo_url="$1"
@@ -290,9 +256,14 @@ clone_repository() {
 
         # Checkout default branch
         if cd "$repo_path" 2>/dev/null; then
-            local default_branch
-            if default_branch=$(get_default_branch "$repo_url" "$repo_name" 2>/dev/null); then
-                git checkout "$default_branch" 2>>"$ERROR_LOG" || log_warning "Could not checkout $default_branch for $repo_name"
+            local sync_script="$SCRIPT_DIR/../git-scripts/sync-all.sh"
+            if [[ -f "$sync_script" ]]; then
+                # shellcheck source=../git-scripts/sync-all.sh
+                source "$sync_script"
+                local default_branch
+                if default_branch=$(get_default_branch 2>/dev/null); then
+                    git checkout "$default_branch" 2>>"$ERROR_LOG" || log_warning "Could not checkout $default_branch for $repo_name"
+                fi
             fi
             cd "$original_dir" 2>/dev/null || true
         fi
@@ -306,56 +277,97 @@ clone_repository() {
 update_repository() {
     local repo_path="$1"
     local repo_name="$2"
-    local original_dir=$(pwd)
-
-    if ! cd "$repo_path" 2>/dev/null; then
-        log_error "Failed to change to repository directory: $repo_name"
-        ((FAILED_REPOS++))
-        return 1
-    fi
-
-    # Fetch latest changes
-    if ! git fetch origin 2>>"$ERROR_LOG"; then
-        log_error "Failed to fetch updates for: $repo_name"
-        ((FAILED_REPOS++))
-        cd "$original_dir" 2>/dev/null || true
-        return 1
-    fi
-
-    # Get current branch
-    local current_branch
-    current_branch=$(git branch --show-current 2>/dev/null || echo "")
-
-    # Get default branch
-    local default_branch
-    if ! default_branch=$(get_default_branch "" "$repo_name" 2>/dev/null); then
-        log_warning "Could not determine default branch for $repo_name, skipping"
-        ((FAILED_REPOS++))
-        cd "$original_dir" 2>/dev/null || true
-        return 1
-    fi
-
-    # Switch to default branch if not already on it
-    if [ "$current_branch" != "$default_branch" ]; then
-        log_info "Switching to default branch: $default_branch"
-        if ! git checkout "$default_branch" 2>>"$ERROR_LOG"; then
-            log_error "Failed to checkout $default_branch for $repo_name"
+    
+    # Use shared sync script for updating
+    local sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
+    if [[ -f "$sync_script" ]]; then
+        # Source the script to use sync_repo function directly
+        # shellcheck source=../git-scripts/sync-all.sh
+        source "$sync_script"
+        
+        local sync_output
+        # Call sync_repo and capture its stdout/stderr
+        sync_output=$(sync_repo "$repo_path" 2>&1 || true)
+        
+        # Process the captured output for logging
+        echo "$sync_output" | while IFS= read -r line; do
+            if [[ "$line" =~ ^--- Processing:.* ]]; then
+                log_info "$(echo "$line" | sed 's/--- Processing: //; s/ ---//')"
+            elif [[ "$line" =~ ^INFO:.* ]]; then
+                log_info "$(echo "$line" | sed 's/INFO: //')"
+            elif [[ "$line" =~ ^SUCCESS:.* ]]; then
+                log_success "$(echo "$line" | sed 's/SUCCESS: //')"
+            elif [[ "$line" =~ ^WARNING:.* ]]; then
+                log_warning "$(echo "$line" | sed 's/WARNING: //')"
+            elif [[ "$line" =~ ^ERROR:.* ]]; then
+                log_error "$(echo "$line" | sed 's/ERROR: //')"
+            else
+                log_info "$line" # Log any other output as info
+            fi
+        done
+        
+        # Check sync_repo's actual exit status to increment counters
+        # This assumes sync_repo's last printed line indicates success/failure or a warning.
+        # If sync_repo returns 0, it means the repo was processed without fatal errors
+        # (could still be skipped due to uncommitted changes, which is not a failure).
+        # A more robust check might involve parsing the output for specific success/failure messages.
+        if [[ "$sync_output" =~ "SUCCESS: Updated" ]]; then
+            ((SUCCESSFUL_REPOS++))
+            return 0
+        elif [[ "$sync_output" =~ "WARNING: Repository has uncommitted changes" ]]; then
+            log_warning "Repository was skipped due to uncommitted changes."
+            return 0 # Not a failure for the backup script's purpose
+        else
             ((FAILED_REPOS++))
-            cd "$original_dir" 2>/dev/null || true
             return 1
         fi
-    fi
-
-    # Pull latest changes
-    if git pull origin "$default_branch" 2>>"$ERROR_LOG"; then
-        log_success "Successfully updated: $repo_name"
-        ((SUCCESSFUL_REPOS++))
     else
-        log_error "Failed to pull updates for: $repo_name"
+        log_error "Sync script not found at $sync_script"
         ((FAILED_REPOS++))
+        return 1
+    fi
+}
+
+# Clone a new repository
+clone_repository() {
+    local repo_url="$1"
+    local repo_path="$2"
+    local repo_name="$3"
+    local original_dir=$(pwd)
+    local sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
+
+    # If using HTTPS and token exists, inject it (so private clones work non-interactively)
+    local effective_clone_url="$repo_url"
+    if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
+        # GitHub supports token auth via x-access-token username.
+        effective_clone_url="$(echo "$repo_url" | sed "s#https://#https://x-access-token:${GITHUB_TOKEN}@#")"
     fi
 
-    cd "$original_dir" 2>/dev/null || true
+    if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
+        log_success "Successfully cloned: $repo_name"
+        ((SUCCESSFUL_REPOS++))
+
+        # Checkout default branch using get_default_branch from sync-all.sh
+        if cd "$repo_path" 2>/dev/null; then
+            if [[ -f "$sync_script" ]]; then
+                # shellcheck source=../git-scripts/sync-all.sh
+                source "$sync_script"
+                local default_branch
+                if default_branch=$(get_default_branch 2>/dev/null); then
+                    log_info "Checking out default branch: $default_branch"
+                    git checkout "$default_branch" 2>>"$ERROR_LOG" || log_warning "Could not checkout $default_branch for $repo_name"
+                else
+                    log_warning "Could not determine default branch for $repo_name. Staying on current branch."
+                fi
+            fi
+            cd "$original_dir" 2>/dev/null || true
+        fi
+
+    else
+        log_error "Sync script not found at $sync_script"
+        ((FAILED_REPOS++))
+        return 1
+    fi
 }
 
 # Create backup zip file
