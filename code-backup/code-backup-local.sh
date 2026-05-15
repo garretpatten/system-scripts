@@ -7,9 +7,11 @@
 set -euo pipefail
 
 # Configuration
-readonly SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+readonly SCRIPT_DIR
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly LOG_DIR="$SCRIPT_DIR/logs"
-readonly RUN_TS=$( date +%Y%m%d-%H%M%S )
+readonly RUN_TS
+RUN_TS=$(date +%Y%m%d-%H%M%S)
 readonly LOG_FILE="$LOG_DIR/code-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/errors-$RUN_TS.log"
 
@@ -23,7 +25,8 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 USE_GITHUB_SSH="${USE_GITHUB_SSH:-false}"
 
 # Backup directory will be created with date format
-local BACKUP_DATE
+readonly BACKUP_DATE
+BACKUP_DATE=$(date +%m-%d-%y)
 readonly BACKUP_DIR_NAME="Code-Backup_${BACKUP_DATE}"
 readonly BACKUP_DIR="$HOME/$BACKUP_DIR_NAME"
 readonly PROJECTS_DIR="$BACKUP_DIR"
@@ -36,7 +39,6 @@ readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 # Global variables
-TOTAL_REPOS=0
 SUCCESSFUL_REPOS=0
 FAILED_REPOS=0
 
@@ -45,7 +47,8 @@ log() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${timestamp} [${level}] ${message}" | tee -a "$LOG_FILE"
 }
 
@@ -62,7 +65,8 @@ log_warning() {
 }
 
 log_error() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     log "ERROR" "${RED}$*${NC}"
     echo -e "${timestamp} [ERROR] $*" >> "$ERROR_LOG"
 }
@@ -76,7 +80,6 @@ error_exit() {
 # Cleanup function
 cleanup() {
     log_info "Cleaning up temporary files..."
-    # Add any cleanup logic here if needed
 }
 
 # Set up trap for cleanup on exit
@@ -139,13 +142,11 @@ get_github_username() {
 
 # Create necessary directories
 setup_directories() {
-    # Create log directory first (needed for logging)
     mkdir -p "$LOG_DIR" || {
         echo "Error: Failed to create log directory: $LOG_DIR" >&2
         exit 1
     }
 
-    # Create Projects directory
     if [ ! -d "$PROJECTS_DIR" ]; then
         log_info "Creating Projects directory: $PROJECTS_DIR"
         mkdir -p "$PROJECTS_DIR" || {
@@ -158,39 +159,30 @@ setup_directories() {
 }
 
 # Get all GitHub repositories (non-archived only)
-# Returns lines: "<clone_url>"
 get_github_repos() {
     log_info "Fetching GitHub repos (excluding archived) for: $GITHUB_USERNAME"
 
     local page=1
     local per_page=100
 
-    # Check for GitHub token for private repos
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
-        log_info "Using GitHub token for authentication" >&2
-    fi
-
     while true; do
         local url
         local resp
 
         if [ -n "${GITHUB_TOKEN:-}" ]; then
-            # Authenticated: includes private repos you can access
             url="https://api.github.com/user/repos?page=$page&per_page=$per_page&type=all&sort=updated"
             resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" "$url" 2>>"$ERROR_LOG" || true)"
         else
-            # Unauthenticated: only public repos
             url="https://api.github.com/users/$GITHUB_USERNAME/repos?page=$page&per_page=$per_page&type=all&sort=updated"
             resp="$(curl -sS "$url" 2>>"$ERROR_LOG" || true)"
         fi
 
-        # Error?
         if echo "$resp" | jq -e '.message? // empty' >/dev/null 2>&1; then
-            local msg; msg="$(echo "$resp" | jq -r '.message' 2>>"$ERROR_LOG" || echo "unknown")"
+            local msg
+            msg="$(echo "$resp" | jq -r '.message' 2>>"$ERROR_LOG" || echo "unknown")"
             error_exit "GitHub API error: $msg"
         fi
 
-        # Choose clone URL style
         local jq_clone_field
         if [ "$USE_GITHUB_SSH" = "true" ]; then
             jq_clone_field='.ssh_url'
@@ -198,17 +190,11 @@ get_github_repos() {
             jq_clone_field='.clone_url'
         fi
 
-        # Emit clone URLs, excluding archived
         local lines
-        lines="$(echo "$resp" | jq -r --argjson _ 0 \
-            ".[] | select(.archived == false) | ${jq_clone_field}" 2>>"$ERROR_LOG" || true)"
+        lines="$(echo "$resp" | jq -r --argjson _ 0 ".[] | select(.archived == false) | ${jq_clone_field}" 2>>"$ERROR_LOG" || true)"
 
         [ -n "$lines" ] || break
 
-        # Print for caller
-        echo "$lines"
-
-        # Last page?
         local count
         count="$(echo "$lines" | wc -l | tr -d ' ')"
         if [ "$count" -lt "$per_page" ]; then
@@ -219,92 +205,42 @@ get_github_repos() {
     done
 }
 
-# Clone or update repository
-process_repository() {
-    local repo_url="$1"
-    local repo_name
-    local repo_path="$PROJECTS_DIR/$repo_name"
-
-    log_info "Processing repository: $repo_name"
-
-    if [ -d "$repo_path" ]; then
-        log_info "Repository exists, updating: $repo_name"
-        update_repository "$repo_path" "$repo_name"
-    else
-        log_info "Cloning new repository: $repo_name"
-        clone_repository "$repo_url" "$repo_path" "$repo_name"
-    fi
-}
-
-# The clone_repository function is currently unused and has been commented out.
-
-    if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
-        log_success "Successfully cloned: $repo_name"
-        ((SUCCESSFUL_REPOS++))
-
-        # Checkout default branch
-        if cd "$repo_path" 2>/dev/null; then
-            local sync_script="$SCRIPT_DIR/../git-scripts/sync-all.sh"
-            if [[ -f "$sync_script" ]]; then
-                # shellcheck source=../git-scripts/sync-all.sh
-                source "$sync_script"
-                local default_branch
-                if default_branch=$(get_default_branch 2>/dev/null); then
-                    git checkout "$default_branch" 2>>"$ERROR_LOG" || log_warning "Could not checkout $default_branch for $repo_name"
-                fi
-            fi
-            cd "$original_dir" 2>/dev/null || true
-        fi
-    else
-        log_error "Failed to clone: $repo_name"
-        ((FAILED_REPOS++))
-    fi
-}
-
-# Update an existing repository
+# Update an existing repository using the shared sync script
 update_repository() {
     local repo_path="$1"
     local repo_name="$2"
+    local sync_script
+    sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
     
-    # Use shared sync script for updating
-    local sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
     if [[ -f "$sync_script" ]]; then
-        # Source the script to use sync_repo function directly
         # shellcheck source=../git-scripts/sync-all.sh
         source "$sync_script"
         
         local sync_output
-        # Call sync_repo and capture its stdout/stderr
         sync_output=$(sync_repo "$repo_path" 2>&1 || true)
         
-        # Process the captured output for logging
         echo "$sync_output" | while IFS= read -r line; do
             if [[ "$line" =~ ^---[[:space:]]Processing:.* ]]; then
                 log_info "$(echo "$line" | sed 's/--- Processing: //; s/ ---//')"
             elif [[ "$line" =~ ^INFO:.* ]]; then
-        log_info "$(echo "$line" | sed 's/INFO: //')"
+                log_info "${line#INFO: }"
             elif [[ "$line" =~ ^SUCCESS:.* ]]; then
-                log_success "$(echo "$line" | sed 's/SUCCESS: //')"
+                log_success "${line#SUCCESS: }"
             elif [[ "$line" =~ ^WARNING:.* ]]; then
-                log_warning "$(echo "$line" | sed 's/WARNING: //')"
+                log_warning "${line#WARNING: }"
             elif [[ "$line" =~ ^ERROR:.* ]]; then
-                log_error "$(echo "$line" | sed 's/ERROR: //')"
+                log_error "${line#ERROR: }"
             else
-                log_info "$line" # Log any other output as info
+                log_info "$line"
             fi
         done
         
-        # Check sync_repo's actual exit status to increment counters
-        # This assumes sync_repo's last printed line indicates success/failure or a warning.
-        # If sync_repo returns 0, it means the repo was processed without fatal errors
-        # (could still be skipped due to uncommitted changes, which is not a failure).
-        # A more robust check might involve parsing the output for specific success/failure messages.
         if [[ "$sync_output" =~ "SUCCESS: Updated" ]]; then
             ((SUCCESSFUL_REPOS++))
             return 0
         elif [[ "$sync_output" =~ "WARNING: Repository has uncommitted changes" ]]; then
             log_warning "Repository was skipped due to uncommitted changes."
-            return 0 # Not a failure for the backup script's purpose
+            return 0
         else
             ((FAILED_REPOS++))
             return 1
@@ -321,21 +257,20 @@ clone_repository() {
     local repo_url="$1"
     local repo_path="$2"
     local repo_name="$3"
-    local original_dir=$(pwd)
-    local sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
-
-    # If using HTTPS and token exists, inject it (so private clones work non-interactively)
+    local original_dir
+    original_dir=$(pwd)
+    local sync_script
+    sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
+    
     local effective_clone_url="$repo_url"
     if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
-        # GitHub supports token auth via x-access-token username.
-        effective_clone_url="$(echo "$repo_url" | sed "s#https://#https://x-access-token:${GITHUB_TOKEN}@#")"
+        effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@\/}"
     fi
 
     if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
         log_success "Successfully cloned: $repo_name"
         ((SUCCESSFUL_REPOS++))
 
-        # Checkout default branch using get_default_branch from sync-all.sh
         if cd "$repo_path" 2>/dev/null; then
             if [[ -f "$sync_script" ]]; then
                 # shellcheck source=../git-scripts/sync-all.sh
@@ -350,11 +285,27 @@ clone_repository() {
             fi
             cd "$original_dir" 2>/dev/null || true
         fi
-
     else
-        log_error "Sync script not found at $sync_script"
+        log_error "Failed to clone: $repo_name"
         ((FAILED_REPOS++))
-        return 1
+    fi
+}
+
+# Process each repository
+process_repository() {
+    local repo_url="$1"
+    local repo_name
+    repo_name=$(basename "$repo_url" .git)
+    local repo_path="$PROJECTS_DIR/$repo_name"
+
+    log_info "Processing repository: $repo_name"
+
+    if [ -d "$repo_path" ]; then
+        log_info "Repository exists, updating: $repo_name"
+        update_repository "$repo_path" "$repo_name"
+    else
+        log_info "Cloning new repository: $repo_name"
+        clone_repository "$repo_url" "$repo_path" "$repo_name"
     fi
 }
 
@@ -365,17 +316,13 @@ create_backup() {
     local backup_name="${BACKUP_DIR_NAME}.zip"
     local backup_path="$HOME/$backup_name"
 
-    # Change to home directory to create zip
-    local original_dir=$(pwd)
+    local original_dir
+    original_dir=$(pwd)
     cd "$HOME" || error_exit "Failed to change to home directory"
 
     if zip -r "$backup_path" "$BACKUP_DIR_NAME" -x "*.git/*" "*.DS_Store" "*.log" 2>>"$ERROR_LOG"; then
         log_success "Backup created successfully: $backup_path"
         log_info "Backup size: $(du -h "$backup_path" | cut -f1)"
-
-        # Optionally remove the directory after zipping (uncomment if desired)
-        # log_info "Removing backup directory after zipping..."
-        # rm -rf "$BACKUP_DIR"
     else
         error_exit "Failed to create backup zip file"
     fi
@@ -385,7 +332,6 @@ create_backup() {
 
 # Main function
 main() {
-    # Setup directories first before any logging
     setup_directories
 
     log_info "Starting GitHub Projects Local Backup"
@@ -398,7 +344,6 @@ main() {
 
     local total=0 ok=0 fail=0
 
-    # Stream repos line-by-line
     while IFS= read -r repo_url; do
         [ -n "${repo_url:-}" ] || continue
         total=$((total + 1))
@@ -410,19 +355,13 @@ main() {
         fi
     done < <(get_github_repos)
 
-    TOTAL_REPOS=$total
-    SUCCESSFUL_REPOS=$ok
-    FAILED_REPOS=$fail
-
     if [ "$total" -eq 0 ]; then
         log_warning "No repositories found"
         exit 0
     fi
 
-    # Create backup
     create_backup
 
-    # Summary
     log_success "Backup process completed!"
     log_info "Total repositories: $total"
     log_info "Successful: $ok"
@@ -434,5 +373,4 @@ main() {
     fi
 }
 
-# Run main function
 main "$@"

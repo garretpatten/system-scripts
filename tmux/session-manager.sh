@@ -101,7 +101,7 @@ handle_session() {
 
 # Main function
 main() {
-    local verbose=false
+# verbose=false
     local session_type=""
 
     # Parse arguments

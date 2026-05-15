@@ -67,28 +67,7 @@ Enhanced tmux session management following bash and tmux best practices:
 
 ## 🚀 Quick Start
 
-### Tmux Sessions
-
-```bash
-# Start main session (general purpose)
-./tmux/setup-main.sh
-
-# Start development session
-./tmux/setup-dev.sh
-
-# Use comprehensive manager
-./tmux/session-manager.sh main
-./tmux/session-manager.sh dev
-```
-
-### Git Utilities
-
-```bash
-# Sync all repositories in a directory
-./git-scripts/sync-all.sh ~/Projects
-```
-
-### Code Backup
+### Customizing Code Backup
 
 ```bash
 # Run backup for all repositories
@@ -134,9 +113,7 @@ All scripts include comprehensive logging:
 - Colored output for better visibility
 - Timestamped entries with context
 
-## 🔧 Customization
-
-### Tmux Sessions
+### Customizing Tmux Sessions
 
 - Modify window layouts in the respective setup scripts
 - Add custom commands and working directories

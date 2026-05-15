@@ -96,20 +96,14 @@ chmod +x code-backup-local.sh
 
 ---
 
-## 📦 Script 2: GitLab Mirror (`code-backup-gitlab.sh`)
-
-Mirrors all non-archived public and private GitHub repositories to
-similarly named GitLab projects.
-
-### Features
+### GitLab Mirror Features
 
 - Lists all non-archived GitHub repos you can access
 - Creates/updates a local mirror clone (bare repo) for each
 - Ensures a same-named GitLab project exists under your namespace
 - Pushes a full mirror to GitLab (all branches, tags, and refs)
-- Automatically creates GitLab projects if they don't exist (optional)
 
-### 🔐 Authentication
+### 🔐 GitLab Authentication
 
 **Required environment variables:**
 
@@ -124,7 +118,8 @@ export GITLAB_NAMESPACE="your-username"         # Your GitLab username or group
 export GITHUB_TOKEN="your_github_token"         # For private GitHub repos
 export GITHUB_USERNAME="your-username"          # Auto-detected if token provided
 export USE_GITHUB_SSH="true"                    # Use SSH for GitHub (default: false)
-export AUTO_CREATE_GITLAB_PROJECTS="true"       # Auto-create missing projects (default: true)
+export AUTO_CREATE_GITLAB_PROJECTS="true"       # Auto-create missing
+projects (default: true)
 export GITLAB_VISIBILITY="private"              # Visibility for new
 projects: private/internal/public (default: private)
 export GITLAB_HOST="https://gitlab.com"         # GitLab instance URL
@@ -133,13 +128,7 @@ export BACKUP_ROOT="$HOME/GitHub-GitLab-Backup" # Where to store local
 mirrors
 ```
 
-### Creating GitLab Token
-
-1. Go to GitLab.com → Settings → Access Tokens
-2. Create a token with `api` scope (and `write_repository` if needed)
-3. Set it as `GITLAB_TOKEN` environment variable
-
-### Usage
+### GitLab Usage
 
 ```bash
 chmod +x code-backup-gitlab.sh
@@ -161,10 +150,8 @@ export GITHUB_TOKEN="your_github_token"
    - Creates/updates a local bare mirror clone
    - Checks if a GitLab project exists (creates it if `AUTO_CREATE_GITLAB_PROJECTS=true`)
    - Pushes all branches, tags, and refs to GitLab as a mirror
-3. Assumes GitHub and GitLab usernames are the same, and projects have the
-same name
 
-### Output
+### GitLab Output
 
 - **Local mirrors**: `$BACKUP_ROOT/mirrors-YYYYMMDD-HHMMSS/` (bare repos)
 - **Logs**: `logs/gh-gl-backup-YYYYMMDD-HHMMSS.log`
