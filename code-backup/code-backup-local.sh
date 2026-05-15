@@ -7,11 +7,11 @@
 set -euo pipefail
 
 # Configuration
-readonly SCRIPT_DIR
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+readonly SCRIPT_DIR
 readonly LOG_DIR="$SCRIPT_DIR/logs"
-readonly RUN_TS
 RUN_TS=$(date +%Y%m%d-%H%M%S)
+readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/code-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/errors-$RUN_TS.log"
 
@@ -25,8 +25,8 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 USE_GITHUB_SSH="${USE_GITHUB_SSH:-false}"
 
 # Backup directory will be created with date format
-readonly BACKUP_DATE
 BACKUP_DATE=$(date +%m-%d-%y)
+readonly BACKUP_DATE
 readonly BACKUP_DIR_NAME="Code-Backup_${BACKUP_DATE}"
 readonly BACKUP_DIR="$HOME/$BACKUP_DIR_NAME"
 readonly PROJECTS_DIR="$BACKUP_DIR"
