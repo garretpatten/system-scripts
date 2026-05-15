@@ -10,11 +10,13 @@ set -euo pipefail
 # ----------------------------
 # Configuration
 # ----------------------------
-readonly SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+readonly SCRIPT_DIR
 readonly LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-readonly RUN_TS=$( date +%Y%m%d-%H%M%S )
+RUN_TS=$( date +%Y%m%d-%H%M%S )
+readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/gh-gl-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/gh-gl-errors-$RUN_TS.log"
 
