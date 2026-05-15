@@ -65,7 +65,7 @@ log() {
   local level="$1"; shift
   local msg="$*"
   local ts; ts="$(date '+%Y-%m-%d %H:%M:%S')"
-  echo -e "${ts} [${level}] ${msg}" | tee -a "$LOG_FILE"
+  echo -e "${ts} [${level}] ${msg}" | tee -a "$LOG_FILE" >&2
 }
 
 log_info()    { log "INFO"    "${BLUE}$*${NC}"; }
@@ -279,7 +279,7 @@ process_repo() {
   local effective_clone_url="$clone_url"
   if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
     # GitHub supports token auth via x-access-token username.
-    effective_clone_url="${clone_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@\/}"
+    effective_clone_url="${clone_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@}"
   fi
 
   # Clone/update local mirror

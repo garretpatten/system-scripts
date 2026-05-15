@@ -49,7 +49,7 @@ log() {
     local message="$*"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "${timestamp} [${level}] ${message}" | tee -a "$LOG_FILE"
+    echo -e "${timestamp} [${level}] ${message}" | tee -a "$LOG_FILE" >&2
 }
 
 log_info() {
@@ -197,6 +197,7 @@ get_github_repos() {
 
         local count
         count="$(echo "$lines" | wc -l | tr -d ' ')"
+        echo "$lines"
         if [ "$count" -lt "$per_page" ]; then
             break
         fi
@@ -264,7 +265,7 @@ clone_repository() {
     
     local effective_clone_url="$repo_url"
     if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
-        effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@\/}"
+        effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@}"
     fi
 
     if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
@@ -285,9 +286,11 @@ clone_repository() {
             fi
             cd "$original_dir" 2>/dev/null || true
         fi
+        return 0
     else
         log_error "Failed to clone: $repo_name"
         ((FAILED_REPOS++))
+        return 1
     fi
 }
 
