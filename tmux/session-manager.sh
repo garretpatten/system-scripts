@@ -7,6 +7,7 @@ set -euo pipefail
 
 # Source utility functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090,SC1091
 source "${SCRIPT_DIR}/tmux-utils.sh"
 
 # Configuration

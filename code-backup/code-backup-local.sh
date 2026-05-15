@@ -213,7 +213,7 @@ update_repository() {
     sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
     
     if [[ -f "$sync_script" ]]; then
-        # shellcheck source=../git-scripts/sync-all.sh
+        # shellcheck disable=SC1090,SC1091
         source "$sync_script"
         
         local sync_output
@@ -273,7 +273,7 @@ clone_repository() {
 
         if cd "$repo_path" 2>/dev/null; then
             if [[ -f "$sync_script" ]]; then
-                # shellcheck source=../git-scripts/sync-all.sh
+                # shellcheck disable=SC1090,SC1091
                 source "$sync_script"
                 local default_branch
                 if default_branch=$(get_default_branch 2>/dev/null); then
