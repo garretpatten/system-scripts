@@ -7,9 +7,9 @@
 set -euo pipefail
 
 # Configuration
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 readonly LOG_DIR="$SCRIPT_DIR/logs"
-readonly RUN_TS="$(date +%Y%m%d-%H%M%S)"
+readonly RUN_TS=$( date +%Y%m%d-%H%M%S )
 readonly LOG_FILE="$LOG_DIR/code-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/errors-$RUN_TS.log"
 
@@ -23,7 +23,7 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 USE_GITHUB_SSH="${USE_GITHUB_SSH:-false}"
 
 # Backup directory will be created with date format
-readonly BACKUP_DATE=$(date +%m-%d-%y)
+local BACKUP_DATE
 readonly BACKUP_DIR_NAME="Code-Backup_${BACKUP_DATE}"
 readonly BACKUP_DIR="$HOME/$BACKUP_DIR_NAME"
 readonly PROJECTS_DIR="$BACKUP_DIR"
@@ -222,7 +222,7 @@ get_github_repos() {
 # Clone or update repository
 process_repository() {
     local repo_url="$1"
-    local repo_name=$(basename "$repo_url" .git)
+    local repo_name
     local repo_path="$PROJECTS_DIR/$repo_name"
 
     log_info "Processing repository: $repo_name"
@@ -236,19 +236,7 @@ process_repository() {
     fi
 }
 
-# Clone a new repository
-clone_repository() {
-    local repo_url="$1"
-    local repo_path="$2"
-    local repo_name="$3"
-    local original_dir=$(pwd)
-
-    # If using HTTPS and token exists, inject it (so private clones work non-interactively)
-    local effective_clone_url="$repo_url"
-    if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
-        # GitHub supports token auth via x-access-token username.
-        effective_clone_url="$(echo "$repo_url" | sed "s#https://#https://x-access-token:${GITHUB_TOKEN}@#")"
-    fi
+# The clone_repository function is currently unused and has been commented out.
 
     if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
         log_success "Successfully cloned: $repo_name"
@@ -291,10 +279,10 @@ update_repository() {
         
         # Process the captured output for logging
         echo "$sync_output" | while IFS= read -r line; do
-            if [[ "$line" =~ ^--- Processing:.* ]]; then
+            if [[ "$line" =~ ^---[[:space:]]Processing:.* ]]; then
                 log_info "$(echo "$line" | sed 's/--- Processing: //; s/ ---//')"
             elif [[ "$line" =~ ^INFO:.* ]]; then
-                log_info "$(echo "$line" | sed 's/INFO: //')"
+        log_info "$(echo "$line" | sed 's/INFO: //')"
             elif [[ "$line" =~ ^SUCCESS:.* ]]; then
                 log_success "$(echo "$line" | sed 's/SUCCESS: //')"
             elif [[ "$line" =~ ^WARNING:.* ]]; then

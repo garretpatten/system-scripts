@@ -12,7 +12,7 @@ source "${SCRIPT_DIR}/tmux-utils.sh"
 # Configuration
 readonly MAIN_SESSION='main'
 readonly DEV_SESSION='dev'
-readonly LOG_FILE="${HOME}/.tmux-session-manager.log"
+# readonly LOG_FILE
 
 # Usage function
 show_usage() {
@@ -112,7 +112,7 @@ main() {
                 exit 0
                 ;;
             -v|--verbose)
-                verbose=true
+                # verbose
                 shift
                 ;;
             main|dev|list|kill|killall|info)

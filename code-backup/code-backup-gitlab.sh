@@ -10,11 +10,11 @@ set -euo pipefail
 # ----------------------------
 # Configuration
 # ----------------------------
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 readonly LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-readonly RUN_TS="$(date +%Y%m%d-%H%M%S)"
+readonly RUN_TS=$( date +%Y%m%d-%H%M%S )
 readonly LOG_FILE="$LOG_DIR/gh-gl-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/gh-gl-errors-$RUN_TS.log"
 
@@ -277,7 +277,7 @@ process_repo() {
   local effective_clone_url="$clone_url"
   if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
     # GitHub supports token auth via x-access-token username.
-    effective_clone_url="$(echo "$clone_url" | sed "s#https://#https://x-access-token:${GITHUB_TOKEN}@#")"
+    effective_clone_url="$( echo "$clone_url" | sed "s#https://#https://x-access-token:${GITHUB_TOKEN}@#" )"
   fi
 
   # Clone/update local mirror

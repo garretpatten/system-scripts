@@ -1,6 +1,7 @@
 # Tmux Session Management Scripts
 
-This directory contains enhanced tmux session management scripts that follow bash and tmux best practices.
+This directory contains enhanced tmux session management scripts that
+follow bash and tmux best practices.
 
 ## Scripts Overview
 

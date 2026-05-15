@@ -1,6 +1,7 @@
 # System Scripts
 
-A collection of system administration and development workflow scripts for macOS/Linux environments.
+A collection of system administration and development workflow scripts for
+macOS/Linux environments.
 
 ## 📁 Project Structure
 
