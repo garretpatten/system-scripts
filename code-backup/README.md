@@ -3,9 +3,9 @@
 This directory contains two scripts for backing up your GitHub repositories:
 
 1. **`code-backup-local.sh`** - Creates a local, zipped directory of all your
-non-archived projects
+   non-archived projects
 2. **`code-backup-gitlab.sh`** - Mirrors all non-archived public and private
-projects to similarly named GitLab projects
+   projects to similarly named GitLab projects
 
 ---
 
@@ -264,7 +264,7 @@ repositories are automatically excluded.
 
 - **Local backup**: Requires `GITHUB_TOKEN` to access private repos
 - **GitLab mirror**: Requires both `GITHUB_TOKEN` (for GitHub) and
-`GITLAB_TOKEN` (for GitLab)
+  `GITLAB_TOKEN` (for GitLab)
 
 ### SSH vs HTTPS
 
@@ -280,7 +280,7 @@ don't exist:
 
 - Set `AUTO_CREATE_GITLAB_PROJECTS="true"` (default)
 - New projects will be created with visibility set by
-`GITLAB_VISIBILITY` (default: `private`)
+  `GITLAB_VISIBILITY` (default: `private`)
 
 ### Submodules
 
