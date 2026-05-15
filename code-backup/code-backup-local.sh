@@ -7,11 +7,11 @@
 set -euo pipefail
 
 # Configuration
-readonly SCRIPT_DIR
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+readonly SCRIPT_DIR
 readonly LOG_DIR="$SCRIPT_DIR/logs"
-readonly RUN_TS
 RUN_TS=$(date +%Y%m%d-%H%M%S)
+readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/code-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/errors-$RUN_TS.log"
 
@@ -25,8 +25,8 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 USE_GITHUB_SSH="${USE_GITHUB_SSH:-false}"
 
 # Backup directory will be created with date format
-readonly BACKUP_DATE
 BACKUP_DATE=$(date +%m-%d-%y)
+readonly BACKUP_DATE
 readonly BACKUP_DIR_NAME="Code-Backup_${BACKUP_DATE}"
 readonly BACKUP_DIR="$HOME/$BACKUP_DIR_NAME"
 readonly PROJECTS_DIR="$BACKUP_DIR"
@@ -49,7 +49,7 @@ log() {
     local message="$*"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "${timestamp} [${level}] ${message}" | tee -a "$LOG_FILE"
+    echo -e "${timestamp} [${level}] ${message}" | tee -a "$LOG_FILE" >&2
 }
 
 log_info() {
@@ -197,6 +197,7 @@ get_github_repos() {
 
         local count
         count="$(echo "$lines" | wc -l | tr -d ' ')"
+        echo "$lines"
         if [ "$count" -lt "$per_page" ]; then
             break
         fi
@@ -264,7 +265,7 @@ clone_repository() {
     
     local effective_clone_url="$repo_url"
     if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
-        effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@\/}"
+        effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@}"
     fi
 
     if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
@@ -285,9 +286,11 @@ clone_repository() {
             fi
             cd "$original_dir" 2>/dev/null || true
         fi
+        return 0
     else
         log_error "Failed to clone: $repo_name"
         ((FAILED_REPOS++))
+        return 1
     fi
 }
 
