@@ -2,8 +2,10 @@
 
 This directory contains two scripts for backing up your GitHub repositories:
 
-1. **`code-backup-local.sh`** - Creates a local, zipped directory of all your non-archived projects
-2. **`code-backup-gitlab.sh`** - Mirrors all non-archived public and private projects to similarly named GitLab projects
+1. **`code-backup-local.sh`** - Creates a local, zipped directory of all your
+   non-archived projects
+2. **`code-backup-gitlab.sh`** - Mirrors all non-archived public and private
+   projects to similarly named GitLab projects
 
 ---
 
@@ -94,19 +96,14 @@ chmod +x code-backup-local.sh
 
 ---
 
-## 📦 Script 2: GitLab Mirror (`code-backup-gitlab.sh`)
-
-Mirrors all non-archived public and private GitHub repositories to similarly named GitLab projects.
-
-### Features
+### GitLab Mirror Features
 
 - Lists all non-archived GitHub repos you can access
 - Creates/updates a local mirror clone (bare repo) for each
 - Ensures a same-named GitLab project exists under your namespace
 - Pushes a full mirror to GitLab (all branches, tags, and refs)
-- Automatically creates GitLab projects if they don't exist (optional)
 
-### 🔐 Authentication
+### 🔐 GitLab Authentication
 
 **Required environment variables:**
 
@@ -121,19 +118,17 @@ export GITLAB_NAMESPACE="your-username"         # Your GitLab username or group
 export GITHUB_TOKEN="your_github_token"         # For private GitHub repos
 export GITHUB_USERNAME="your-username"          # Auto-detected if token provided
 export USE_GITHUB_SSH="true"                    # Use SSH for GitHub (default: false)
-export AUTO_CREATE_GITLAB_PROJECTS="true"       # Auto-create missing projects (default: true)
-export GITLAB_VISIBILITY="private"              # Visibility for new projects: private/internal/public (default: private)
-export GITLAB_HOST="https://gitlab.com"         # GitLab instance URL (default: gitlab.com)
-export BACKUP_ROOT="$HOME/GitHub-GitLab-Backup" # Where to store local mirrors
+export AUTO_CREATE_GITLAB_PROJECTS="true"       # Auto-create missing
+projects (default: true)
+export GITLAB_VISIBILITY="private"              # Visibility for new
+projects: private/internal/public (default: private)
+export GITLAB_HOST="https://gitlab.com"         # GitLab instance URL
+(default: gitlab.com)
+export BACKUP_ROOT="$HOME/GitHub-GitLab-Backup" # Where to store local
+mirrors
 ```
 
-### Creating GitLab Token
-
-1. Go to GitLab.com → Settings → Access Tokens
-2. Create a token with `api` scope (and `write_repository` if needed)
-3. Set it as `GITLAB_TOKEN` environment variable
-
-### Usage
+### GitLab Usage
 
 ```bash
 chmod +x code-backup-gitlab.sh
@@ -155,9 +150,8 @@ export GITHUB_TOKEN="your_github_token"
    - Creates/updates a local bare mirror clone
    - Checks if a GitLab project exists (creates it if `AUTO_CREATE_GITLAB_PROJECTS=true`)
    - Pushes all branches, tags, and refs to GitLab as a mirror
-3. Assumes GitHub and GitLab usernames are the same, and projects have the same name
 
-### Output
+### GitLab Output
 
 - **Local mirrors**: `$BACKUP_ROOT/mirrors-YYYYMMDD-HHMMSS/` (bare repos)
 - **Logs**: `logs/gh-gl-backup-YYYYMMDD-HHMMSS.log`
@@ -249,7 +243,8 @@ crontab -e
 0 3 * * 0 /path/to/code-backup-gitlab.sh
 ```
 
-**Note:** When using cron, make sure to set environment variables in your crontab or in a script that sources them:
+**Note:** When using cron, make sure to set environment variables in your
+crontab or in a script that sources them:
 
 ```bash
 # In crontab
@@ -262,12 +257,14 @@ crontab -e
 
 ### Repository Filtering
 
-Both scripts only process **non-archived** repositories. Archived repositories are automatically excluded.
+Both scripts only process **non-archived** repositories. Archived
+repositories are automatically excluded.
 
 ### Private Repositories
 
 - **Local backup**: Requires `GITHUB_TOKEN` to access private repos
-- **GitLab mirror**: Requires both `GITHUB_TOKEN` (for GitHub) and `GITLAB_TOKEN` (for GitLab)
+- **GitLab mirror**: Requires both `GITHUB_TOKEN` (for GitHub) and
+  `GITLAB_TOKEN` (for GitLab)
 
 ### SSH vs HTTPS
 
@@ -278,10 +275,12 @@ Both scripts support both SSH and HTTPS for GitHub operations:
 
 ### GitLab Project Creation
 
-The GitLab mirror script can automatically create GitLab projects if they don't exist:
+The GitLab mirror script can automatically create GitLab projects if they
+don't exist:
 
 - Set `AUTO_CREATE_GITLAB_PROJECTS="true"` (default)
-- New projects will be created with visibility set by `GITLAB_VISIBILITY` (default: `private`)
+- New projects will be created with visibility set by
+  `GITLAB_VISIBILITY` (default: `private`)
 
 ### Submodules
 

@@ -1,12 +1,14 @@
 # System Scripts
 
-A collection of system administration and development workflow scripts for macOS/Linux environments.
+A collection of system administration and development workflow scripts for
+macOS/Linux environments.
 
 ## 📁 Project Structure
 
 ```text
 system-scripts/
 ├── code-backup/          # Repository backup and management
+├── git-scripts/          # Git repository utilities
 ├── tmux/                 # Enhanced tmux session management
 └── README.md            # This file
 ```
@@ -30,6 +32,19 @@ Comprehensive repository backup and management system with:
 - ✅ Error handling and recovery
 - ✅ Progress indicators and reporting
 
+### 🔧 Git Utilities (`git-scripts/`)
+
+Utilities for managing multiple git repositories:
+
+- `sync-all.sh` - Find all git repos in a path and update their default branch
+
+**Key Features:**
+
+- ✅ **Automatic Detection**: Identifies default branch (main/master/HEAD)
+- ✅ **Safe Updates**: Skips repositories with uncommitted changes
+- ✅ **Recursive Discovery**: Finds all git repos within a given path
+- ✅ **Clean Fetch**: Prunes deleted remote branches during fetch
+
 ### 🖥️ Tmux Session Management (`tmux/`)
 
 Enhanced tmux session management following bash and tmux best practices:
@@ -52,21 +67,7 @@ Enhanced tmux session management following bash and tmux best practices:
 
 ## 🚀 Quick Start
 
-### Tmux Sessions
-
-```bash
-# Start main session (general purpose)
-./tmux/setup-main.sh
-
-# Start development session
-./tmux/setup-dev.sh
-
-# Use comprehensive manager
-./tmux/session-manager.sh main
-./tmux/session-manager.sh dev
-```
-
-### Code Backup
+### Customizing Code Backup
 
 ```bash
 # Run backup for all repositories
@@ -112,9 +113,7 @@ All scripts include comprehensive logging:
 - Colored output for better visibility
 - Timestamped entries with context
 
-## 🔧 Customization
-
-### Tmux Sessions
+### Customizing Tmux Sessions
 
 - Modify window layouts in the respective setup scripts
 - Add custom commands and working directories

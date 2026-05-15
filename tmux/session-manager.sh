@@ -7,12 +7,13 @@ set -euo pipefail
 
 # Source utility functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090,SC1091
 source "${SCRIPT_DIR}/tmux-utils.sh"
 
 # Configuration
 readonly MAIN_SESSION='main'
 readonly DEV_SESSION='dev'
-readonly LOG_FILE="${HOME}/.tmux-session-manager.log"
+# readonly LOG_FILE
 
 # Usage function
 show_usage() {
@@ -101,7 +102,7 @@ handle_session() {
 
 # Main function
 main() {
-    local verbose=false
+# verbose=false
     local session_type=""
 
     # Parse arguments
@@ -112,7 +113,7 @@ main() {
                 exit 0
                 ;;
             -v|--verbose)
-                verbose=true
+                # verbose
                 shift
                 ;;
             main|dev|list|kill|killall|info)
