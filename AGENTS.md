@@ -1,20 +1,22 @@
 # Agent guidance
 
 This repository holds **shell scripts** for macOS/Linux: **tmux** session
-helpers under `tmux/` and **git backup** utilities under `code-backup/`. There
-is no application runtime; changes are almost always Bash and documentation.
+helpers under `tmux/`, **git backup** utilities under `code-backup/`, and
+**runtime configuration** helpers under `configuration/`. There is no
+application runtime; changes are almost always Bash and documentation.
 
 ## Layout
 
+- **`configuration/`** — `runtime-configurations.sh`
 - **`git-scripts/`** — `clone-all.sh`, `sync-all.sh`
 - **`tmux/`** — `setup-main.sh`, `setup-dev.sh`, `session-manager.sh`;
   shared helpers in `tmux-utils.sh`
 - **`code-backup/`** — `code-backup-local.sh`, `code-backup-gitlab.sh`
 - **`.github/workflows/`** — PR quality checks (reusable workflow)
 
-See [README.md](README.md), [git-scripts/README.md](git-scripts/README.md),
-[tmux/README.md](tmux/README.md), and [code-backup/README.md](code-backup/README.md)
-for usage and behavior.
+See [README.md](README.md), [configuration/README.md](configuration/README.md),
+[git-scripts/README.md](git-scripts/README.md), [tmux/README.md](tmux/README.md),
+and [code-backup/README.md](code-backup/README.md) for usage and behavior.
 
 ## Conventions (shell)
 

@@ -8,6 +8,7 @@ macOS/Linux environments.
 ```text
 system-scripts/
 ├── code-backup/          # Repository backup and management
+├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
 ├── tmux/                 # Enhanced tmux session management
 └── README.md            # This file
@@ -54,6 +55,20 @@ Utilities for managing multiple git repositories:
 - ✅ **Safe Updates**: Skips repositories with uncommitted changes
 - ✅ **Recursive Discovery**: Finds all git repos within a given path
 - ✅ **Clean Fetch**: Prunes deleted remote branches during fetch
+
+### ⚙️ Runtime Configuration (`configuration/`)
+
+Applies consistent package-manager cooldown settings on a machine:
+
+- `runtime-configurations.sh` — 7-day minimum release age for Bundler, npm, pip,
+  and uv
+
+**Key Features:**
+
+- ✅ Creates or updates config files under `$HOME`
+- ✅ Only raises values below the target; never downgrades existing settings
+- ✅ Writes `.bak` backups when updating files in place
+- ✅ Idempotent: safe to run repeatedly
 
 ### 🖥️ Tmux Session Management (`tmux/`)
 
@@ -138,6 +153,7 @@ All scripts include comprehensive logging:
 
 ## 📚 Documentation
 
+- [Configuration Documentation](configuration/README.md)
 - [Git Scripts Documentation](git-scripts/README.md)
 - [Tmux Scripts Documentation](tmux/README.md)
 - [Code Backup Documentation](code-backup/README.md)
