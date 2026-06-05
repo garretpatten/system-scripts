@@ -294,6 +294,8 @@ git submodule update --init --recursive
 
 ## 🔗 Related
 
+- [Git Scripts Documentation](../git-scripts/README.md) — clone and sync repos in
+  `~/Projects` before running a backup
 - [GitHub API Documentation](https://docs.github.com/en/rest)
 - [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
 - [Git Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)

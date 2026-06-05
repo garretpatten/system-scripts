@@ -36,10 +36,20 @@ Comprehensive repository backup and management system with:
 
 Utilities for managing multiple git repositories:
 
+- `clone-all.sh` - Clone all non-archived GitHub repos into `~/Projects`
 - `sync-all.sh` - Find all git repos in a path and update their default branch
+
+**Typical workflow:**
+
+```bash
+./git-scripts/clone-all.sh              # clone missing repos
+./git-scripts/sync-all.sh ~/Projects    # pull latest for all repos
+./code-backup/code-backup-local.sh      # create a zip backup
+```
 
 **Key Features:**
 
+- ✅ **GitHub Clone**: Fetches repo list from GitHub and clones missing projects
 - ✅ **Automatic Detection**: Identifies default branch (main/master/HEAD)
 - ✅ **Safe Updates**: Skips repositories with uncommitted changes
 - ✅ **Recursive Discovery**: Finds all git repos within a given path
@@ -128,6 +138,7 @@ All scripts include comprehensive logging:
 
 ## 📚 Documentation
 
+- [Git Scripts Documentation](git-scripts/README.md)
 - [Tmux Scripts Documentation](tmux/README.md)
 - [Code Backup Documentation](code-backup/README.md)
 
