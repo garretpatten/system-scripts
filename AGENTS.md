@@ -9,14 +9,16 @@ application runtime; changes are almost always Bash and documentation.
 
 - **`configuration/`** — `runtime-configurations.sh`
 - **`git-scripts/`** — `clone-all.sh`, `sync-all.sh`
+- **`media-scripts/`** — `flatten-photos.sh`
 - **`tmux/`** — `setup-main.sh`, `setup-dev.sh`, `session-manager.sh`;
   shared helpers in `tmux-utils.sh`
 - **`code-backup/`** — `code-backup-local.sh`, `code-backup-gitlab.sh`
 - **`.github/workflows/`** — PR quality checks (reusable workflow)
 
 See [README.md](README.md), [configuration/README.md](configuration/README.md),
-[git-scripts/README.md](git-scripts/README.md), [tmux/README.md](tmux/README.md),
-and [code-backup/README.md](code-backup/README.md) for usage and behavior.
+[git-scripts/README.md](git-scripts/README.md), [media-scripts/README.md](media-scripts/README.md),
+[tmux/README.md](tmux/README.md), and [code-backup/README.md](code-backup/README.md)
+for usage and behavior.
 
 ## Conventions (shell)
 

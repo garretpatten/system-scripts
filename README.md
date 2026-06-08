@@ -10,6 +10,7 @@ system-scripts/
 ├── code-backup/          # Repository backup and management
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
+├── media-scripts/        # Photo library organization utilities
 ├── tmux/                 # Enhanced tmux session management
 └── README.md            # This file
 ```
@@ -55,6 +56,30 @@ Utilities for managing multiple git repositories:
 - ✅ **Safe Updates**: Skips repositories with uncommitted changes
 - ✅ **Recursive Discovery**: Finds all git repos within a given path
 - ✅ **Clean Fetch**: Prunes deleted remote branches during fetch
+
+### 📷 Media Utilities (`media-scripts/`)
+
+Tools for organizing exported photo libraries:
+
+- `flatten-photos.sh` - Flatten nested Google Photos takeout folders, remove
+  empty directories, and delete supplemental `.json` metadata
+
+**Typical workflow:**
+
+```bash
+./media-scripts/flatten-photos.sh --dry-run "$HOME/Pictures/Mobile Photos"
+./media-scripts/flatten-photos.sh "$HOME/Pictures/Mobile Photos"
+```
+
+**Key Features:**
+
+- ✅ Moves all nested files into a single target directory
+- ✅ Skips duplicate content using SHA-256 hashes
+- ✅ Resolves remaining filename collisions automatically
+- ✅ Removes duplicate content already present in the target directory
+- ✅ Removes empty subdirectories after flattening
+- ✅ Deletes Google Photos supplemental `.json` metadata by default
+- ✅ Dry-run mode for safe previews
 
 ### ⚙️ Runtime Configuration (`configuration/`)
 
@@ -155,6 +180,7 @@ All scripts include comprehensive logging:
 
 - [Configuration Documentation](configuration/README.md)
 - [Git Scripts Documentation](git-scripts/README.md)
+- [Media Scripts Documentation](media-scripts/README.md)
 - [Tmux Scripts Documentation](tmux/README.md)
 - [Code Backup Documentation](code-backup/README.md)
 
