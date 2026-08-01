@@ -12,6 +12,46 @@ set -euo pipefail
 # ----------------------------
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly SCRIPT_DIR
+
+# Load user-specific environment variables from .env file if present.
+# Variables already exported in the shell take precedence over .env values.
+load_env_file() {
+  local env_file="$SCRIPT_DIR/.env"
+  if [ ! -f "$env_file" ]; then
+    return 0
+  fi
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Remove leading and trailing whitespace
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+
+    # Skip empty lines and comments
+    [[ -z "$line" ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+    # Parse KEY=VALUE
+    if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      local key="${BASH_REMATCH[1]}"
+      local value="${BASH_REMATCH[2]}"
+
+      # Strip matching surrounding quotes
+      if [[ "$value" =~ ^\"(.*)\"$ ]]; then
+        value="${BASH_REMATCH[1]}"
+      elif [[ "$value" =~ ^\'(.*)\'$ ]]; then
+        value="${BASH_REMATCH[1]}"
+      fi
+
+      # Only set if not already present in the environment
+      if [ -z "${!key:-}" ]; then
+        export "$key=$value"
+      fi
+    fi
+  done < "$env_file"
+}
+
+load_env_file
+
 readonly LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 

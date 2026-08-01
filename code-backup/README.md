@@ -59,18 +59,26 @@ Creates a local, zipped directory of all your non-archived GitHub repositories.
 
 ### 🔐 Authentication
 
-The script supports both public and private repositories:
+The script supports both public and private repositories.
 
-**For private repositories**, set a GitHub Personal Access Token:
+Create a `.env` file in the `code-backup/` directory to avoid being prompted for
+credentials every run:
 
 ```bash
-export GITHUB_TOKEN="your_token_here"
+# code-backup/.env
+GITHUB_USERNAME="your-username"
+GITHUB_TOKEN="your_token_here"          # Required for private repos
+PROJECTS_DIR="$HOME/MyProjects"         # Optional; default: ~/Projects
+USE_GITHUB_SSH="true"                   # Optional; use SSH instead of HTTPS
 ```
 
-To create a token:
+To create a GitHub token:
 
 1. Go to GitHub Settings → Developer settings → Personal access tokens
 2. Generate a new token with `repo` scope for full repository access
+
+> `.env` is ignored by Git so tokens are not committed. You can still override any
+> value for a single run by exporting it before calling the script.
 
 **Optional environment variables:**
 
@@ -105,7 +113,28 @@ chmod +x code-backup-local.sh
 
 ### 🔐 GitLab Authentication
 
-**Required environment variables:**
+Create a `.env` file in the `code-backup/` directory with the required values so
+you are not prompted every run:
+
+```bash
+# code-backup/.env
+GITHUB_USERNAME="your-username"
+GITHUB_TOKEN="your_github_token"              # Required for private GitHub repos
+GITLAB_TOKEN="your_gitlab_pat"                # GitLab.com Personal Access Token
+GITLAB_NAMESPACE="your-username"              # Your GitLab username or group
+
+# Optional:
+USE_GITHUB_SSH="true"
+AUTO_CREATE_GITLAB_PROJECTS="true"
+GITLAB_VISIBILITY="private"
+GITLAB_HOST="https://gitlab.com"
+BACKUP_ROOT="$HOME/GitHub-GitLab-Backup"
+```
+
+> `.env` is ignored by Git so tokens are not committed. You can still override any
+> value for a single run by exporting it before calling the script.
+
+**Required environment variables (alternative to `.env`):**
 
 ```bash
 export GITLAB_TOKEN="your_gitlab_pat"           # GitLab.com Personal Access Token
@@ -133,13 +162,7 @@ mirrors
 ```bash
 chmod +x code-backup-gitlab.sh
 
-# Set required environment variables
-export GITLAB_TOKEN="your_token"
-export GITLAB_NAMESPACE="your-username"
-
-# Optional: for private GitHub repos
-export GITHUB_TOKEN="your_github_token"
-
+# Create code-backup/.env with your tokens and namespace, then run:
 ./code-backup-gitlab.sh
 ```
 
@@ -243,12 +266,13 @@ crontab -e
 0 3 * * 0 /path/to/code-backup-gitlab.sh
 ```
 
-**Note:** When using cron, make sure to set environment variables in your
-crontab or in a script that sources them:
+**Note:** When using cron, the scripts will automatically load `code-backup/.env`
+if it exists, so no extra environment setup is needed:
 
 ```bash
 # In crontab
-0 2 * * * source ~/.bashrc && /path/to/code-backup-gitlab.sh
+0 2 * * * /path/to/code-backup-local.sh
+0 3 * * 0 /path/to/code-backup-gitlab.sh
 ```
 
 ---
