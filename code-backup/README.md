@@ -62,7 +62,12 @@ Creates a local, zipped directory of all your non-archived GitHub repositories.
 The script supports both public and private repositories.
 
 Create a `.env` file in the `code-backup/` directory to avoid being prompted for
-credentials every run:
+credentials every run. A sample is provided:
+
+```bash
+cp code-backup/.env.example code-backup/.env
+# Edit code-backup/.env with your real values
+```
 
 ```bash
 # code-backup/.env
@@ -114,7 +119,12 @@ chmod +x code-backup-local.sh
 ### 🔐 GitLab Authentication
 
 Create a `.env` file in the `code-backup/` directory with the required values so
-you are not prompted every run:
+you are not prompted every run. A sample is provided:
+
+```bash
+cp code-backup/.env.example code-backup/.env
+# Edit code-backup/.env with your real values
+```
 
 ```bash
 # code-backup/.env
