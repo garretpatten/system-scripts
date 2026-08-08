@@ -8,11 +8,13 @@ logs/
 errors-*.log
 code-backup-*.log
 todoist-*.log
+notion-*.log
 
 # Backup files
-Code-Backup_*.zip
-Projects-Backup_*.zip
-Todoist-Backup_*.zip
+Code-Export_*.zip
+Projects-Export_*.zip
+Todoist-Export_*.zip
+Notion-Export_*.zip
 
 # macOS
 .DS_Store

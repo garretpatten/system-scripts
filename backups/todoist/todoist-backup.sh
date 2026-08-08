@@ -28,9 +28,9 @@ readonly ERROR_LOG="$LOG_DIR/todoist-errors-$RUN_TS.log"
 : "${TODOIST_API_TOKEN:?Set TODOIST_API_TOKEN in env or .env}"
 
 # Backup directory and archive
-BACKUP_DATE=$(date +%m-%d-%y)
+BACKUP_DATE=$(date +%Y-%m-%d)
 readonly BACKUP_DATE
-readonly BACKUP_DIR_NAME="Todoist-Backup_${BACKUP_DATE}"
+readonly BACKUP_DIR_NAME="Todoist-Export_${BACKUP_DATE}"
 readonly BACKUP_DIR="$HOME/$BACKUP_DIR_NAME"
 readonly BACKUP_ZIP="$HOME/${BACKUP_DIR_NAME}.zip"
 

@@ -32,9 +32,9 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 USE_GITHUB_SSH="${USE_GITHUB_SSH:-false}"
 
 # Backup directory will be created with date format
-BACKUP_DATE=$(date +%m-%d-%y)
+BACKUP_DATE=$(date +%Y-%m-%d)
 readonly BACKUP_DATE
-readonly BACKUP_DIR_NAME="Code-Backup_${BACKUP_DATE}"
+readonly BACKUP_DIR_NAME="Code-Export_${BACKUP_DATE}"
 readonly BACKUP_DIR="$HOME/$BACKUP_DIR_NAME"
 readonly PROJECTS_DIR="$BACKUP_DIR"
 

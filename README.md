@@ -7,9 +7,10 @@ macOS/Linux environments.
 
 ```text
 system-scripts/
-├── backups/              # Repository and task backups
+├── backups/              # Repository, task, and workspace backups
 │   ├── code/             # GitHub repository backups
 │   ├── todoist/          # Todoist task backups
+│   ├── notion/           # Notion workspace Markdown export
 │   └── run-all.sh        # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
@@ -22,7 +23,8 @@ system-scripts/
 
 ### 📦 Backups (`backups/`)
 
-Comprehensive backup module for code repositories and Todoist tasks.
+Comprehensive backup module for code repositories, Todoist tasks, and Notion
+workspaces.
 
 **Code backups:**
 
@@ -34,6 +36,12 @@ Comprehensive backup module for code repositories and Todoist tasks.
 **Todoist backup:**
 
 - Retrieves active tasks, projects, and labels via the Todoist REST API
+- Creates timestamped zip archives
+
+**Notion export:**
+
+- Exports accessible pages and databases as Markdown
+- Uses nested folders that mirror the workspace structure
 - Creates timestamped zip archives
 
 **Key Features:**
@@ -131,13 +139,14 @@ Enhanced tmux session management following bash and tmux best practices:
 ### Running Backups
 
 ```bash
-# Run all backups (code-local, code-gitlab, todoist)
+# Run all backups (code-local, code-gitlab, todoist, notion)
 npm run backup:all
 
 # Run individual backups
 npm run backup:code-local
 npm run backup:code-gitlab
 npm run backup:todoist
+npm run backup:notion
 ```
 
 ## 📋 Session Layouts

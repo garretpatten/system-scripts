@@ -3,6 +3,7 @@
     "backup:code-local": "./backups/code/code-backup-local.sh",
     "backup:code-gitlab": "./backups/code/code-backup-gitlab.sh",
     "backup:todoist": "./backups/todoist/todoist-backup.sh",
+    "backup:notion": "./backups/notion/notion-backup.sh",
     "backup:all": "./backups/run-all.sh"
   },
   "devDependencies": {

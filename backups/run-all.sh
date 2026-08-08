@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Backups Orchestrator
-# Runs all configured backup scripts: code-local, code-gitlab, and todoist.
+# Runs all configured backup scripts: code-local, code-gitlab, todoist, and notion.
 
 set -euo pipefail
 
@@ -25,6 +25,7 @@ readonly LOG_FILE="$LOG_DIR/backups-$RUN_TS.log"
 readonly CODE_LOCAL_SCRIPT="$SCRIPT_DIR/code/code-backup-local.sh"
 readonly CODE_GITLAB_SCRIPT="$SCRIPT_DIR/code/code-backup-gitlab.sh"
 readonly TODOIST_SCRIPT="$SCRIPT_DIR/todoist/todoist-backup.sh"
+readonly NOTION_SCRIPT="$SCRIPT_DIR/notion/notion-backup.sh"
 
 # ----------------------------
 # Pretty logging
@@ -101,17 +102,20 @@ main() {
     local code_local_status=0
     local code_gitlab_status=0
     local todoist_status=0
+    local notion_status=0
 
     run_backup "code-local" "$CODE_LOCAL_SCRIPT"  || code_local_status=$?
     run_backup "code-gitlab" "$CODE_GITLAB_SCRIPT" || code_gitlab_status=$?
     run_backup "todoist" "$TODOIST_SCRIPT"         || todoist_status=$?
+    run_backup "notion" "$NOTION_SCRIPT"           || notion_status=$?
 
     log_info "Backup summary:"
     log_info "  code-local : $([ "$code_local_status" -eq 0 ] && echo "OK" || echo "FAILED")"
     log_info "  code-gitlab: $([ "$code_gitlab_status" -eq 0 ] && echo "OK" || echo "FAILED")"
     log_info "  todoist    : $([ "$todoist_status" -eq 0 ] && echo "OK" || echo "FAILED")"
+    log_info "  notion     : $([ "$notion_status" -eq 0 ] && echo "OK" || echo "FAILED")"
 
-    if [ "$code_local_status" -ne 0 ] || [ "$code_gitlab_status" -ne 0 ] || [ "$todoist_status" -ne 0 ]; then
+    if [ "$code_local_status" -ne 0 ] || [ "$code_gitlab_status" -ne 0 ] || [ "$todoist_status" -ne 0 ] || [ "$notion_status" -ne 0 ]; then
         log_warn "One or more backups failed. See: $LOG_FILE"
         exit 1
     fi

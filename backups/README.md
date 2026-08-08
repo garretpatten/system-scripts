@@ -1,6 +1,7 @@
 # Backups
 
-This module contains scripts for backing up code repositories and Todoist tasks.
+This module contains scripts for backing up code repositories, Todoist tasks,
+and Notion workspaces.
 
 - **`code/`** — GitHub repository backups
   - `code-backup-local.sh` — Creates a local, zipped directory of all your
@@ -10,8 +11,11 @@ This module contains scripts for backing up code repositories and Todoist tasks.
 - **`todoist/`** — Todoist task backups
   - `todoist-backup.sh` — Retrieves tasks, projects, and labels via the Todoist
     REST API and creates a zip archive
-- **`run-all.sh`** — Runs `code-local`, `code-gitlab`, and `todoist` backups in
-  one command
+- **`notion/`** — Notion workspace export
+  - `notion-backup.sh` — Exports accessible pages and databases as Markdown
+    files using nested folders that mirror the workspace structure
+- **`run-all.sh`** — Runs `code-local`, `code-gitlab`, `todoist`, and `notion`
+  backups in one command
 
 ---
 
@@ -26,6 +30,11 @@ All scripts require Bash shell (version 4.0+) and `curl`.
 - `zip` (local backup only)
 
 **Todoist backup also requires:**
+
+- `jq`
+- `zip`
+
+**Notion backup also requires:**
 
 - `jq`
 - `zip`
@@ -101,6 +110,19 @@ TODOIST_API_TOKEN="your_todoist_api_token"
 To create a Todoist token, visit **Todoist Settings → Integrations → Developer →
 API token**.
 
+### Notion backup
+
+```bash
+# Required
+NOTION_API_TOKEN="your_notion_integration_token"
+```
+
+To create a Notion integration token, visit
+**Notion Settings & members → Integrations → Develop your own → New integration**.
+After creating the integration, you must share each page or database you want to
+export with the integration from its **Share** menu. The Notion API can only
+access content explicitly shared with the integration.
+
 ---
 
 ## 📦 Local Code Backup (`code/code-backup-local.sh`)
@@ -111,7 +133,7 @@ Creates a local, zipped directory of all your non-archived GitHub repositories.
 
 - Fetches all non-archived repositories from your GitHub account
 - Clones new repositories or updates existing ones to their latest default branch
-- Creates a zip backup: `~/Code-Backup_MM-DD-YY.zip`
+- Creates a zip backup: `~/Code-Export_YYYY-MM-DD.zip`
 - Excludes `.git` directories and system files from the zip archive
 
 ### Local Backup Usage
@@ -128,8 +150,8 @@ npm run backup:code-local
 
 ### Local Backup Output
 
-- **Local repositories**: `~/Code-Backup_MM-DD-YY/`
-- **Backup archive**: `~/Code-Backup_MM-DD-YY.zip`
+- **Local repositories**: `~/Code-Export_YYYY-MM-DD/`
+- **Backup archive**: `~/Code-Export_YYYY-MM-DD.zip`
 - **Logs**: `backups/logs/code-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/errors-YYYYMMDD-HHMMSS.log`
 
@@ -184,7 +206,7 @@ Backs up active Todoist tasks, projects, and labels.
 - Retrieves all active tasks via the Todoist REST API
 - Fetches projects and labels for context
 - Writes pretty-printed JSON files to a temporary directory
-- Creates a zip backup: `~/Todoist-Backup_MM-DD-YY.zip`
+- Creates a zip backup: `~/Todoist-Export_YYYY-MM-DD.zip`
 
 ### Todoist Backup Usage
 
@@ -200,7 +222,7 @@ npm run backup:todoist
 
 ### Todoist Backup Output
 
-- **Backup archive**: `~/Todoist-Backup_MM-DD-YY.zip`
+- **Backup archive**: `~/Todoist-Export_YYYY-MM-DD.zip`
 - **Logs**: `backups/logs/todoist-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/todoist-errors-YYYYMMDD-HHMMSS.log`
 
@@ -212,9 +234,52 @@ The zip contains:
 
 ---
 
+## Notion Workspace Export (`notion/notion-backup.sh`)
+
+Exports all pages and databases the integration can access as Markdown files in
+nested folders that mirror the workspace structure.
+
+### Notion Export Features
+
+- Discovers pages and databases shared with the integration
+- Builds a nested folder structure based on parent/child relationships
+- Exports each page as a Markdown file with headings, lists, checkboxes, code
+  blocks, quotes, and other basic blocks
+- Exports each database as a Markdown file listing its entries and properties
+- Ignores toggle block wrappers (their children are exported inline)
+- Creates a zip backup: `~/Notion-Export_YYYY-MM-DD.zip`
+
+### Notion Export Limitations
+
+- The integration must be added to every page or database you want to export.
+  Private content that is not shared with the integration will not be included.
+- Advanced or proprietary Notion block types are rendered as comments or simple
+  placeholders.
+- Export speed is intentionally throttled to respect Notion API rate limits.
+
+### Notion Export Usage
+
+```bash
+./backups/notion/notion-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:notion
+```
+
+### Notion Export Output
+
+- **Backup archive**: `~/Notion-Export_YYYY-MM-DD.zip`
+- **Logs**: `backups/logs/notion-backup-YYYYMMDD-HHMMSS.log`
+- **Errors**: `backups/logs/notion-errors-YYYYMMDD-HHMMSS.log`
+
+---
+
 ## 🚀 Run All Backups
 
-To run the code-local, code-gitlab, and todoist backups in sequence:
+To run the code-local, code-gitlab, todoist, and notion backups in sequence:
 
 ```bash
 ./backups/run-all.sh
@@ -249,6 +314,11 @@ All scripts create detailed logs in `backups/logs/`:
 
 - `todoist-backup-YYYYMMDD-HHMMSS.log`
 - `todoist-errors-YYYYMMDD-HHMMSS.log`
+
+**Notion Export:**
+
+- `notion-backup-YYYYMMDD-HHMMSS.log`
+- `notion-errors-YYYYMMDD-HHMMSS.log`
 
 **Orchestrator:**
 
@@ -304,6 +374,20 @@ Logs include:
    - Verify the token is valid
    - Review `backups/logs/todoist-errors-*.log` for details
 
+9. **Notion: "Set NOTION_API_TOKEN"**
+   - Add your Notion integration token to `.env`
+   - Ensure the integration has not been deleted or restricted
+
+10. **Notion: "No pages or databases found"**
+    - Share the pages and databases you want to export with your integration
+    - The Notion API cannot access private content automatically
+
+11. **Notion: "Notion API error"**
+    - Check your internet connection
+    - Verify the token is valid
+    - Confirm the integration has access to the requested content
+    - Review `backups/logs/notion-errors-*.log` for details
+
 ### Getting Help
 
 Check the error log files for detailed error messages:
@@ -312,6 +396,7 @@ Check the error log files for detailed error messages:
 cat backups/logs/errors-*.log
 cat backups/logs/gh-gl-errors-*.log
 cat backups/logs/todoist-errors-*.log
+cat backups/logs/notion-errors-*.log
 ```
 
 ---
@@ -331,6 +416,7 @@ crontab -e
 0 2 * * * cd /path/to/system-scripts && npm run backup:code-local
 0 3 * * 0 cd /path/to/system-scripts && npm run backup:code-gitlab
 0 4 * * * cd /path/to/system-scripts && npm run backup:todoist
+0 5 * * * cd /path/to/system-scripts && npm run backup:notion
 ```
 
 **Note:** When using cron, make sure environment variables are available in
@@ -384,5 +470,6 @@ git submodule update --init --recursive
 - [GitHub API Documentation](https://docs.github.com/en/rest)
 - [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
 - [Todoist REST API Documentation](https://developer.todoist.com/rest/v2/)
+- [Notion API Documentation](https://developers.notion.com/)
 - [Git Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 - [GitLab Personal Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
