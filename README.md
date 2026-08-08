@@ -12,8 +12,9 @@ system-scripts/
 │   ├── __tests__/        # Jest unit tests
 │   ├── code/             # GitHub repository backup wrappers
 │   ├── todoist/          # Todoist backup wrapper
-│   ├── notion/           # Notion workspace Markdown export wrapper
-│   └── run-all.sh        # Run all backups
+  │   ├── notion/           # Notion workspace Markdown export wrapper
+  │   ├── standard-notes/   # Standard Notes plaintext backup wrapper
+  │   └── run-all.sh        # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
 ├── media-scripts/        # Photo library organization utilities
@@ -26,7 +27,7 @@ system-scripts/
 ### 📦 Backups (`backups/`)
 
 Comprehensive backup module for code repositories, Todoist tasks, Notion
-workspaces, and Brave browser bookmarks.
+workspaces, browser bookmarks, and Standard Notes.
 
 **Code backups:**
 
@@ -57,6 +58,12 @@ workspaces, and Brave browser bookmarks.
 - Converts Google Chrome bookmarks to Netscape Bookmark File Format HTML
 - Preserves folder hierarchy and basic metadata
 - Creates dated HTML and JSON copies in the home directory
+
+**Standard Notes export:**
+
+- Backs up Standard Notes Plaintext Backups as Markdown
+- Cleans filenames to lowercase kebab-case and removes identifier suffixes
+- Preserves folder hierarchy and creates a dated zip archive
 
 **Key Features:**
 
@@ -153,7 +160,7 @@ Enhanced tmux session management following bash and tmux best practices:
 ### Running Backups
 
 ```bash
-# Run all backups (code-local, code-gitlab, todoist, notion, brave-bookmarks, chrome-bookmarks)
+# Run all backups (code-local, code-gitlab, todoist, notion, bookmarks, standard-notes)
 npm run backup:all
 npm run backups
 
@@ -164,6 +171,7 @@ npm run backup:todoist
 npm run backup:notion
 npm run backup:brave-bookmarks
 npm run backup:chrome-bookmarks
+npm run backup:standard-notes
 ```
 
 ### Running Tests

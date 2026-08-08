@@ -10,6 +10,7 @@ application runtime; changes are almost always Bash and documentation.
 - **`backups/`** — backup module
   - **`code/`** — `code-backup-local.sh`, `code-backup-gitlab.sh`
   - **`todoist/`** — `todoist-backup.sh`
+  - **`standard-notes/`** — `standard-notes-backup.sh`
   - **`run-all.sh`** — orchestrates all backups
 - **`configuration/`** — `runtime-configurations.sh`
 - **`git-scripts/`** — `clone-all.sh`, `sync-all.sh`

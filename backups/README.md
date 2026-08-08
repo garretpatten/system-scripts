@@ -1,8 +1,9 @@
 # Backups
 
 This module contains scripts for backing up code repositories, Todoist tasks,
-and Notion workspaces. The implementation has been ported to TypeScript so the
-backup logic is unit-testable with mocked dependencies.
+Notion workspaces, browser bookmarks, and Standard Notes. The implementation has
+been ported to TypeScript so the backup logic is unit-testable with mocked
+dependencies.
 
 - **`src/`** — TypeScript source code
   - `local-backup.ts` — Local GitHub repository backup
@@ -11,6 +12,7 @@ backup logic is unit-testable with mocked dependencies.
   - `notion-backup.ts` — Notion Markdown export
   - `brave-bookmarks-backup.ts` — Brave bookmarks HTML/JSON export
   - `chrome-bookmarks-backup.ts` — Chrome bookmarks HTML/JSON export
+  - `standard-notes-backup.ts` — Standard Notes plaintext backup export
   - `run-all.ts` — Orchestrator that runs all backups
   - `github.ts`, `gitlab.ts`, `todoist.ts`, `notion.ts` — API clients
   - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
@@ -27,6 +29,8 @@ backup logic is unit-testable with mocked dependencies.
   - `brave-bookmarks-backup.sh` — Thin wrapper around `brave-bookmarks-backup.ts`
 - **`chrome-bookmarks/`** — Backward-compatible shell wrapper
   - `chrome-bookmarks-backup.sh` — Thin wrapper around `chrome-bookmarks-backup.ts`
+- **`standard-notes/`** — Backward-compatible shell wrapper
+  - `standard-notes-backup.sh` — Thin wrapper around `standard-notes-backup.ts`
 - **`run-all.sh`** — Thin wrapper around `run-all.ts`
 
 ## Running Tests
@@ -60,7 +64,7 @@ shell entry points are now thin wrappers around the TypeScript implementation.
 - `git`
 - `zip` (local backup only)
 
-**Todoist and Notion backups also require:**
+**Todoist, Notion, and Standard Notes backups also require:**
 
 - `zip`
 
@@ -376,10 +380,53 @@ npm run backup:chrome-bookmarks
 
 ---
 
+## 📝 Standard Notes Export (`standard-notes/standard-notes-backup.sh`)
+
+Backs up Standard Notes when **Plaintext Backups** is enabled and set to save in
+the home directory.
+
+### Standard Notes Export Features
+
+- Discards the Standard Notes identifier suffix from each filename (`-id_txt`)
+- Renotes files to lowercase kebab-case Markdown names (`name-of-note.md`)
+- Preserves nested folder structure from the Plaintext Backups directory
+- Creates a zip backup: `~/Standard-Notes_YYYY-MM-DD.zip`
+- Exits gracefully with a helpful message when Plaintext Backups is not enabled
+
+### Standard Notes Export Requirements
+
+Plaintext Backups must be enabled in Standard Notes and the destination must be:
+
+```text
+$HOME/garret.patten@proton.me/Plaintext Backups/
+```
+
+If that directory is not found, the script logs a warning and exits without
+creating an archive.
+
+### Standard Notes Export Usage
+
+```bash
+./backups/standard-notes/standard-notes-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:standard-notes
+```
+
+### Standard Notes Export Output
+
+- **Backup archive**: `~/Standard-Notes_YYYY-MM-DD.zip`
+- **Logs**: `backups/logs/standard-notes-backup-YYYYMMDD-HHMMSS.log`
+
+---
+
 ## 🚀 Run All Backups
 
-To run the code-local, code-gitlab, todoist, notion, brave-bookmarks, and
-chrome-bookmarks backups in sequence:
+To run the code-local, code-gitlab, todoist, notion, brave-bookmarks,
+chrome-bookmarks, and standard-notes backups in sequence:
 
 ```bash
 ./backups/run-all.sh
@@ -428,6 +475,10 @@ All scripts create detailed logs in `backups/logs/`:
 **Chrome Bookmarks Export:**
 
 - `chrome-bookmarks-backup-YYYYMMDD-HHMMSS.log`
+
+**Standard Notes Export:**
+
+- `standard-notes-backup-YYYYMMDD-HHMMSS.log`
 
 **Orchestrator:**
 
@@ -528,6 +579,12 @@ Logs include:
     - Close Chrome and try again
     - Review `backups/logs/chrome-bookmarks-backup-*.log` for details
 
+18. **Standard Notes: "Plaintext Backups must be enabled"**
+    - Enable **Plaintext Backups** in Standard Notes settings
+    - Set the backup location to your home directory
+    - Verify the directory exists at
+      `$HOME/garret.patten@proton.me/Plaintext Backups/`
+
 ### Getting Help
 
 Check the error log files for detailed error messages:
@@ -537,6 +594,7 @@ cat backups/logs/errors-*.log
 cat backups/logs/gh-gl-errors-*.log
 cat backups/logs/todoist-errors-*.log
 cat backups/logs/notion-errors-*.log
+cat backups/logs/standard-notes-backup-*.log
 ```
 
 ---
@@ -559,6 +617,7 @@ crontab -e
 0 5 * * * cd /path/to/system-scripts && npm run backup:notion
 0 6 * * * cd /path/to/system-scripts && npm run backup:brave-bookmarks
 0 7 * * * cd /path/to/system-scripts && npm run backup:chrome-bookmarks
+0 8 * * * cd /path/to/system-scripts && npm run backup:standard-notes
 ```
 
 **Note:** When using cron, make sure environment variables are available in

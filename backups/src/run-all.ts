@@ -12,6 +12,7 @@ import { TodoistBackup, TodoistBackupConfig } from './todoist-backup.js';
 import { NotionBackup, NotionBackupConfig } from './notion-backup.js';
 import { BraveBookmarksBackup, BraveBookmarksBackupConfig } from './brave-bookmarks-backup.js';
 import { ChromeBookmarksBackup, ChromeBookmarksBackupConfig } from './chrome-bookmarks-backup.js';
+import { StandardNotesBackup, StandardNotesBackupConfig } from './standard-notes-backup.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,6 +46,7 @@ export class BackupOrchestrator {
     results['notion'] = await this.runNotionBackup(logger);
     results['brave-bookmarks'] = await this.runBraveBookmarksBackup(logger);
     results['chrome-bookmarks'] = await this.runChromeBookmarksBackup(logger);
+    results['standard-notes'] = await this.runStandardNotesBackup(logger);
 
     logger.info('Backup summary:');
     for (const [name, ok] of Object.entries(results)) {
@@ -155,6 +157,20 @@ export class BackupOrchestrator {
       return true;
     } catch (error) {
       logger.warn(`Backup failed or had errors: chrome-bookmarks: ${String(error)}`);
+      return false;
+    }
+  }
+
+  private async runStandardNotesBackup(logger: Logger): Promise<boolean> {
+    try {
+      const config: StandardNotesBackupConfig = {
+        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
+        logDir: this.getLogDir(),
+      };
+      await new StandardNotesBackup(this.context).run(config);
+      return true;
+    } catch (error) {
+      logger.warn(`Backup failed or had errors: standard-notes: ${String(error)}`);
       return false;
     }
   }
