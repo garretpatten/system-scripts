@@ -47,29 +47,26 @@ describe('TodoistBackup', () => {
   });
 
   it('writes tasks, projects, and labels to disk and zips them', async () => {
-    http.setResponse(
-      'GET',
-      'https://api.todoist.com/rest/v2/tasks?limit=200&offset=0',
-      {
-        statusCode: 200,
-        body: JSON.stringify([{ id: '1', content: 'Task 1' }]),
-      }
-    );
-    http.setResponse(
-      'GET',
-      'https://api.todoist.com/rest/v2/tasks?limit=200&offset=200',
-      {
-        statusCode: 200,
-        body: JSON.stringify([]),
-      }
-    );
-    http.setResponse('GET', 'https://api.todoist.com/rest/v2/projects', {
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200', {
       statusCode: 200,
-      body: JSON.stringify([{ id: '1', name: 'Inbox' }]),
+      body: JSON.stringify({
+        results: [{ id: '1', content: 'Task 1' }],
+        next_cursor: null,
+      }),
     });
-    http.setResponse('GET', 'https://api.todoist.com/rest/v2/labels', {
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/projects?limit=200', {
       statusCode: 200,
-      body: JSON.stringify([{ id: '1', name: 'urgent' }]),
+      body: JSON.stringify({
+        results: [{ id: '1', name: 'Inbox' }],
+        next_cursor: null,
+      }),
+    });
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/labels?limit=200', {
+      statusCode: 200,
+      body: JSON.stringify({
+        results: [{ id: '1', name: 'urgent' }],
+        next_cursor: null,
+      }),
     });
 
     const config: TodoistBackupConfig = {
@@ -81,13 +78,13 @@ describe('TodoistBackup', () => {
     await new TodoistBackup(context).run(config);
 
     expect(fs.files.get('/home/user/Todoist-Export_2024-06-15/tasks.json')).toBe(
-      JSON.stringify([{ id: '1', content: 'Task 1' }], null, 2)
+      JSON.stringify([{ id: '1', content: 'Task 1' }], null, 2),
     );
     expect(fs.files.get('/home/user/Todoist-Export_2024-06-15/projects.json')).toBe(
-      JSON.stringify([{ id: '1', name: 'Inbox' }], null, 2)
+      JSON.stringify([{ id: '1', name: 'Inbox' }], null, 2),
     );
     expect(fs.files.get('/home/user/Todoist-Export_2024-06-15/labels.json')).toBe(
-      JSON.stringify([{ id: '1', name: 'urgent' }], null, 2)
+      JSON.stringify([{ id: '1', name: 'urgent' }], null, 2),
     );
     expect(archive.calls).toHaveLength(1);
     expect(archive.calls[0].sourceDirName).toBe('Todoist-Export_2024-06-15');

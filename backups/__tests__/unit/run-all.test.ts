@@ -47,7 +47,11 @@ describe('BackupOrchestrator', () => {
       runner,
     };
 
-    runner.setResponse('git', ['--version'], { stdout: 'git version 2.0', stderr: '', exitCode: 0 });
+    runner.setResponse('git', ['--version'], {
+      stdout: 'git version 2.0',
+      stderr: '',
+      exitCode: 0,
+    });
     runner.setResponse('curl', ['--version'], { stdout: 'curl 8.0', stderr: '', exitCode: 0 });
     runner.setResponse('zip', ['--version'], { stdout: 'zip 3.0', stderr: '', exitCode: 0 });
   });
@@ -63,35 +67,23 @@ describe('BackupOrchestrator', () => {
       {
         statusCode: 200,
         body: JSON.stringify([]),
-      }
+      },
     );
     http.setResponse('GET', 'https://gitlab.com/api/v4/namespaces?search=octocat', {
       statusCode: 200,
       body: JSON.stringify([{ id: 42, full_path: 'octocat' }]),
     });
-    http.setResponse(
-      'GET',
-      'https://api.todoist.com/rest/v2/tasks?limit=200&offset=0',
-      {
-        statusCode: 200,
-        body: JSON.stringify([]),
-      }
-    );
-    http.setResponse(
-      'GET',
-      'https://api.todoist.com/rest/v2/tasks?limit=200&offset=200',
-      {
-        statusCode: 200,
-        body: JSON.stringify([]),
-      }
-    );
-    http.setResponse('GET', 'https://api.todoist.com/rest/v2/projects', {
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200', {
       statusCode: 200,
-      body: JSON.stringify([]),
+      body: JSON.stringify({ results: [], next_cursor: null }),
     });
-    http.setResponse('GET', 'https://api.todoist.com/rest/v2/labels', {
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/projects?limit=200', {
       statusCode: 200,
-      body: JSON.stringify([]),
+      body: JSON.stringify({ results: [], next_cursor: null }),
+    });
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/labels?limit=200', {
+      statusCode: 200,
+      body: JSON.stringify({ results: [], next_cursor: null }),
     });
     http.setResponse('POST', 'https://api.notion.com/v1/search', {
       statusCode: 200,
@@ -101,7 +93,9 @@ describe('BackupOrchestrator', () => {
     const orchestrator = new BackupOrchestrator(context);
     await orchestrator.run({ homeDir: '/home/user', logDir: '/logs' });
 
-    expect(logger.messages.some((m) => m.message.includes('All backups completed successfully'))).toBe(true);
+    expect(
+      logger.messages.some((m) => m.message.includes('All backups completed successfully')),
+    ).toBe(true);
     expect(process.exitCode).not.toBe(1);
   });
 });

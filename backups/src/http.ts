@@ -16,7 +16,7 @@ export class NodeHttpClient implements HttpClient {
     method: string,
     url: string,
     body?: string,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
   ): Promise<HttpResponse> {
     return new Promise((resolve, reject) => {
       const parsed = new URL(url);
@@ -28,6 +28,8 @@ export class NodeHttpClient implements HttpClient {
         path: parsed.pathname + parsed.search,
         method,
         headers: {
+          'User-Agent': 'system-scripts-backup/1.0',
+          Accept: 'application/json',
           ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {}),
           ...headers,
         },

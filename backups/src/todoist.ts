@@ -7,12 +7,12 @@ export interface TodoistClient {
 }
 
 export class TodoistApiClient implements TodoistClient {
-  private readonly apiUrl = 'https://api.todoist.com/rest/v2';
+  private readonly apiUrl = 'https://api.todoist.com/api/v1';
 
   constructor(
     private readonly http: HttpClient,
     private readonly logger: Logger,
-    private readonly token: string
+    private readonly token: string,
   ) {}
 
   async fetchTasks(): Promise<unknown[]> {
@@ -20,35 +20,32 @@ export class TodoistApiClient implements TodoistClient {
   }
 
   async fetchProjects(): Promise<unknown[]> {
-    const response = await this.apiGet('/projects');
-    return this.parseArray(response.body);
+    return this.fetchPagedCollection('/projects');
   }
 
   async fetchLabels(): Promise<unknown[]> {
-    const response = await this.apiGet('/labels');
-    return this.parseArray(response.body);
+    return this.fetchPagedCollection('/labels');
   }
 
   private async fetchPagedCollection(endpoint: string): Promise<unknown[]> {
     const limit = 200;
-    let offset = 0;
     const results: unknown[] = [];
+    let cursor: string | null = null;
 
     while (true) {
-      const response = await this.apiGet(`${endpoint}?limit=${limit}&offset=${offset}`);
-      const page = this.parseArray(response.body);
+      const query = cursor
+        ? `${endpoint}?limit=${limit}&cursor=${encodeURIComponent(cursor)}`
+        : `${endpoint}?limit=${limit}`;
+      const response = await this.apiGet(query);
+      const page = this.parsePage(response.body);
 
-      if (page.length === 0) {
+      results.push(...page.results);
+
+      if (page.nextCursor === null || page.nextCursor === undefined) {
         break;
       }
 
-      results.push(...page);
-
-      if (page.length < limit) {
-        break;
-      }
-
-      offset += limit;
+      cursor = page.nextCursor;
     }
 
     return results;
@@ -60,15 +57,21 @@ export class TodoistApiClient implements TodoistClient {
     });
   }
 
-  private parseArray(text: string): unknown[] {
+  private parsePage(text: string): { results: unknown[]; nextCursor: string | null } {
     const body = this.parseJson(text);
     if (Array.isArray(body)) {
-      return body;
+      return { results: body, nextCursor: null };
     }
-    if (body.message || body.error) {
-      throw new Error(`Todoist API error: ${String(body.message || body.error)}`);
+    if (body.error || body.message) {
+      throw new Error(`Todoist API error: ${String(body.error || body.message)}`);
     }
-    throw new Error('Todoist API returned non-array response');
+    if (!Array.isArray(body.results)) {
+      throw new Error('Todoist API returned non-array results');
+    }
+    return {
+      results: body.results as unknown[],
+      nextCursor: (body.next_cursor as string | null | undefined) ?? null,
+    };
   }
 
   private parseJson(text: string): Record<string, unknown> | unknown[] {

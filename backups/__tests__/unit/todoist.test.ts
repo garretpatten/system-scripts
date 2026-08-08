@@ -14,22 +14,17 @@ describe('TodoistApiClient', () => {
 
   describe('fetchTasks', () => {
     it('returns all tasks across pages', async () => {
-      http.setResponse(
-        'GET',
-        'https://api.todoist.com/rest/v2/tasks?limit=200&offset=0',
-        {
-          statusCode: 200,
-          body: JSON.stringify([{ id: '1', content: 'Task 1' }]),
-        }
-      );
-      http.setResponse(
-        'GET',
-        'https://api.todoist.com/rest/v2/tasks?limit=200&offset=200',
-        {
-          statusCode: 200,
-          body: JSON.stringify([]),
-        }
-      );
+      http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200', {
+        statusCode: 200,
+        body: JSON.stringify({
+          results: [{ id: '1', content: 'Task 1' }],
+          next_cursor: 'cursor1',
+        }),
+      });
+      http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200&cursor=cursor1', {
+        statusCode: 200,
+        body: JSON.stringify({ results: [], next_cursor: null }),
+      });
 
       const tasks = await client.fetchTasks();
 
@@ -38,14 +33,10 @@ describe('TodoistApiClient', () => {
     });
 
     it('throws on API error message', async () => {
-      http.setResponse(
-        'GET',
-        'https://api.todoist.com/rest/v2/tasks?limit=200&offset=0',
-        {
-          statusCode: 200,
-          body: JSON.stringify({ message: 'Invalid token' }),
-        }
-      );
+      http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200', {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'Invalid token' }),
+      });
 
       await expect(client.fetchTasks()).rejects.toThrow('Todoist API error: Invalid token');
     });
@@ -53,9 +44,12 @@ describe('TodoistApiClient', () => {
 
   describe('fetchProjects', () => {
     it('returns projects', async () => {
-      http.setResponse('GET', 'https://api.todoist.com/rest/v2/projects', {
+      http.setResponse('GET', 'https://api.todoist.com/api/v1/projects?limit=200', {
         statusCode: 200,
-        body: JSON.stringify([{ id: '1', name: 'Inbox' }]),
+        body: JSON.stringify({
+          results: [{ id: '1', name: 'Inbox' }],
+          next_cursor: null,
+        }),
       });
 
       const projects = await client.fetchProjects();
@@ -65,9 +59,12 @@ describe('TodoistApiClient', () => {
 
   describe('fetchLabels', () => {
     it('returns labels', async () => {
-      http.setResponse('GET', 'https://api.todoist.com/rest/v2/labels', {
+      http.setResponse('GET', 'https://api.todoist.com/api/v1/labels?limit=200', {
         statusCode: 200,
-        body: JSON.stringify([{ id: '1', name: 'urgent' }]),
+        body: JSON.stringify({
+          results: [{ id: '1', name: 'urgent' }],
+          next_cursor: null,
+        }),
       });
 
       const labels = await client.fetchLabels();
