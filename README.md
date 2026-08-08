@@ -52,6 +52,12 @@ workspaces, and Brave browser bookmarks.
 - Preserves folder hierarchy and basic metadata
 - Creates dated HTML and JSON copies in the home directory
 
+**Chrome bookmarks export:**
+
+- Converts Google Chrome bookmarks to Netscape Bookmark File Format HTML
+- Preserves folder hierarchy and basic metadata
+- Creates dated HTML and JSON copies in the home directory
+
 **Key Features:**
 
 - ✅ Intelligent repository detection
@@ -147,7 +153,7 @@ Enhanced tmux session management following bash and tmux best practices:
 ### Running Backups
 
 ```bash
-# Run all backups (code-local, code-gitlab, todoist, notion, brave-bookmarks)
+# Run all backups (code-local, code-gitlab, todoist, notion, brave-bookmarks, chrome-bookmarks)
 npm run backup:all
 npm run backups
 
@@ -157,6 +163,7 @@ npm run backup:code-gitlab
 npm run backup:todoist
 npm run backup:notion
 npm run backup:brave-bookmarks
+npm run backup:chrome-bookmarks
 ```
 
 ### Running Tests

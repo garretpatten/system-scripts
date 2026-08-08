@@ -56,10 +56,11 @@ describe('BackupOrchestrator', () => {
     runner.setResponse('curl', ['--version'], { stdout: 'curl 8.0', stderr: '', exitCode: 0 });
     runner.setResponse('zip', ['--version'], { stdout: 'zip 3.0', stderr: '', exitCode: 0 });
     runner.setResponse('pgrep', ['-i', 'brave'], { stdout: '', stderr: '', exitCode: 1 });
+    runner.setResponse('pgrep', ['-i', 'chrome'], { stdout: '', stderr: '', exitCode: 1 });
 
-    const bookmarksPath = '/home/user/.config/BraveSoftware/Brave-Browser/Default/Bookmarks';
+    const braveBookmarksPath = '/home/user/.config/BraveSoftware/Brave-Browser/Default/Bookmarks';
     fs.files.set(
-      bookmarksPath,
+      braveBookmarksPath,
       JSON.stringify({
         checksum: 'abc',
         version: 1,
@@ -75,7 +76,27 @@ describe('BackupOrchestrator', () => {
         },
       }),
     );
-    fs.existsPaths.add(bookmarksPath);
+    fs.existsPaths.add(braveBookmarksPath);
+
+    const chromeBookmarksPath = '/home/user/.config/google-chrome/Default/Bookmarks';
+    fs.files.set(
+      chromeBookmarksPath,
+      JSON.stringify({
+        checksum: 'def',
+        version: 1,
+        roots: {
+          bookmark_bar: {
+            id: '1',
+            name: 'Bookmarks bar',
+            type: 'folder',
+            date_added: '0',
+            date_modified: '0',
+            children: [],
+          },
+        },
+      }),
+    );
+    fs.existsPaths.add(chromeBookmarksPath);
   });
 
   it('reports success when all backups succeed', async () => {

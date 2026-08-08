@@ -11,29 +11,28 @@ import { BackupContext } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export interface BraveBookmarksBackupConfig {
+export interface ChromeBookmarksBackupConfig {
   homeDir: string;
   logDir: string;
   outputDir?: string;
   copyJson?: boolean;
 }
 
-const LINUX_BOOKMARKS_PATH = '.config/BraveSoftware/Brave-Browser/Default/Bookmarks';
-const MACOS_BOOKMARKS_PATH =
-  'Library/Application Support/BraveSoftware/Brave-Browser/Default/Bookmarks';
+const LINUX_BOOKMARKS_PATH = '.config/google-chrome/Default/Bookmarks';
+const MACOS_BOOKMARKS_PATH = 'Library/Application Support/Google/Chrome/Default/Bookmarks';
 
-export class BraveBookmarksBackup {
+export class ChromeBookmarksBackup {
   constructor(private readonly context: BackupContext) {}
 
-  async run(config: BraveBookmarksBackupConfig): Promise<void> {
+  async run(config: ChromeBookmarksBackupConfig): Promise<void> {
     const chromiumConfig: ChromiumBookmarksBackupConfig = {
-      browserName: 'Brave',
+      browserName: 'Chrome',
       sourcePaths: [
         path.join(config.homeDir, LINUX_BOOKMARKS_PATH),
         path.join(config.homeDir, MACOS_BOOKMARKS_PATH),
       ],
-      outputPrefix: 'brave-bookmarks',
-      processPattern: 'brave',
+      outputPrefix: 'chrome-bookmarks',
+      processPattern: 'chrome',
       homeDir: config.homeDir,
       logDir: config.logDir,
       outputDir: config.outputDir,
@@ -60,7 +59,7 @@ async function main(): Promise<void> {
 
   await loadEnvFile(fs, process.env, projectRoot);
 
-  const config: BraveBookmarksBackupConfig = {
+  const config: ChromeBookmarksBackupConfig = {
     homeDir: process.env.HOME || process.env.USERPROFILE || '.',
     logDir: path.join(projectRoot, 'backups', 'logs'),
   };
@@ -77,7 +76,7 @@ async function main(): Promise<void> {
     runner,
   };
 
-  const backup = new BraveBookmarksBackup(context);
+  const backup = new ChromeBookmarksBackup(context);
   await backup.run(config);
 }
 

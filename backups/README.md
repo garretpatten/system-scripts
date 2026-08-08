@@ -10,6 +10,7 @@ backup logic is unit-testable with mocked dependencies.
   - `todoist-backup.ts` — Todoist backup
   - `notion-backup.ts` — Notion Markdown export
   - `brave-bookmarks-backup.ts` — Brave bookmarks HTML/JSON export
+  - `chrome-bookmarks-backup.ts` — Chrome bookmarks HTML/JSON export
   - `run-all.ts` — Orchestrator that runs all backups
   - `github.ts`, `gitlab.ts`, `todoist.ts`, `notion.ts` — API clients
   - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
@@ -24,6 +25,8 @@ backup logic is unit-testable with mocked dependencies.
   - `notion-backup.sh` — Thin wrapper around `notion-backup.ts`
 - **`brave-bookmarks/`** — Backward-compatible shell wrapper
   - `brave-bookmarks-backup.sh` — Thin wrapper around `brave-bookmarks-backup.ts`
+- **`chrome-bookmarks/`** — Backward-compatible shell wrapper
+  - `chrome-bookmarks-backup.sh` — Thin wrapper around `chrome-bookmarks-backup.ts`
 - **`run-all.sh`** — Thin wrapper around `run-all.ts`
 
 ## Running Tests
@@ -339,10 +342,44 @@ npm run backup:brave-bookmarks
 
 ---
 
+## 🔵 Chrome Bookmarks Export (`chrome-bookmarks/chrome-bookmarks-backup.sh`)
+
+Converts the Google Chrome bookmarks file to Netscape Bookmark File Format HTML
+and optionally keeps a dated JSON copy of the original profile data.
+
+### Chrome Bookmarks Export Features
+
+- Detects the Chrome bookmarks file on Linux or macOS
+- Warns if Chrome appears to be running (the file may be locked or stale)
+- Converts the Chromium bookmarks JSON to valid Netscape HTML
+- Preserves folder hierarchy and basic metadata (name, URL, dates)
+- Leaves the original Chrome profile data untouched
+- Creates a dated JSON copy of the original file alongside the HTML export
+
+### Chrome Bookmarks Export Usage
+
+```bash
+./backups/chrome-bookmarks/chrome-bookmarks-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:chrome-bookmarks
+```
+
+### Chrome Bookmarks Export Output
+
+- **HTML export**: `~/chrome-bookmarks_YYYY-MM-DD.html`
+- **JSON copy**: `~/chrome-bookmarks_YYYY-MM-DD.json`
+- **Logs**: `backups/logs/chrome-bookmarks-backup-YYYYMMDD-HHMMSS.log`
+
+---
+
 ## 🚀 Run All Backups
 
-To run the code-local, code-gitlab, todoist, notion, and brave-bookmarks backups
-in sequence:
+To run the code-local, code-gitlab, todoist, notion, brave-bookmarks, and
+chrome-bookmarks backups in sequence:
 
 ```bash
 ./backups/run-all.sh
@@ -387,6 +424,10 @@ All scripts create detailed logs in `backups/logs/`:
 **Brave Bookmarks Export:**
 
 - `brave-bookmarks-backup-YYYYMMDD-HHMMSS.log`
+
+**Chrome Bookmarks Export:**
+
+- `chrome-bookmarks-backup-YYYYMMDD-HHMMSS.log`
 
 **Orchestrator:**
 
@@ -472,6 +513,21 @@ Logs include:
     - Close Brave and try again
     - Review `backups/logs/brave-bookmarks-backup-*.log` for details
 
+15. **Chrome Bookmarks: "Chrome bookmarks file not found"**
+    - Ensure Chrome has been launched at least once so the profile directory exists
+    - Check that the bookmarks file exists at
+      `~/.config/google-chrome/Default/Bookmarks` (Linux) or
+      `~/Library/Application Support/Google/Chrome/Default/Bookmarks` (macOS)
+
+16. **Chrome Bookmarks: "Chrome appears to be running"**
+    - This is a warning, not a fatal error
+    - Close Chrome and re-run the backup to ensure the bookmarks file is not locked
+
+17. **Chrome Bookmarks: "Failed to parse Chrome bookmarks JSON"**
+    - The Chrome profile may be corrupted or the file may be partially written
+    - Close Chrome and try again
+    - Review `backups/logs/chrome-bookmarks-backup-*.log` for details
+
 ### Getting Help
 
 Check the error log files for detailed error messages:
@@ -502,6 +558,7 @@ crontab -e
 0 4 * * * cd /path/to/system-scripts && npm run backup:todoist
 0 5 * * * cd /path/to/system-scripts && npm run backup:notion
 0 6 * * * cd /path/to/system-scripts && npm run backup:brave-bookmarks
+0 7 * * * cd /path/to/system-scripts && npm run backup:chrome-bookmarks
 ```
 
 **Note:** When using cron, make sure environment variables are available in

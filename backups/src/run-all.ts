@@ -11,6 +11,7 @@ import { GitLabMirror, GitLabMirrorConfig } from './gitlab-mirror.js';
 import { TodoistBackup, TodoistBackupConfig } from './todoist-backup.js';
 import { NotionBackup, NotionBackupConfig } from './notion-backup.js';
 import { BraveBookmarksBackup, BraveBookmarksBackupConfig } from './brave-bookmarks-backup.js';
+import { ChromeBookmarksBackup, ChromeBookmarksBackupConfig } from './chrome-bookmarks-backup.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,6 +44,7 @@ export class BackupOrchestrator {
     results['todoist'] = await this.runTodoistBackup(logger);
     results['notion'] = await this.runNotionBackup(logger);
     results['brave-bookmarks'] = await this.runBraveBookmarksBackup(logger);
+    results['chrome-bookmarks'] = await this.runChromeBookmarksBackup(logger);
 
     logger.info('Backup summary:');
     for (const [name, ok] of Object.entries(results)) {
@@ -139,6 +141,20 @@ export class BackupOrchestrator {
       return true;
     } catch (error) {
       logger.warn(`Backup failed or had errors: brave-bookmarks: ${String(error)}`);
+      return false;
+    }
+  }
+
+  private async runChromeBookmarksBackup(logger: Logger): Promise<boolean> {
+    try {
+      const config: ChromeBookmarksBackupConfig = {
+        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
+        logDir: this.getLogDir(),
+      };
+      await new ChromeBookmarksBackup(this.context).run(config);
+      return true;
+    } catch (error) {
+      logger.warn(`Backup failed or had errors: chrome-bookmarks: ${String(error)}`);
       return false;
     }
   }
