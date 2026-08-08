@@ -8,9 +8,11 @@ macOS/Linux environments.
 ```text
 system-scripts/
 ├── backups/              # Repository, task, and workspace backups
-│   ├── code/             # GitHub repository backups
-│   ├── todoist/          # Todoist task backups
-│   ├── notion/           # Notion workspace Markdown export
+│   ├── src/              # TypeScript backup implementations
+│   ├── __tests__/        # Jest unit tests
+│   ├── code/             # GitHub repository backup wrappers
+│   ├── todoist/          # Todoist backup wrapper
+│   ├── notion/           # Notion workspace Markdown export wrapper
 │   └── run-all.sh        # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
@@ -147,6 +149,12 @@ npm run backup:code-local
 npm run backup:code-gitlab
 npm run backup:todoist
 npm run backup:notion
+```
+
+### Running Tests
+
+```bash
+npm test
 ```
 
 ## 📋 Session Layouts

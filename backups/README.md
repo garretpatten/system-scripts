@@ -1,63 +1,88 @@
 # Backups
 
 This module contains scripts for backing up code repositories, Todoist tasks,
-and Notion workspaces.
+and Notion workspaces. The implementation has been ported to TypeScript so the
+backup logic is unit-testable with mocked dependencies.
 
-- **`code/`** — GitHub repository backups
-  - `code-backup-local.sh` — Creates a local, zipped directory of all your
-    non-archived projects
-  - `code-backup-gitlab.sh` — Mirrors all non-archived public and private
-    projects to similarly named GitLab projects
-- **`todoist/`** — Todoist task backups
-  - `todoist-backup.sh` — Retrieves tasks, projects, and labels via the Todoist
-    REST API and creates a zip archive
-- **`notion/`** — Notion workspace export
-  - `notion-backup.sh` — Exports accessible pages and databases as Markdown
-    files using nested folders that mirror the workspace structure
-- **`run-all.sh`** — Runs `code-local`, `code-gitlab`, `todoist`, and `notion`
-  backups in one command
+- **`src/`** — TypeScript source code
+  - `local-backup.ts` — Local GitHub repository backup
+  - `gitlab-mirror.ts` — GitHub to GitLab mirror
+  - `todoist-backup.ts` — Todoist backup
+  - `notion-backup.ts` — Notion Markdown export
+  - `run-all.ts` — Orchestrator that runs all backups
+  - `github.ts`, `gitlab.ts`, `todoist.ts`, `notion.ts` — API clients
+  - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
+    abstractions
+- **`__tests__/unit/`** — Jest unit tests with mocked I/O
+- **`code/`** — Backward-compatible shell wrappers
+  - `code-backup-local.sh` — Thin wrapper around `local-backup.ts`
+  - `code-backup-gitlab.sh` — Thin wrapper around `gitlab-mirror.ts`
+- **`todoist/`** — Backward-compatible shell wrapper
+  - `todoist-backup.sh` — Thin wrapper around `todoist-backup.ts`
+- **`notion/`** — Backward-compatible shell wrapper
+  - `notion-backup.sh` — Thin wrapper around `notion-backup.ts`
+- **`run-all.sh`** — Thin wrapper around `run-all.ts`
+
+## Running Tests
+
+The test suite uses Jest with mocked HTTP, file-system, git, and archive
+clients so no real API calls or git operations are performed.
+
+```bash
+npm test
+```
+
+Run the TypeScript compiler in check-only mode:
+
+```bash
+npm run typecheck
+```
 
 ---
 
 ## 🛠 Requirements
 
-All scripts require Bash shell (version 4.0+) and `curl`.
+The backups module is implemented in TypeScript and runs on Node.js. The original
+shell entry points are now thin wrappers around the TypeScript implementation.
+
+- Node.js 20+
+- `npm` (or `pnpm`/`yarn`)
+- Bash shell (version 4.0+) for the wrapper scripts
 
 **Code backups also require:**
 
 - `git`
-- `jq`
 - `zip` (local backup only)
 
-**Todoist backup also requires:**
+**Todoist and Notion backups also require:**
 
-- `jq`
-- `zip`
-
-**Notion backup also requires:**
-
-- `jq`
 - `zip`
 
 ### Installing Dependencies
 
-**macOS (using Homebrew):**
+**Node.js dependencies:**
 
 ```bash
-brew install git curl jq zip
+npm install
+```
+
+**System dependencies (macOS using Homebrew):**
+
+```bash
+brew install git curl zip
 ```
 
 **Ubuntu/Debian:**
 
 ```bash
 sudo apt update
-sudo apt install git curl jq zip
+sudo apt install git curl zip
 ```
 
 **CentOS/RHEL:**
 
 ```bash
-sudo yum install git curl jq zip
+sudo yum install git curl zip
 ```
 
 ---
