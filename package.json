@@ -8,7 +8,9 @@
     "backup:code-gitlab": "tsx backups/src/gitlab-mirror.ts",
     "backup:todoist": "tsx backups/src/todoist-backup.ts",
     "backup:notion": "tsx backups/src/notion-backup.ts",
+    "backup:brave-bookmarks": "tsx backups/src/brave-bookmarks-backup.ts",
     "backup:all": "tsx backups/src/run-all.ts",
+    "backups": "tsx backups/src/run-all.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "typecheck": "tsc --noEmit"
   },

@@ -9,6 +9,7 @@ backup logic is unit-testable with mocked dependencies.
   - `gitlab-mirror.ts` — GitHub to GitLab mirror
   - `todoist-backup.ts` — Todoist backup
   - `notion-backup.ts` — Notion Markdown export
+  - `brave-bookmarks-backup.ts` — Brave bookmarks HTML/JSON export
   - `run-all.ts` — Orchestrator that runs all backups
   - `github.ts`, `gitlab.ts`, `todoist.ts`, `notion.ts` — API clients
   - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
@@ -21,6 +22,8 @@ backup logic is unit-testable with mocked dependencies.
   - `todoist-backup.sh` — Thin wrapper around `todoist-backup.ts`
 - **`notion/`** — Backward-compatible shell wrapper
   - `notion-backup.sh` — Thin wrapper around `notion-backup.ts`
+- **`brave-bookmarks/`** — Backward-compatible shell wrapper
+  - `brave-bookmarks-backup.sh` — Thin wrapper around `brave-bookmarks-backup.ts`
 - **`run-all.sh`** — Thin wrapper around `run-all.ts`
 
 ## Running Tests
@@ -302,9 +305,44 @@ npm run backup:notion
 
 ---
 
+## 🦁 Brave Bookmarks Export (`brave-bookmarks/brave-bookmarks-backup.sh`)
+
+Converts the Brave Browser bookmarks file to Netscape Bookmark File Format HTML
+and optionally keeps a dated JSON copy of the original profile data.
+
+### Brave Bookmarks Export Features
+
+- Detects the Brave bookmarks file on Linux or macOS
+- Warns if Brave appears to be running (the file may be locked or stale)
+- Converts the Chromium bookmarks JSON to valid Netscape HTML
+- Preserves folder hierarchy and basic metadata (name, URL, dates)
+- Leaves the original Brave profile data untouched
+- Creates a dated JSON copy of the original file alongside the HTML export
+
+### Brave Bookmarks Export Usage
+
+```bash
+./backups/brave-bookmarks/brave-bookmarks-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:brave-bookmarks
+```
+
+### Brave Bookmarks Export Output
+
+- **HTML export**: `~/brave-bookmarks_YYYY-MM-DD.html`
+- **JSON copy**: `~/brave-bookmarks_YYYY-MM-DD.json`
+- **Logs**: `backups/logs/brave-bookmarks-backup-YYYYMMDD-HHMMSS.log`
+
+---
+
 ## 🚀 Run All Backups
 
-To run the code-local, code-gitlab, todoist, and notion backups in sequence:
+To run the code-local, code-gitlab, todoist, notion, and brave-bookmarks backups
+in sequence:
 
 ```bash
 ./backups/run-all.sh
@@ -314,6 +352,7 @@ Or via npm:
 
 ```bash
 npm run backup:all
+npm run backups
 ```
 
 The orchestrator captures each backup's output in a combined log and reports the
@@ -344,6 +383,10 @@ All scripts create detailed logs in `backups/logs/`:
 
 - `notion-backup-YYYYMMDD-HHMMSS.log`
 - `notion-errors-YYYYMMDD-HHMMSS.log`
+
+**Brave Bookmarks Export:**
+
+- `brave-bookmarks-backup-YYYYMMDD-HHMMSS.log`
 
 **Orchestrator:**
 
@@ -413,6 +456,22 @@ Logs include:
     - Confirm the integration has access to the requested content
     - Review `backups/logs/notion-errors-*.log` for details
 
+12. **Brave Bookmarks: "Brave bookmarks file not found"**
+    - Ensure Brave has been launched at least once so the profile directory exists
+    - Check that the bookmarks file exists at
+      `~/.config/BraveSoftware/Brave-Browser/Default/Bookmarks` (Linux) or
+      `~/Library/Application Support/BraveSoftware/Brave-Browser/Default/Bookmarks`
+      (macOS)
+
+13. **Brave Bookmarks: "Brave appears to be running"**
+    - This is a warning, not a fatal error
+    - Close Brave and re-run the backup to ensure the bookmarks file is not locked
+
+14. **Brave Bookmarks: "Failed to parse Brave bookmarks JSON"**
+    - The Brave profile may be corrupted or the file may be partially written
+    - Close Brave and try again
+    - Review `backups/logs/brave-bookmarks-backup-*.log` for details
+
 ### Getting Help
 
 Check the error log files for detailed error messages:
@@ -442,6 +501,7 @@ crontab -e
 0 3 * * 0 cd /path/to/system-scripts && npm run backup:code-gitlab
 0 4 * * * cd /path/to/system-scripts && npm run backup:todoist
 0 5 * * * cd /path/to/system-scripts && npm run backup:notion
+0 6 * * * cd /path/to/system-scripts && npm run backup:brave-bookmarks
 ```
 
 **Note:** When using cron, make sure environment variables are available in

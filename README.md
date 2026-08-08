@@ -25,8 +25,8 @@ system-scripts/
 
 ### 📦 Backups (`backups/`)
 
-Comprehensive backup module for code repositories, Todoist tasks, and Notion
-workspaces.
+Comprehensive backup module for code repositories, Todoist tasks, Notion
+workspaces, and Brave browser bookmarks.
 
 **Code backups:**
 
@@ -45,6 +45,12 @@ workspaces.
 - Exports accessible pages and databases as Markdown
 - Uses nested folders that mirror the workspace structure
 - Creates timestamped zip archives
+
+**Brave bookmarks export:**
+
+- Converts Brave bookmarks to Netscape Bookmark File Format HTML
+- Preserves folder hierarchy and basic metadata
+- Creates dated HTML and JSON copies in the home directory
 
 **Key Features:**
 
@@ -141,14 +147,16 @@ Enhanced tmux session management following bash and tmux best practices:
 ### Running Backups
 
 ```bash
-# Run all backups (code-local, code-gitlab, todoist, notion)
+# Run all backups (code-local, code-gitlab, todoist, notion, brave-bookmarks)
 npm run backup:all
+npm run backups
 
 # Run individual backups
 npm run backup:code-local
 npm run backup:code-gitlab
 npm run backup:todoist
 npm run backup:notion
+npm run backup:brave-bookmarks
 ```
 
 ### Running Tests

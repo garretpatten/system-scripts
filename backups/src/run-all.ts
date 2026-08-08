@@ -10,6 +10,7 @@ import { LocalBackup, LocalBackupConfig } from './local-backup.js';
 import { GitLabMirror, GitLabMirrorConfig } from './gitlab-mirror.js';
 import { TodoistBackup, TodoistBackupConfig } from './todoist-backup.js';
 import { NotionBackup, NotionBackupConfig } from './notion-backup.js';
+import { BraveBookmarksBackup, BraveBookmarksBackupConfig } from './brave-bookmarks-backup.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,10 +42,11 @@ export class BackupOrchestrator {
     results['code-gitlab'] = await this.runGitlabMirror(logger);
     results['todoist'] = await this.runTodoistBackup(logger);
     results['notion'] = await this.runNotionBackup(logger);
+    results['brave-bookmarks'] = await this.runBraveBookmarksBackup(logger);
 
     logger.info('Backup summary:');
     for (const [name, ok] of Object.entries(results)) {
-      logger.info(`  ${name.padEnd(11)}: ${ok ? 'OK' : 'FAILED'}`);
+      logger.info(`  ${name.padEnd(17)}: ${ok ? 'OK' : 'FAILED'}`);
     }
 
     if (Object.values(results).some((ok) => !ok)) {
@@ -84,7 +86,9 @@ export class BackupOrchestrator {
           (this.context.env.AUTO_CREATE_GITLAB_PROJECTS || 'true').toLowerCase() === 'true',
         gitlabVisibility: this.context.env.GITLAB_VISIBILITY || 'private',
         gitlabHost: this.context.env.GITLAB_HOST || 'https://gitlab.com',
-        backupRoot: this.context.env.BACKUP_ROOT || path.join(this.context.env.HOME || '.', 'GitHub-GitLab-Backup'),
+        backupRoot:
+          this.context.env.BACKUP_ROOT ||
+          path.join(this.context.env.HOME || '.', 'GitHub-GitLab-Backup'),
       };
       await new GitLabMirror(this.context).run(config);
       return true;
@@ -121,6 +125,20 @@ export class BackupOrchestrator {
       return true;
     } catch (error) {
       logger.warn(`Backup failed or had errors: notion: ${String(error)}`);
+      return false;
+    }
+  }
+
+  private async runBraveBookmarksBackup(logger: Logger): Promise<boolean> {
+    try {
+      const config: BraveBookmarksBackupConfig = {
+        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
+        logDir: this.getLogDir(),
+      };
+      await new BraveBookmarksBackup(this.context).run(config);
+      return true;
+    } catch (error) {
+      logger.warn(`Backup failed or had errors: brave-bookmarks: ${String(error)}`);
       return false;
     }
   }
@@ -173,7 +191,6 @@ async function main(): Promise<void> {
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   main().catch((error) => {
-     
     console.error(error);
     process.exit(1);
   });

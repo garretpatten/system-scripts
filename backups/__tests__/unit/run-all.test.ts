@@ -14,9 +14,10 @@ describe('BackupOrchestrator', () => {
   let logger: MockLogger;
   let runner: MockCommandRunner;
   let http: MockHttpClient;
+  let fs: MockFileSystem;
 
   beforeEach(() => {
-    const fs = new MockFileSystem();
+    fs = new MockFileSystem();
     http = new MockHttpClient();
     logger = new MockLogger();
     runner = new MockCommandRunner();
@@ -54,6 +55,27 @@ describe('BackupOrchestrator', () => {
     });
     runner.setResponse('curl', ['--version'], { stdout: 'curl 8.0', stderr: '', exitCode: 0 });
     runner.setResponse('zip', ['--version'], { stdout: 'zip 3.0', stderr: '', exitCode: 0 });
+    runner.setResponse('pgrep', ['-i', 'brave'], { stdout: '', stderr: '', exitCode: 1 });
+
+    const bookmarksPath = '/home/user/.config/BraveSoftware/Brave-Browser/Default/Bookmarks';
+    fs.files.set(
+      bookmarksPath,
+      JSON.stringify({
+        checksum: 'abc',
+        version: 1,
+        roots: {
+          bookmark_bar: {
+            id: '1',
+            name: 'Bookmarks bar',
+            type: 'folder',
+            date_added: '0',
+            date_modified: '0',
+            children: [],
+          },
+        },
+      }),
+    );
+    fs.existsPaths.add(bookmarksPath);
   });
 
   it('reports success when all backups succeed', async () => {
