@@ -1,5 +1,6 @@
-# Environment variables
+# Environment files
 .env
+.env.local
 
 # Log files
 logs/

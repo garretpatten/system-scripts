@@ -12,6 +12,13 @@ set -euo pipefail
 # ----------------------------
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly SCRIPT_DIR
+
+# Load user-specific environment variables from project root .env if present.
+# Variables already exported in the shell take precedence over .env values.
+# shellcheck disable=SC1091 source=../backups-utils.sh
+source "$SCRIPT_DIR/../backups-utils.sh"
+load_env_file
+
 readonly LOG_DIR="$SCRIPT_DIR/../logs"
 mkdir -p "$LOG_DIR"
 
@@ -19,15 +26,6 @@ RUN_TS=$( date +%Y%m%d-%H%M%S )
 readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/gh-gl-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/gh-gl-errors-$RUN_TS.log"
-
-# Load environment variables from project root .env if present
-PROJECT_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/.env"
-    set +a
-fi
 
 # Where to store local mirror clones (bare repos)
 readonly BACKUP_ROOT="${BACKUP_ROOT:-$HOME/GitHub-GitLab-Backup}"

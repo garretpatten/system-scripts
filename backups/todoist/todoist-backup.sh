@@ -11,21 +11,18 @@ set -euo pipefail
 # ----------------------------
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly SCRIPT_DIR
-readonly LOG_DIR="$SCRIPT_DIR/../logs"
 
+# Load user-specific environment variables from project root .env if present.
+# Variables already exported in the shell take precedence over .env values.
+# shellcheck disable=SC1091 source=../backups-utils.sh
+source "$SCRIPT_DIR/../backups-utils.sh"
+load_env_file
+
+readonly LOG_DIR="$SCRIPT_DIR/../logs"
 RUN_TS=$(date +%Y%m%d-%H%M%S)
 readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/todoist-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/todoist-errors-$RUN_TS.log"
-
-# Load environment variables from project root .env if present
-PROJECT_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/.env"
-    set +a
-fi
 
 # Required:
 : "${TODOIST_API_TOKEN:?Set TODOIST_API_TOKEN in env or .env}"
@@ -90,9 +87,9 @@ check_dependencies() {
 # ----------------------------
 todoist_api_get() {
     local path="$1"
-    curl -sS \
+    curl -sS -f \
         --header "Authorization: Bearer $TODOIST_API_TOKEN" \
-        "$TODOIST_API$path" 2>>"$ERROR_LOG" || true
+        "$TODOIST_API$path" 2>>"$ERROR_LOG"
 }
 
 # Fetch a paged collection from Todoist. The REST API returns up to 200 items
@@ -104,11 +101,17 @@ fetch_collection() {
 
     while true; do
         local resp
-        resp="$(todoist_api_get "${endpoint}?limit=${limit}&offset=${offset}")"
+        if ! resp="$(todoist_api_get "${endpoint}?limit=${limit}&offset=${offset}")"; then
+            error_exit "Todoist API request failed on ${endpoint}"
+        fi
 
-        if echo "$resp" | jq -e '.message? // empty' >/dev/null 2>&1; then
+        if ! echo "$resp" | jq -e . >/dev/null 2>&1; then
+            error_exit "Todoist API returned non-JSON response on ${endpoint}"
+        fi
+
+        if echo "$resp" | jq -e '.message? // .error? // empty' >/dev/null 2>&1; then
             local msg
-            msg="$(echo "$resp" | jq -r '.message' 2>/dev/null || echo "unknown")"
+            msg="$(echo "$resp" | jq -r '.message? // .error? // "unknown"' 2>/dev/null)"
             error_exit "Todoist API error on ${endpoint}: $msg"
         fi
 
@@ -138,11 +141,17 @@ fetch_all_tasks() {
     local merged_file="$temp_dir/tasks.json"
     echo "[]" > "$merged_file"
 
+    local pages_file="$temp_dir/pages.json"
+    if ! fetch_collection "/tasks" > "$pages_file"; then
+        rm -rf "$temp_dir"
+        return 1
+    fi
+
     while IFS= read -r page; do
         [ -n "${page:-}" ] || continue
         jq -s '.[0] + .[1]' "$merged_file" <(echo "$page") > "$merged_file.tmp"
         mv "$merged_file.tmp" "$merged_file"
-    done < <(fetch_collection "/tasks")
+    done < "$pages_file"
 
     jq '.' "$merged_file"
     rm -rf "$temp_dir"
@@ -157,11 +166,21 @@ backup_collection() {
 
     log_info "Fetching ${filename}..."
     local resp
-    resp="$(todoist_api_get "$endpoint")"
+    if ! resp="$(todoist_api_get "$endpoint")"; then
+        log_warn "Todoist API request failed on ${endpoint}"
+        echo "[]" > "$BACKUP_DIR/$filename"
+        return 1
+    fi
 
-    if echo "$resp" | jq -e '.message? // empty' >/dev/null 2>&1; then
+    if ! echo "$resp" | jq -e . >/dev/null 2>&1; then
+        log_warn "Todoist API returned non-JSON response on ${endpoint}"
+        echo "[]" > "$BACKUP_DIR/$filename"
+        return 1
+    fi
+
+    if echo "$resp" | jq -e '.message? // .error? // empty' >/dev/null 2>&1; then
         local msg
-        msg="$(echo "$resp" | jq -r '.message' 2>/dev/null || echo "unknown")"
+        msg="$(echo "$resp" | jq -r '.message? // .error? // "unknown"' 2>/dev/null)"
         log_warn "Todoist API error on ${endpoint}: $msg"
         echo "[]" > "$BACKUP_DIR/$filename"
         return 1
@@ -221,7 +240,10 @@ main() {
     check_dependencies
 
     local tasks_json
-    tasks_json="$(fetch_all_tasks)"
+    if ! tasks_json="$(fetch_all_tasks)"; then
+        error_exit "Failed to fetch Todoist tasks"
+    fi
+
     local task_count
     task_count="$(echo "$tasks_json" | jq 'length')"
     echo "$tasks_json" | jq '.' > "$BACKUP_DIR/tasks.json"

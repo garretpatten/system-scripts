@@ -9,20 +9,17 @@ set -euo pipefail
 # ----------------------------
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly SCRIPT_DIR
-readonly LOG_DIR="$SCRIPT_DIR/logs"
 
+# Load user-specific environment variables from project root .env if present.
+# Variables already exported in the shell take precedence over .env values.
+# shellcheck disable=SC1091 source=./backups-utils.sh
+source "$SCRIPT_DIR/backups-utils.sh"
+load_env_file
+
+readonly LOG_DIR="$SCRIPT_DIR/logs"
 RUN_TS=$(date +%Y%m%d-%H%M%S)
 readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/backups-$RUN_TS.log"
-
-# Load environment variables from project root .env if present
-PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/.env"
-    set +a
-fi
 
 # Sub-scripts
 readonly CODE_LOCAL_SCRIPT="$SCRIPT_DIR/code/code-backup-local.sh"

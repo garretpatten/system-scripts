@@ -6,7 +6,7 @@
     "backup:all": "./backups/run-all.sh"
   },
   "devDependencies": {
-    "markdownlint-cli": "^0.48.0",
+    "markdownlint-cli": "^0.49.1",
     "prettier": "^3.7.3"
   }
 }
