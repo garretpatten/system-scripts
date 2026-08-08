@@ -12,7 +12,7 @@ set -euo pipefail
 # ----------------------------
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly SCRIPT_DIR
-readonly LOG_DIR="$SCRIPT_DIR/logs"
+readonly LOG_DIR="$SCRIPT_DIR/../logs"
 mkdir -p "$LOG_DIR"
 
 RUN_TS=$( date +%Y%m%d-%H%M%S )
@@ -20,14 +20,23 @@ readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/gh-gl-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/gh-gl-errors-$RUN_TS.log"
 
+# Load environment variables from project root .env if present
+PROJECT_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
 # Where to store local mirror clones (bare repos)
 readonly BACKUP_ROOT="${BACKUP_ROOT:-$HOME/GitHub-GitLab-Backup}"
 readonly MIRRORS_DIR="$BACKUP_ROOT/mirrors-$RUN_TS"
 mkdir -p "$MIRRORS_DIR"
 
 # Required:
-: "${GITLAB_TOKEN:?Set GITLAB_TOKEN (GitLab.com PAT) in env}"
-: "${GITLAB_NAMESPACE:?Set GITLAB_NAMESPACE (your GitLab username or group full path) in env}"
+: "${GITLAB_TOKEN:?Set GITLAB_TOKEN (GitLab.com PAT) in env or .env}"
+: "${GITLAB_NAMESPACE:?Set GITLAB_NAMESPACE (your GitLab username or group full path) in env or .env}"
 
 # Optional:
 # If set, script can access private GitHub repos you can see.
@@ -166,7 +175,7 @@ get_github_repos() {
     # Emit owner/name + url, excluding archived
     local lines
     lines="$(echo "$resp" | jq -r --argjson _ 0 \
-      ".[] | select(.archived == false) | (.full_name + \"\t\" + ${jq_clone_field})" 2>>"$ERROR_LOG" || true)"
+      ".[] | select(.archived == false) | (.full_name + \"\\t\" + ${jq_clone_field})" 2>>"$ERROR_LOG" || true)"
 
     [ -n "$lines" ] || break
 
@@ -255,7 +264,7 @@ create_gitlab_project() {
 
 gitlab_remote_url() {
   # Use GitLab's HTTPS token auth.
-  # GitLab PAT can be used as the password over HTTPS.  [oai_citation:3‡GitLab Docs](https://docs.gitlab.com/user/profile/personal_access_tokens/?utm_source=chatgpt.com)
+  # GitLab PAT can be used as the password over HTTPS.
   # The conventional form for GitLab is username "oauth2" with token as password.
   local path_with_ns="$1"
   echo "https://oauth2:${GITLAB_TOKEN}@gitlab.com/${path_with_ns}.git"

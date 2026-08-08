@@ -1,11 +1,17 @@
+# Environment variables
+.env
+
 # Log files
 logs/
 *.log
 errors-*.log
 code-backup-*.log
+todoist-*.log
 
 # Backup files
+Code-Backup_*.zip
 Projects-Backup_*.zip
+Todoist-Backup_*.zip
 
 # macOS
 .DS_Store

@@ -14,8 +14,8 @@ A typical maintenance flow:
 # 2. Pull latest changes for every repo already on disk
 ./git-scripts/sync-all.sh ~/Projects
 
-# 3. Create a local zip backup (see code-backup/)
-./code-backup/code-backup-local.sh
+# 3. Create a local zip backup (see backups/)
+./backups/code/code-backup-local.sh
 ```
 
 ---
@@ -25,14 +25,14 @@ A typical maintenance flow:
 Fetches all non-archived GitHub repositories and clones any that are not
 already present under `~/Projects` (or `$PROJECTS_DIR`).
 
-### Features
+### clone-all Features
 
 - Lists non-archived repos via the GitHub API
 - Skips repositories that already exist locally
 - Checks out each new clone's default branch
 - Logs progress and errors under `git-scripts/logs/`
 
-### Requirements
+### clone-all Requirements
 
 - `git`, `curl`, `jq`
 
@@ -52,14 +52,14 @@ export PROJECTS_DIR="$HOME/Projects"    # Default: ~/Projects
 export USE_GITHUB_SSH="true"            # Use SSH instead of HTTPS (default: false)
 ```
 
-### Usage
+### clone-all Usage
 
 ```bash
 chmod +x git-scripts/clone-all.sh
 ./git-scripts/clone-all.sh
 ```
 
-### Output
+### clone-all Output
 
 - **Cloned repositories**: `~/Projects/` (or `$PROJECTS_DIR`)
 - **Logs**: `git-scripts/logs/clone-all-YYYYMMDD-HHMMSS.log`
@@ -72,7 +72,7 @@ chmod +x git-scripts/clone-all.sh
 Finds all git repositories within a path, switches each to its default branch,
 and pulls the latest changes.
 
-### Features
+### sync-all Features
 
 - Recursive discovery of `.git` directories
 - Automatic default branch detection (main/master/HEAD)
@@ -82,11 +82,11 @@ and pulls the latest changes.
 Can also be sourced by other scripts; `sync_repo` and `get_default_branch` are
 available when sourced.
 
-### Requirements
+### sync-all Requirements
 
 - `git`
 
-### Usage
+### sync-all Usage
 
 ```bash
 # Sync all repos under ~/Projects (default path is current directory)
@@ -97,5 +97,5 @@ available when sourced.
 
 ## Related
 
-- [Code Backup Documentation](../code-backup/README.md)
+- [Backups Documentation](../backups/README.md)
 - [GitHub API Documentation](https://docs.github.com/en/rest)

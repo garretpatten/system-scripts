@@ -9,11 +9,20 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly SCRIPT_DIR
-readonly LOG_DIR="$SCRIPT_DIR/logs"
+readonly LOG_DIR="$SCRIPT_DIR/../logs"
 RUN_TS=$(date +%Y%m%d-%H%M%S)
 readonly RUN_TS
 readonly LOG_FILE="$LOG_DIR/code-backup-$RUN_TS.log"
 readonly ERROR_LOG="$LOG_DIR/errors-$RUN_TS.log"
+
+# Load environment variables from project root .env if present
+PROJECT_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
 
 # Optional: GitHub token for private repos
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
@@ -211,15 +220,15 @@ update_repository() {
     local repo_path="$1"
     local repo_name="$2"
     local sync_script
-    sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
-    
+    sync_script="$(dirname "$SCRIPT_DIR")/../git-scripts/sync-all.sh"
+
     if [[ -f "$sync_script" ]]; then
         # shellcheck disable=SC1090,SC1091
         source "$sync_script"
-        
+
         local sync_output
         sync_output=$(sync_repo "$repo_path" 2>&1 || true)
-        
+
         echo "$sync_output" | while IFS= read -r line; do
             if [[ "$line" =~ ^---[[:space:]]Processing:.* ]]; then
                 log_info "$(echo "$line" | sed 's/--- Processing: //; s/ ---//')"
@@ -235,7 +244,7 @@ update_repository() {
                 log_info "$line"
             fi
         done
-        
+
         if [[ "$sync_output" =~ "SUCCESS: Updated" ]]; then
             ((SUCCESSFUL_REPOS++))
             return 0
@@ -261,8 +270,8 @@ clone_repository() {
     local original_dir
     original_dir=$(pwd)
     local sync_script
-    sync_script="$(dirname "$SCRIPT_DIR")/git-scripts/sync-all.sh"
-    
+    sync_script="$(dirname "$SCRIPT_DIR")/../git-scripts/sync-all.sh"
+
     local effective_clone_url="$repo_url"
     if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
         effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@}"

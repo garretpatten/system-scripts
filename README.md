@@ -7,7 +7,10 @@ macOS/Linux environments.
 
 ```text
 system-scripts/
-├── code-backup/          # Repository backup and management
+├── backups/              # Repository and task backups
+│   ├── code/             # GitHub repository backups
+│   ├── todoist/          # Todoist task backups
+│   └── run-all.sh        # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
 ├── media-scripts/        # Photo library organization utilities
@@ -17,14 +20,21 @@ system-scripts/
 
 ## 🔧 Scripts Overview
 
-### 📦 Code Backup (`code-backup/`)
+### 📦 Backups (`backups/`)
 
-Comprehensive repository backup and management system with:
+Comprehensive backup module for code repositories and Todoist tasks.
+
+**Code backups:**
 
 - Automated git operations (pull, push, status checking)
 - Selective repository filtering
 - Detailed logging and error handling
 - Progress tracking and reporting
+
+**Todoist backup:**
+
+- Retrieves active tasks, projects, and labels via the Todoist REST API
+- Creates timestamped zip archives
 
 **Key Features:**
 
@@ -33,6 +43,7 @@ Comprehensive repository backup and management system with:
 - ✅ Comprehensive logging system
 - ✅ Error handling and recovery
 - ✅ Progress indicators and reporting
+- ✅ Single command to run all backups
 
 ### 🔧 Git Utilities (`git-scripts/`)
 
@@ -46,7 +57,7 @@ Utilities for managing multiple git repositories:
 ```bash
 ./git-scripts/clone-all.sh              # clone missing repos
 ./git-scripts/sync-all.sh ~/Projects    # pull latest for all repos
-./code-backup/code-backup-local.sh      # create a zip backup
+./backups/code/code-backup-local.sh     # create a zip backup
 ```
 
 **Key Features:**
@@ -117,14 +128,16 @@ Enhanced tmux session management following bash and tmux best practices:
 
 ## 🚀 Quick Start
 
-### Customizing Code Backup
+### Running Backups
 
 ```bash
-# Run backup for all repositories
-./code-backup/code-backup.sh
+# Run all backups (code-local, code-gitlab, todoist)
+npm run backup:all
 
-# Run with specific options
-./code-backup/code-backup.sh --help
+# Run individual backups
+npm run backup:code-local
+npm run backup:code-gitlab
+npm run backup:todoist
 ```
 
 ## 📋 Session Layouts
@@ -159,7 +172,7 @@ Enhanced tmux session management following bash and tmux best practices:
 All scripts include comprehensive logging:
 
 - `~/.tmux-session-*.log` - Tmux session logs
-- `code-backup/logs/` - Backup operation logs
+- `backups/logs/` - Backup operation logs
 - Colored output for better visibility
 - Timestamped entries with context
 
@@ -170,19 +183,19 @@ All scripts include comprehensive logging:
 - Customize status bar appearance
 - Add new specialized windows
 
-### Code Backup
+### Backups
 
-- Configure repository paths and filters
+- Configure tokens and options in `.env`
 - Adjust backup schedules and options
 - Customize logging and reporting
 
 ## 📚 Documentation
 
+- [Backups Documentation](backups/README.md)
 - [Configuration Documentation](configuration/README.md)
 - [Git Scripts Documentation](git-scripts/README.md)
 - [Media Scripts Documentation](media-scripts/README.md)
 - [Tmux Scripts Documentation](tmux/README.md)
-- [Code Backup Documentation](code-backup/README.md)
 
 ## 🤝 Contributing
 
