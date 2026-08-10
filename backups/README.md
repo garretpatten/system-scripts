@@ -13,8 +13,12 @@ dependencies.
   - `brave-bookmarks-backup.ts` — Brave bookmarks HTML/JSON export
   - `chrome-bookmarks-backup.ts` — Chrome bookmarks HTML/JSON export
   - `standard-notes-backup.ts` — Standard Notes plaintext backup export
+  - `google-calendar-backup.ts` — Google Calendar export
+  - `google-tasks-backup.ts` — Google Tasks export
   - `run-all.ts` — Orchestrator that runs all backups
   - `github.ts`, `gitlab.ts`, `todoist.ts`, `notion.ts` — API clients
+  - `google-calendar.ts`, `google-tasks.ts` — Google API clients
+  - `google-auth.ts` — Shared Google OAuth 2.0 token refresh
   - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
     abstractions
 - **`__tests__/unit/`** — Jest unit tests with mocked I/O
@@ -31,6 +35,11 @@ dependencies.
   - `chrome-bookmarks-backup.sh` — Thin wrapper around `chrome-bookmarks-backup.ts`
 - **`standard-notes/`** — Backward-compatible shell wrapper
   - `standard-notes-backup.sh` — Thin wrapper around `standard-notes-backup.ts`
+- **`google-calendar/`** — Backward-compatible shell wrapper
+  - `google-calendar-backup.sh` — Thin wrapper around
+    `google-calendar-backup.ts`
+- **`google-tasks/`** — Backward-compatible shell wrapper
+  - `google-tasks-backup.sh` — Thin wrapper around `google-tasks-backup.ts`
 - **`run-all.sh`** — Thin wrapper around `run-all.ts`
 
 ## Running Tests
@@ -64,7 +73,7 @@ shell entry points are now thin wrappers around the TypeScript implementation.
 - `git`
 - `zip` (local backup only)
 
-**Todoist, Notion, and Standard Notes backups also require:**
+**Todoist, Notion, Standard Notes, and Google backups also require:**
 
 - `zip`
 
@@ -157,6 +166,31 @@ To create a Notion integration token, visit
 After creating the integration, you must share each page or database you want to
 export with the integration from its **Share** menu. The Notion API can only
 access content explicitly shared with the integration.
+
+### Google Calendar and Google Tasks backups
+
+Both Google backups share the same OAuth 2.0 credentials:
+
+```bash
+# Required
+GOOGLE_CLIENT_ID="your_google_oauth_client_id"
+GOOGLE_CLIENT_SECRET="your_google_oauth_client_secret"
+GOOGLE_REFRESH_TOKEN="your_google_oauth_refresh_token"
+
+# Optional
+GOOGLE_CALENDAR_SHOW_DELETED="false"
+GOOGLE_TASKS_SHOW_COMPLETED="true"
+GOOGLE_TASKS_SHOW_DELETED="true"
+GOOGLE_TASKS_SHOW_HIDDEN="true"
+```
+
+Create an OAuth 2.0 **Desktop app** client in the
+[Google Cloud Console](https://console.cloud.google.com/apis/credentials) and
+enable the **Google Calendar API** and **Google Tasks API** for the project.
+The refresh token must be granted these read-only scopes:
+
+- `https://www.googleapis.com/auth/calendar.readonly`
+- `https://www.googleapis.com/auth/tasks.readonly`
 
 ---
 
@@ -423,10 +457,84 @@ npm run backup:standard-notes
 
 ---
 
+## 📅 Google Calendar Export (`google-calendar/google-calendar-backup.sh`)
+
+Exports all calendars visible to the authenticated user — including secondary
+and shared calendars with at least reader access — together with their events.
+
+### Google Calendar Export Features
+
+- Discovers all calendars via the Calendar API (handles pagination)
+- Exports every event per calendar, expanding recurring events into instances
+- Optionally includes deleted/cancelled events
+  (`GOOGLE_CALENDAR_SHOW_DELETED="true"`)
+- Writes pretty-printed JSON files to a temporary directory
+- Creates a zip backup: `~/Google-Calendar-Export_YYYY-MM-DD.zip`
+
+### Google Calendar Export Usage
+
+```bash
+./backups/google-calendar/google-calendar-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:google-calendar
+```
+
+### Google Calendar Export Output
+
+- **Backup archive**: `~/Google-Calendar-Export_YYYY-MM-DD.zip`
+- **Logs**: `backups/logs/google-calendar-backup-YYYYMMDD-HHMMSS.log`
+- **Errors**: `backups/logs/google-calendar-errors-YYYYMMDD-HHMMSS.log`
+
+The zip contains a `calendars.json` index plus one directory per calendar with
+`calendar.json` (metadata) and `events.json` (all events).
+
+---
+
+## ✅ Google Tasks Export (`google-tasks/google-tasks-backup.sh`)
+
+Exports all task lists and tasks belonging to the authenticated user.
+
+### Google Tasks Export Features
+
+- Discovers all task lists via the Tasks API (handles pagination)
+- Exports every task per list, including completed, deleted, and hidden tasks
+  (configurable via `GOOGLE_TASKS_SHOW_COMPLETED`, `GOOGLE_TASKS_SHOW_DELETED`,
+  and `GOOGLE_TASKS_SHOW_HIDDEN`)
+- Writes pretty-printed JSON files to a temporary directory
+- Creates a zip backup: `~/Google-Tasks-Export_YYYY-MM-DD.zip`
+
+### Google Tasks Export Usage
+
+```bash
+./backups/google-tasks/google-tasks-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:google-tasks
+```
+
+### Google Tasks Export Output
+
+- **Backup archive**: `~/Google-Tasks-Export_YYYY-MM-DD.zip`
+- **Logs**: `backups/logs/google-tasks-backup-YYYYMMDD-HHMMSS.log`
+- **Errors**: `backups/logs/google-tasks-errors-YYYYMMDD-HHMMSS.log`
+
+The zip contains a `task-lists.json` index plus one directory per task list
+with `task-list.json` (metadata) and `tasks.json` (all tasks).
+
+---
+
 ## 🚀 Run All Backups
 
 To run the code-local, code-gitlab, todoist, notion, brave-bookmarks,
-chrome-bookmarks, and standard-notes backups in sequence:
+chrome-bookmarks, standard-notes, google-calendar, and google-tasks backups in
+sequence:
 
 ```bash
 ./backups/run-all.sh
@@ -479,6 +587,16 @@ All scripts create detailed logs in `backups/logs/`:
 **Standard Notes Export:**
 
 - `standard-notes-backup-YYYYMMDD-HHMMSS.log`
+
+**Google Calendar Export:**
+
+- `google-calendar-backup-YYYYMMDD-HHMMSS.log`
+- `google-calendar-errors-YYYYMMDD-HHMMSS.log`
+
+**Google Tasks Export:**
+
+- `google-tasks-backup-YYYYMMDD-HHMMSS.log`
+- `google-tasks-errors-YYYYMMDD-HHMMSS.log`
 
 **Orchestrator:**
 
@@ -585,6 +703,18 @@ Logs include:
     - Verify the directory exists at
       `$HOME/garret.patten@proton.me/Plaintext Backups/`
 
+19. **Google: "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and
+    GOOGLE_REFRESH_TOKEN"**
+    - Add your Google OAuth 2.0 credentials to `.env`
+    - Ensure the refresh token has not been revoked
+
+20. **Google: "Google OAuth token refresh failed"**
+    - Verify the client ID, client secret, and refresh token belong together
+    - Ensure the refresh token was granted the `calendar.readonly` and
+      `tasks.readonly` scopes
+    - Review `backups/logs/google-calendar-errors-*.log` or
+      `backups/logs/google-tasks-errors-*.log` for details
+
 ### Getting Help
 
 Check the error log files for detailed error messages:
@@ -618,6 +748,8 @@ crontab -e
 0 6 * * * cd /path/to/system-scripts && npm run backup:brave-bookmarks
 0 7 * * * cd /path/to/system-scripts && npm run backup:chrome-bookmarks
 0 8 * * * cd /path/to/system-scripts && npm run backup:standard-notes
+0 9 * * * cd /path/to/system-scripts && npm run backup:google-calendar
+0 10 * * * cd /path/to/system-scripts && npm run backup:google-tasks
 ```
 
 **Note:** When using cron, make sure environment variables are available in
@@ -672,5 +804,7 @@ git submodule update --init --recursive
 - [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
 - [Todoist REST API Documentation](https://developer.todoist.com/rest/v2/)
 - [Notion API Documentation](https://developers.notion.com/)
+- [Google Calendar API Documentation](https://developers.google.com/calendar/api/v3/reference)
+- [Google Tasks API Documentation](https://developers.google.com/tasks/reference/rest)
 - [Git Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 - [GitLab Personal Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)

@@ -14,6 +14,8 @@ system-scripts/
 │   ├── todoist/          # Todoist backup wrapper
   │   ├── notion/           # Notion workspace Markdown export wrapper
   │   ├── standard-notes/   # Standard Notes plaintext backup wrapper
+│   ├── google-calendar/    # Google Calendar export wrapper
+│   ├── google-tasks/       # Google Tasks export wrapper
   │   └── run-all.sh        # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
@@ -27,7 +29,8 @@ system-scripts/
 ### 📦 Backups (`backups/`)
 
 Comprehensive backup module for code repositories, Todoist tasks, Notion
-workspaces, browser bookmarks, and Standard Notes.
+workspaces, browser bookmarks, Standard Notes, Google Calendars, and Google
+Tasks.
 
 **Code backups:**
 
@@ -64,6 +67,18 @@ workspaces, browser bookmarks, and Standard Notes.
 - Backs up Standard Notes Plaintext Backups as Markdown
 - Cleans filenames to lowercase kebab-case and removes identifier suffixes
 - Preserves folder hierarchy and creates a dated zip archive
+
+**Google Calendar export:**
+
+- Exports all accessible calendars and their events via the Google Calendar API
+- Expands recurring events into instances; optionally includes deleted events
+- Creates timestamped zip archives
+
+**Google Tasks export:**
+
+- Exports all task lists and tasks via the Google Tasks API
+- Includes completed, deleted, and hidden tasks (configurable)
+- Creates timestamped zip archives
 
 **Key Features:**
 
@@ -160,7 +175,8 @@ Enhanced tmux session management following bash and tmux best practices:
 ### Running Backups
 
 ```bash
-# Run all backups (code-local, code-gitlab, todoist, notion, bookmarks, standard-notes)
+# Run all backups (code-local, code-gitlab, todoist, notion, bookmarks,
+# standard-notes, google-calendar, google-tasks)
 npm run backup:all
 npm run backups
 
@@ -172,6 +188,8 @@ npm run backup:notion
 npm run backup:brave-bookmarks
 npm run backup:chrome-bookmarks
 npm run backup:standard-notes
+npm run backup:google-calendar
+npm run backup:google-tasks
 ```
 
 ### Running Tests

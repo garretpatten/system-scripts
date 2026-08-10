@@ -44,6 +44,9 @@ describe('BackupOrchestrator', () => {
         GITLAB_NAMESPACE: 'octocat',
         TODOIST_API_TOKEN: 'todoist-token',
         NOTION_API_TOKEN: 'notion-token',
+        GOOGLE_CLIENT_ID: 'google-client-id',
+        GOOGLE_CLIENT_SECRET: 'google-client-secret',
+        GOOGLE_REFRESH_TOKEN: 'google-refresh-token',
       },
       runner,
     };
@@ -132,6 +135,26 @@ describe('BackupOrchestrator', () => {
       statusCode: 200,
       body: JSON.stringify({ results: [], next_cursor: null }),
     });
+    http.setResponse('POST', 'https://oauth2.googleapis.com/token', {
+      statusCode: 200,
+      body: JSON.stringify({ access_token: 'google-access-token' }),
+    });
+    http.setResponse(
+      'GET',
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ items: [] }),
+      },
+    );
+    http.setResponse(
+      'GET',
+      'https://tasks.googleapis.com/tasks/v1/users/@me/lists?maxResults=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ items: [] }),
+      },
+    );
 
     const orchestrator = new BackupOrchestrator(context);
     await orchestrator.run({ homeDir: '/home/user', logDir: '/logs' });

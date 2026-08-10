@@ -13,6 +13,9 @@ import { NotionBackup, NotionBackupConfig } from './notion-backup.js';
 import { BraveBookmarksBackup, BraveBookmarksBackupConfig } from './brave-bookmarks-backup.js';
 import { ChromeBookmarksBackup, ChromeBookmarksBackupConfig } from './chrome-bookmarks-backup.js';
 import { StandardNotesBackup, StandardNotesBackupConfig } from './standard-notes-backup.js';
+import { GoogleCalendarBackup, GoogleCalendarBackupConfig } from './google-calendar-backup.js';
+import { GoogleTasksBackup, GoogleTasksBackupConfig } from './google-tasks-backup.js';
+import { GoogleOAuthCredentials } from './google-auth.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +50,8 @@ export class BackupOrchestrator {
     results['brave-bookmarks'] = await this.runBraveBookmarksBackup(logger);
     results['chrome-bookmarks'] = await this.runChromeBookmarksBackup(logger);
     results['standard-notes'] = await this.runStandardNotesBackup(logger);
+    results['google-calendar'] = await this.runGoogleCalendarBackup(logger);
+    results['google-tasks'] = await this.runGoogleTasksBackup(logger);
 
     logger.info('Backup summary:');
     for (const [name, ok] of Object.entries(results)) {
@@ -173,6 +178,51 @@ export class BackupOrchestrator {
       logger.warn(`Backup failed or had errors: standard-notes: ${String(error)}`);
       return false;
     }
+  }
+
+  private async runGoogleCalendarBackup(logger: Logger): Promise<boolean> {
+    try {
+      const config: GoogleCalendarBackupConfig = {
+        credentials: this.loadGoogleCredentials(),
+        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
+        logDir: this.getLogDir(),
+        showDeleted:
+          (this.context.env.GOOGLE_CALENDAR_SHOW_DELETED || 'false').toLowerCase() === 'true',
+      };
+      await new GoogleCalendarBackup(this.context).run(config);
+      return true;
+    } catch (error) {
+      logger.warn(`Backup failed or had errors: google-calendar: ${String(error)}`);
+      return false;
+    }
+  }
+
+  private async runGoogleTasksBackup(logger: Logger): Promise<boolean> {
+    try {
+      const config: GoogleTasksBackupConfig = {
+        credentials: this.loadGoogleCredentials(),
+        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
+        logDir: this.getLogDir(),
+        showCompleted:
+          (this.context.env.GOOGLE_TASKS_SHOW_COMPLETED || 'true').toLowerCase() !== 'false',
+        showDeleted:
+          (this.context.env.GOOGLE_TASKS_SHOW_DELETED || 'true').toLowerCase() !== 'false',
+        showHidden: (this.context.env.GOOGLE_TASKS_SHOW_HIDDEN || 'true').toLowerCase() !== 'false',
+      };
+      await new GoogleTasksBackup(this.context).run(config);
+      return true;
+    } catch (error) {
+      logger.warn(`Backup failed or had errors: google-tasks: ${String(error)}`);
+      return false;
+    }
+  }
+
+  private loadGoogleCredentials(): GoogleOAuthCredentials {
+    return {
+      clientId: this.context.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: this.context.env.GOOGLE_CLIENT_SECRET || '',
+      refreshToken: this.context.env.GOOGLE_REFRESH_TOKEN || '',
+    };
   }
 
   private getLogDir(): string {
