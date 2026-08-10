@@ -184,11 +184,19 @@ describe('GoogleTasksBackup', () => {
     expect(archive.calls).toHaveLength(1);
   });
 
-  it('throws when Google credentials are missing', async () => {
+  it('throws when Google client credentials are missing', async () => {
     config.credentials = { clientId: '', clientSecret: '', refreshToken: '' };
 
     await expect(new GoogleTasksBackup(context).run(config)).rejects.toThrow(
-      'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in env or .env',
+      'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in env or .env',
+    );
+  });
+
+  it('throws with guidance when only the refresh token is missing', async () => {
+    config.credentials = { clientId: 'client-id', clientSecret: 'client-secret', refreshToken: '' };
+
+    await expect(new GoogleTasksBackup(context).run(config)).rejects.toThrow(
+      'Missing GOOGLE_REFRESH_TOKEN',
     );
   });
 });

@@ -14,7 +14,8 @@ application runtime; changes are almost always Bash and documentation.
     `brave-bookmarks-backup.ts`, `chrome-bookmarks-backup.ts`,
     `standard-notes-backup.ts`, `google-calendar-backup.ts`,
     `google-tasks-backup.ts`), API clients, and shared helpers
-    (`google-auth.ts` holds the shared Google OAuth 2.0 token refresh)
+    (`google-auth.ts` holds the shared Google OAuth 2.0 token refresh and the
+    first-run interactive authorization flow)
   - **`code/`**, **`todoist/`**, **`notion/`**, **`brave-bookmarks/`**,
     **`chrome-bookmarks/`**, **`standard-notes/`**, **`google-calendar/`**,
     **`google-tasks/`** — thin shell wrappers around the TypeScript entry

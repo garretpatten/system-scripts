@@ -175,7 +175,9 @@ Both Google backups share the same OAuth 2.0 credentials:
 # Required
 GOOGLE_CLIENT_ID="your_google_oauth_client_id"
 GOOGLE_CLIENT_SECRET="your_google_oauth_client_secret"
-GOOGLE_REFRESH_TOKEN="your_google_oauth_refresh_token"
+
+# Optional: filled in automatically on first run (see below)
+GOOGLE_REFRESH_TOKEN=""
 
 # Optional
 GOOGLE_CALENDAR_SHOW_DELETED="false"
@@ -187,10 +189,19 @@ GOOGLE_TASKS_SHOW_HIDDEN="true"
 Create an OAuth 2.0 **Desktop app** client in the
 [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and
 enable the **Google Calendar API** and **Google Tasks API** for the project.
-The refresh token must be granted these read-only scopes:
+
+You do not need to create a refresh token yourself. The first time you run
+either Google backup individually (`npm run backup:google-calendar` or
+`npm run backup:google-tasks`), the script starts a local listener, prints a
+Google consent URL to open in your browser, and exchanges the authorization
+for a refresh token that is saved to `.env`. The consent requests these
+read-only scopes:
 
 - `https://www.googleapis.com/auth/calendar.readonly`
 - `https://www.googleapis.com/auth/tasks.readonly`
+
+Subsequent runs — including `npm run backup:all` and cron jobs — reuse the
+saved token and run unattended.
 
 ---
 
@@ -464,6 +475,8 @@ and shared calendars with at least reader access — together with their events.
 
 ### Google Calendar Export Features
 
+- Guides you through a one-time Google authorization on first run and saves
+  the refresh token to `.env`
 - Discovers all calendars via the Calendar API (handles pagination)
 - Exports every event per calendar, expanding recurring events into instances
 - Optionally includes deleted/cancelled events
@@ -500,6 +513,8 @@ Exports all task lists and tasks belonging to the authenticated user.
 
 ### Google Tasks Export Features
 
+- Guides you through a one-time Google authorization on first run and saves
+  the refresh token to `.env`
 - Discovers all task lists via the Tasks API (handles pagination)
 - Exports every task per list, including completed, deleted, and hidden tasks
   (configurable via `GOOGLE_TASKS_SHOW_COMPLETED`, `GOOGLE_TASKS_SHOW_DELETED`,
@@ -703,17 +718,30 @@ Logs include:
     - Verify the directory exists at
       `$HOME/garret.patten@proton.me/Plaintext Backups/`
 
-19. **Google: "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and
-    GOOGLE_REFRESH_TOKEN"**
-    - Add your Google OAuth 2.0 credentials to `.env`
-    - Ensure the refresh token has not been revoked
+19. **Google: "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET"**
+    - Add your Google OAuth 2.0 Desktop app credentials to `.env`
 
-20. **Google: "Google OAuth token refresh failed"**
-    - Verify the client ID, client secret, and refresh token belong together
-    - Ensure the refresh token was granted the `calendar.readonly` and
+20. **Google: "Missing GOOGLE_REFRESH_TOKEN"**
+    - Run `npm run backup:google-calendar` or `npm run backup:google-tasks`
+      once in an interactive terminal to complete the browser authorization;
+      the token is saved to `.env` automatically
+    - `npm run backup:all` cannot perform the interactive authorization, so
+      it needs the token from a prior individual run
+
+21. **Google: "Google OAuth token refresh failed"**
+    - The saved refresh token may have been revoked or the OAuth client
+      regenerated; remove `GOOGLE_REFRESH_TOKEN` from `.env` and run an
+      individual Google backup once to re-authorize
+    - Ensure the authorization was granted the `calendar.readonly` and
       `tasks.readonly` scopes
     - Review `backups/logs/google-calendar-errors-*.log` or
       `backups/logs/google-tasks-errors-*.log` for details
+
+22. **Google: "Timed out waiting for Google authorization"**
+    - Re-run the backup and complete the consent in your browser within five
+      minutes
+    - Make sure the browser can reach the printed `http://127.0.0.1` redirect
+      address (run the first authorization on a machine with a browser)
 
 ### Getting Help
 

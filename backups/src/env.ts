@@ -7,7 +7,7 @@ import { FileSystem } from './types.js';
 export async function loadEnvFile(
   fs: FileSystem,
   env: NodeJS.ProcessEnv,
-  projectRoot: string
+  projectRoot: string,
 ): Promise<void> {
   const envFile = `${projectRoot}/.env`;
 
@@ -43,4 +43,35 @@ export async function loadEnvFile(
       env[key] = value;
     }
   }
+}
+
+/**
+ * Create or update a single key in the project .env file, preserving all other
+ * lines. Used to persist tokens obtained during interactive setup.
+ */
+export async function saveEnvValue(
+  fs: FileSystem,
+  projectRoot: string,
+  key: string,
+  value: string,
+): Promise<void> {
+  const envFile = `${projectRoot}/.env`;
+  const line = `${key}="${value}"`;
+
+  const content = (await fs.exists(envFile)) ? await fs.readFile(envFile) : '';
+  const lines = content.split(/\r?\n/);
+
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+
+  const keyPattern = new RegExp(`^${key}=`);
+  const index = lines.findIndex((existing) => keyPattern.test(existing));
+  if (index >= 0) {
+    lines[index] = line;
+  } else {
+    lines.push(line);
+  }
+
+  await fs.writeFile(envFile, `${lines.join('\n')}\n`);
 }

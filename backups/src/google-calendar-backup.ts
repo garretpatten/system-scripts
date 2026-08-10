@@ -1,11 +1,16 @@
-import { loadEnvFile } from './env.js';
+import { loadEnvFile, saveEnvValue } from './env.js';
 import { RealFileSystem } from './fs.js';
 import { ProcessCommandRunner } from './command-runner.js';
 import { NodeHttpClient } from './http.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
-import { GoogleAuthClient, GoogleOAuthCredentials } from './google-auth.js';
+import {
+  GoogleAuthClient,
+  GoogleAuthorizer,
+  GoogleOAuthCredentials,
+  LoopbackRedirectListener,
+} from './google-auth.js';
 import { GoogleCalendarApiClient } from './google-calendar.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
@@ -82,9 +87,13 @@ export class GoogleCalendarBackup {
 
   private validateCredentials(config: GoogleCalendarBackupConfig): void {
     const { clientId, clientSecret, refreshToken } = config.credentials;
-    if (!clientId || !clientSecret || !refreshToken) {
+    if (!clientId || !clientSecret) {
+      throw new Error('Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in env or .env');
+    }
+    if (!refreshToken) {
       throw new Error(
-        'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in env or .env',
+        'Missing GOOGLE_REFRESH_TOKEN. Run `npm run backup:google-calendar` once ' +
+          'interactively to authorize, or set GOOGLE_REFRESH_TOKEN in env or .env',
       );
     }
   }
@@ -179,8 +188,16 @@ async function main(): Promise<void> {
 
   await loadEnvFile(fs, process.env, projectRoot);
 
+  const credentials = loadCredentials(process.env);
+  if (!credentials.refreshToken) {
+    const authorizer = new GoogleAuthorizer(http, logger, new LoopbackRedirectListener());
+    credentials.refreshToken = await authorizer.authorize(credentials);
+    await saveEnvValue(fs, projectRoot, 'GOOGLE_REFRESH_TOKEN', credentials.refreshToken);
+    logger.success('Saved GOOGLE_REFRESH_TOKEN to .env');
+  }
+
   const config: GoogleCalendarBackupConfig = {
-    credentials: loadCredentials(process.env),
+    credentials,
     homeDir: process.env.HOME || process.env.USERPROFILE || '.',
     logDir: path.join(projectRoot, 'backups', 'logs'),
     showDeleted: (process.env.GOOGLE_CALENDAR_SHOW_DELETED || 'false').toLowerCase() === 'true',
