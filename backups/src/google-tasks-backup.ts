@@ -6,7 +6,9 @@ import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import {
+  GoogleAuth,
   GoogleAuthClient,
+  GoogleAuthManager,
   GoogleAuthorizer,
   GoogleOAuthCredentials,
   LoopbackRedirectListener,
@@ -21,6 +23,7 @@ export interface GoogleTasksBackupConfig {
   credentials: GoogleOAuthCredentials;
   homeDir: string;
   logDir: string;
+  projectRoot?: string;
   showCompleted: boolean;
   showDeleted: boolean;
   showHidden: boolean;
@@ -55,7 +58,7 @@ export class GoogleTasksBackup {
 
     await this.checkDependencies(logger);
 
-    const auth = new GoogleAuthClient(this.context.http, logger, config.credentials);
+    const auth = this.createAuth(config, logger);
     const client = new GoogleTasksApiClient(this.context.http, logger, auth);
 
     const taskLists = await client.fetchTaskLists();
@@ -98,6 +101,23 @@ export class GoogleTasksBackup {
           'interactively to authorize, or set GOOGLE_REFRESH_TOKEN in env or .env',
       );
     }
+  }
+
+  private createAuth(config: GoogleTasksBackupConfig, logger: Logger): GoogleAuth {
+    if (config.projectRoot) {
+      return new GoogleAuthManager(
+        this.context.http,
+        this.context.fs,
+        logger,
+        new GoogleAuthorizer(this.context.http, logger, new LoopbackRedirectListener()),
+        {
+          credentials: config.credentials,
+          projectRoot: config.projectRoot,
+        },
+      );
+    }
+
+    return new GoogleAuthClient(this.context.http, logger, config.credentials);
   }
 
   private async fetchTasks(
@@ -206,6 +226,7 @@ async function main(): Promise<void> {
     credentials,
     homeDir: process.env.HOME || process.env.USERPROFILE || '.',
     logDir: path.join(projectRoot, 'backups', 'logs'),
+    projectRoot,
     showCompleted: (process.env.GOOGLE_TASKS_SHOW_COMPLETED || 'true').toLowerCase() !== 'false',
     showDeleted: (process.env.GOOGLE_TASKS_SHOW_DELETED || 'true').toLowerCase() !== 'false',
     showHidden: (process.env.GOOGLE_TASKS_SHOW_HIDDEN || 'true').toLowerCase() !== 'false',

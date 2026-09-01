@@ -112,15 +112,32 @@ export class MockFileSystem implements FileSystem {
 
 export class MockHttpClient implements HttpClient {
   responses: Map<string, HttpResponse> = new Map();
+  responseSequences: Map<string, HttpResponse[]> = new Map();
+  requestCounts: Map<string, number> = new Map();
   requests: Array<{ method: string; url: string; headers?: Record<string, string> }> = [];
 
   setResponse(method: string, url: string, response: HttpResponse): void {
     this.responses.set(`${method}:${url}`, response);
   }
 
+  setResponseSequence(method: string, url: string, responses: HttpResponse[]): void {
+    this.responseSequences.set(`${method}:${url}`, responses);
+  }
+
+  private getResponse(method: string, url: string): HttpResponse | undefined {
+    const key = `${method}:${url}`;
+    const sequence = this.responseSequences.get(key);
+    if (sequence && sequence.length > 0) {
+      const count = this.requestCounts.get(key) ?? 0;
+      this.requestCounts.set(key, count + 1);
+      return sequence[Math.min(count, sequence.length - 1)];
+    }
+    return this.responses.get(key);
+  }
+
   async get(url: string, headers?: Record<string, string>): Promise<HttpResponse> {
     this.requests.push({ method: 'GET', url, headers });
-    const response = this.responses.get(`GET:${url}`);
+    const response = this.getResponse('GET', url);
     if (!response) {
       throw new Error(`No mock response for GET ${url}`);
     }
@@ -129,7 +146,7 @@ export class MockHttpClient implements HttpClient {
 
   async post(url: string, body: string, headers?: Record<string, string>): Promise<HttpResponse> {
     this.requests.push({ method: 'POST', url, headers });
-    const response = this.responses.get(`POST:${url}`);
+    const response = this.getResponse('POST', url);
     if (!response) {
       throw new Error(`No mock response for POST ${url}: ${body}`);
     }
@@ -152,7 +169,7 @@ export class MockCommandRunner implements CommandRunner {
   async run(
     command: string,
     args: string[],
-    options?: { cwd?: string; env?: NodeJS.ProcessEnv }
+    options?: { cwd?: string; env?: NodeJS.ProcessEnv },
   ): Promise<CommandResult> {
     this.commands.push({ command, args, options });
     const response = this.responses.get(this.key(command, args));
@@ -215,7 +232,7 @@ export class MockArchive implements Archive {
     sourceDirName: string,
     outputFileName: string,
     cwd: string,
-    exclude?: string[]
+    exclude?: string[],
   ): Promise<void> {
     this.calls.push({ sourceDirName, outputFileName, cwd, exclude });
   }

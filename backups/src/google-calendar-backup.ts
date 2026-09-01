@@ -6,7 +6,9 @@ import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import {
+  GoogleAuth,
   GoogleAuthClient,
+  GoogleAuthManager,
   GoogleAuthorizer,
   GoogleOAuthCredentials,
   LoopbackRedirectListener,
@@ -21,6 +23,7 @@ export interface GoogleCalendarBackupConfig {
   credentials: GoogleOAuthCredentials;
   homeDir: string;
   logDir: string;
+  projectRoot?: string;
   showDeleted: boolean;
 }
 
@@ -53,7 +56,7 @@ export class GoogleCalendarBackup {
 
     await this.checkDependencies(logger);
 
-    const auth = new GoogleAuthClient(this.context.http, logger, config.credentials);
+    const auth = this.createAuth(config, logger);
     const client = new GoogleCalendarApiClient(this.context.http, logger, auth);
 
     const calendars = await client.fetchCalendars();
@@ -96,6 +99,23 @@ export class GoogleCalendarBackup {
           'interactively to authorize, or set GOOGLE_REFRESH_TOKEN in env or .env',
       );
     }
+  }
+
+  private createAuth(config: GoogleCalendarBackupConfig, logger: Logger): GoogleAuth {
+    if (config.projectRoot) {
+      return new GoogleAuthManager(
+        this.context.http,
+        this.context.fs,
+        logger,
+        new GoogleAuthorizer(this.context.http, logger, new LoopbackRedirectListener()),
+        {
+          credentials: config.credentials,
+          projectRoot: config.projectRoot,
+        },
+      );
+    }
+
+    return new GoogleAuthClient(this.context.http, logger, config.credentials);
   }
 
   private async fetchEvents(
@@ -200,6 +220,7 @@ async function main(): Promise<void> {
     credentials,
     homeDir: process.env.HOME || process.env.USERPROFILE || '.',
     logDir: path.join(projectRoot, 'backups', 'logs'),
+    projectRoot,
     showDeleted: (process.env.GOOGLE_CALENDAR_SHOW_DELETED || 'false').toLowerCase() === 'true',
   };
 

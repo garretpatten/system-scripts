@@ -201,7 +201,11 @@ read-only scopes:
 - `https://www.googleapis.com/auth/tasks.readonly`
 
 Subsequent runs — including `npm run backup:all` and cron jobs — reuse the
-saved token and run unattended.
+saved token and run unattended. If the refresh token is revoked or expires,
+`backup:all` automatically re-runs the browser authorization flow (up to three
+attempts) and saves the new token to `.env`. If you are not present to approve
+the prompt, the authorization times out and the backup fails gracefully so the
+rest of the orchestrated backups continue.
 
 ---
 
@@ -725,12 +729,12 @@ Logs include:
     - Run `npm run backup:google-calendar` or `npm run backup:google-tasks`
       once in an interactive terminal to complete the browser authorization;
       the token is saved to `.env` automatically
-    - `npm run backup:all` cannot perform the interactive authorization, so
-      it needs the token from a prior individual run
 
 21. **Google: "Google OAuth token refresh failed"**
     - The saved refresh token may have been revoked or the OAuth client
-      regenerated; remove `GOOGLE_REFRESH_TOKEN` from `.env` and run an
+      regenerated; `backup:all` now tries the interactive re-authorization flow
+      automatically (up to three attempts) and saves the new token to `.env`
+    - You can also remove `GOOGLE_REFRESH_TOKEN` from `.env` and run an
       individual Google backup once to re-authorize
     - Ensure the authorization was granted the `calendar.readonly` and
       `tasks.readonly` scopes
@@ -739,9 +743,8 @@ Logs include:
 
 22. **Google: "Timed out waiting for Google authorization"**
     - Re-run the backup and complete the consent in your browser within five
-      minutes
-    - Make sure the browser can reach the printed `http://127.0.0.1` redirect
-      address (run the first authorization on a machine with a browser)
+      minutes; unattended `backup:all` runs will time out and continue with the
+      remaining backups
 
 ### Getting Help
 

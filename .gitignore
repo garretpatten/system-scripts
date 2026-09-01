@@ -4,17 +4,35 @@
 
 # Log files
 logs/
+backups/logs/
 *.log
 errors-*.log
 code-backup-*.log
+google-calendar-*.log
+google-tasks-*.log
 todoist-*.log
 notion-*.log
+standard-notes-*.log
 
-# Backup files
+# Backup output directories and archives
+$HOME/
+GitHub-GitLab-Backup/
 Code-Export_*.zip
+Code-Export_*/
 Projects-Export_*.zip
+Projects-Export_*/
 Todoist-Export_*.zip
+Todoist-Export_*/
 Notion-Export_*.zip
+Notion-Export_*/
+Standard-Notes_*.zip
+Standard-Notes_*/
+Google-Calendar-Export_*.zip
+Google-Calendar-Export_*/
+Google-Tasks-Export_*.zip
+Google-Tasks-Export_*/
+chrome-bookmarks_*
+brave-bookmarks_*
 
 # macOS
 .DS_Store
@@ -27,6 +45,9 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# TypeScript build output
+backups/dist/
 
 # Temporary files
 *.tmp

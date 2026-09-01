@@ -179,6 +179,24 @@ describe('ChromeBookmarksBackup', () => {
     expect(logger.messages.some((m) => m.message.includes(macosBookmarks))).toBe(true);
   });
 
+  it('falls back to AccountBookmarks when the standard bookmarks file does not exist', async () => {
+    const homeDir = '/home/user';
+    const accountBookmarks = `${homeDir}/.config/google-chrome/Default/AccountBookmarks`;
+    fs.files.set(accountBookmarks, sampleBookmarksJson());
+    fs.existsPaths.add(accountBookmarks);
+
+    const config: ChromeBookmarksBackupConfig = {
+      homeDir,
+      logDir: '/logs',
+    };
+
+    await new ChromeBookmarksBackup(context).run(config);
+
+    const html = fs.files.get('/home/user/chrome-bookmarks_2024-06-15.html') ?? '';
+    expect(html).toContain('<!DOCTYPE NETSCAPE-Bookmark-file-1>');
+    expect(logger.messages.some((m) => m.message.includes(accountBookmarks))).toBe(true);
+  });
+
   it('warns when Chrome appears to be running', async () => {
     runner.setResponse('pgrep', ['-i', 'chrome'], {
       stdout: '1234\n5678',

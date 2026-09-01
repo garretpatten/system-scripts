@@ -19,7 +19,10 @@ export interface ChromeBookmarksBackupConfig {
 }
 
 const LINUX_BOOKMARKS_PATH = '.config/google-chrome/Default/Bookmarks';
+const LINUX_ACCOUNT_BOOKMARKS_PATH = '.config/google-chrome/Default/AccountBookmarks';
 const MACOS_BOOKMARKS_PATH = 'Library/Application Support/Google/Chrome/Default/Bookmarks';
+const MACOS_ACCOUNT_BOOKMARKS_PATH =
+  'Library/Application Support/Google/Chrome/Default/AccountBookmarks';
 
 export class ChromeBookmarksBackup {
   constructor(private readonly context: BackupContext) {}
@@ -29,7 +32,9 @@ export class ChromeBookmarksBackup {
       browserName: 'Chrome',
       sourcePaths: [
         path.join(config.homeDir, LINUX_BOOKMARKS_PATH),
+        path.join(config.homeDir, LINUX_ACCOUNT_BOOKMARKS_PATH),
         path.join(config.homeDir, MACOS_BOOKMARKS_PATH),
+        path.join(config.homeDir, MACOS_ACCOUNT_BOOKMARKS_PATH),
       ],
       outputPrefix: 'chrome-bookmarks',
       processPattern: 'chrome',

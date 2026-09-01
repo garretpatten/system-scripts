@@ -29,14 +29,14 @@ export class ConsoleLogger implements Logger {
 
   fatal(message: string): never {
     this.error(`Fatal: ${message}`);
-    process.exit(1);
+    throw new Error(message);
   }
 
   private log(level: string, message: string): void {
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
     const prefix = this.prefix ? `[${this.prefix}] ` : '';
     const line = `${timestamp} [${level}] ${prefix}${message}`;
-     
+
     console.error(line);
   }
 }
@@ -46,7 +46,7 @@ export class FileLogger implements Logger {
     private readonly baseLogger: Logger,
     private readonly fs: { appendFile(path: string, data: string): Promise<void> },
     private readonly logFile: string,
-    private readonly errorLogFile?: string
+    private readonly errorLogFile?: string,
   ) {}
 
   info(message: string): void {

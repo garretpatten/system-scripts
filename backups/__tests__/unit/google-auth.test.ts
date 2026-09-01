@@ -3,11 +3,12 @@ import {
   buildAuthorizationUrl,
   GOOGLE_BACKUP_SCOPES,
   GoogleAuthClient,
+  GoogleAuthManager,
   GoogleAuthorizer,
   GoogleOAuthCredentials,
   RedirectListener,
 } from '../../src/google-auth.js';
-import { MockHttpClient, MockLogger } from '../test-helpers.js';
+import { MockFileSystem, MockHttpClient, MockLogger } from '../test-helpers.js';
 
 describe('GoogleAuthClient', () => {
   let http: MockHttpClient;
@@ -232,5 +233,115 @@ describe('GoogleAuthorizer', () => {
       'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in env or .env',
     );
     expect(listener.started).toBe(false);
+  });
+});
+
+class FakeAuthorizer {
+  calls: GoogleOAuthCredentials[] = [];
+  tokens: string[] = [];
+  failWith: Error | null = null;
+  tokenIndex = 0;
+
+  async authorize(credentials: GoogleOAuthCredentials): Promise<string> {
+    this.calls.push(credentials);
+    if (this.failWith) {
+      throw this.failWith;
+    }
+    const token = this.tokens[this.tokenIndex++] ?? 'new-refresh-token';
+    return token;
+  }
+}
+
+describe('GoogleAuthManager', () => {
+  let http: MockHttpClient;
+  let logger: MockLogger;
+  let fs: MockFileSystem;
+  let authorizer: FakeAuthorizer;
+  let credentials: GoogleOAuthCredentials;
+
+  beforeEach(() => {
+    http = new MockHttpClient();
+    logger = new MockLogger();
+    fs = new MockFileSystem();
+    authorizer = new FakeAuthorizer();
+    credentials = {
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      refreshToken: 'refresh-token',
+    };
+  });
+
+  function createManager(maxRetries = 3): GoogleAuthManager {
+    return new GoogleAuthManager(http, fs, logger, authorizer as unknown as GoogleAuthorizer, {
+      credentials,
+      projectRoot: '/project',
+      maxRetries,
+    });
+  }
+
+  it('returns the access token when refresh succeeds on the first attempt', async () => {
+    http.setResponse('POST', 'https://oauth2.googleapis.com/token', {
+      statusCode: 200,
+      body: JSON.stringify({ access_token: 'access-token' }),
+    });
+
+    const token = await createManager().getAccessToken();
+
+    expect(token).toBe('access-token');
+    expect(authorizer.calls).toHaveLength(0);
+  });
+
+  it('re-authorizes and retries when the refresh token is invalid', async () => {
+    http.setResponseSequence('POST', 'https://oauth2.googleapis.com/token', [
+      {
+        statusCode: 400,
+        body: JSON.stringify({
+          error: 'invalid_grant',
+          error_description: 'Token has been revoked.',
+        }),
+      },
+      { statusCode: 200, body: JSON.stringify({ access_token: 'access-token-from-new-token' }) },
+    ]);
+
+    authorizer.tokens = ['new-refresh-token'];
+
+    const token = await createManager().getAccessToken();
+
+    expect(token).toBe('access-token-from-new-token');
+    expect(credentials.refreshToken).toBe('new-refresh-token');
+    expect(fs.files.get('/project/.env')).toContain('GOOGLE_REFRESH_TOKEN="new-refresh-token"');
+  });
+
+  it('retries up to maxRetries times before failing', async () => {
+    http.setResponse('POST', 'https://oauth2.googleapis.com/token', {
+      statusCode: 400,
+      body: JSON.stringify({
+        error: 'invalid_grant',
+        error_description: 'Token has been revoked.',
+      }),
+    });
+    authorizer.failWith = new Error('Timed out waiting for Google authorization');
+
+    await expect(createManager(3).getAccessToken()).rejects.toThrow(
+      'Google authentication failed after 3 attempts',
+    );
+
+    expect(authorizer.calls).toHaveLength(2);
+  });
+
+  it('succeeds when re-authorization succeeds on a later attempt', async () => {
+    http.setResponseSequence('POST', 'https://oauth2.googleapis.com/token', [
+      { statusCode: 400, body: JSON.stringify({ error: 'invalid_grant' }) },
+      { statusCode: 400, body: JSON.stringify({ error: 'invalid_grant' }) },
+      { statusCode: 200, body: JSON.stringify({ access_token: 'access-token' }) },
+    ]);
+
+    authorizer.tokens = ['token-1', 'token-2'];
+
+    const token = await createManager(3).getAccessToken();
+
+    expect(token).toBe('access-token');
+    expect(credentials.refreshToken).toBe('token-2');
+    expect(authorizer.calls).toHaveLength(2);
   });
 });

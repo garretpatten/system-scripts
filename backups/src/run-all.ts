@@ -186,6 +186,7 @@ export class BackupOrchestrator {
         credentials: this.loadGoogleCredentials(),
         homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
         logDir: this.getLogDir(),
+        projectRoot: this.getProjectRoot(),
         showDeleted:
           (this.context.env.GOOGLE_CALENDAR_SHOW_DELETED || 'false').toLowerCase() === 'true',
       };
@@ -203,6 +204,7 @@ export class BackupOrchestrator {
         credentials: this.loadGoogleCredentials(),
         homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
         logDir: this.getLogDir(),
+        projectRoot: this.getProjectRoot(),
         showCompleted:
           (this.context.env.GOOGLE_TASKS_SHOW_COMPLETED || 'true').toLowerCase() !== 'false',
         showDeleted:
@@ -226,10 +228,13 @@ export class BackupOrchestrator {
   }
 
   private getLogDir(): string {
+    return path.join(this.getProjectRoot(), 'backups', 'logs');
+  }
+
+  private getProjectRoot(): string {
     const currentFile = fileURLToPath(import.meta.url);
     const srcDir = path.dirname(currentFile);
-    const projectRoot = path.resolve(srcDir, '..', '..');
-    return path.join(projectRoot, 'backups', 'logs');
+    return path.resolve(srcDir, '..', '..');
   }
 }
 

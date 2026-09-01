@@ -164,4 +164,79 @@ describe('BackupOrchestrator', () => {
     ).toBe(true);
     expect(process.exitCode).not.toBe(1);
   });
+
+  it('continues with remaining backups when Chrome bookmarks are missing', async () => {
+    fs.files.delete('/home/user/.config/google-chrome/Default/Bookmarks');
+    fs.existsPaths.delete('/home/user/.config/google-chrome/Default/Bookmarks');
+    fs.files.delete('/home/user/.config/google-chrome/Default/AccountBookmarks');
+    fs.existsPaths.delete('/home/user/.config/google-chrome/Default/AccountBookmarks');
+
+    http.setResponse('GET', 'https://api.github.com/user', {
+      statusCode: 200,
+      body: JSON.stringify({ login: 'octocat' }),
+    });
+    http.setResponse(
+      'GET',
+      'https://api.github.com/user/repos?page=1&per_page=100&type=all&sort=updated',
+      {
+        statusCode: 200,
+        body: JSON.stringify([]),
+      },
+    );
+    http.setResponse('GET', 'https://gitlab.com/api/v4/namespaces?search=octocat', {
+      statusCode: 200,
+      body: JSON.stringify([{ id: 42, full_path: 'octocat' }]),
+    });
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200', {
+      statusCode: 200,
+      body: JSON.stringify({ results: [], next_cursor: null }),
+    });
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/projects?limit=200', {
+      statusCode: 200,
+      body: JSON.stringify({ results: [], next_cursor: null }),
+    });
+    http.setResponse('GET', 'https://api.todoist.com/api/v1/labels?limit=200', {
+      statusCode: 200,
+      body: JSON.stringify({ results: [], next_cursor: null }),
+    });
+    http.setResponse('POST', 'https://api.notion.com/v1/search', {
+      statusCode: 200,
+      body: JSON.stringify({ results: [], next_cursor: null }),
+    });
+    http.setResponse('POST', 'https://oauth2.googleapis.com/token', {
+      statusCode: 200,
+      body: JSON.stringify({ access_token: 'google-access-token' }),
+    });
+    http.setResponse(
+      'GET',
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ items: [] }),
+      },
+    );
+    http.setResponse(
+      'GET',
+      'https://tasks.googleapis.com/tasks/v1/users/@me/lists?maxResults=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ items: [] }),
+      },
+    );
+
+    const orchestrator = new BackupOrchestrator(context);
+    await orchestrator.run({ homeDir: '/home/user', logDir: '/logs' });
+
+    expect(
+      logger.messages.some(
+        (m) => m.message.includes('chrome-bookmarks') && m.message.includes('FAILED'),
+      ),
+    ).toBe(true);
+    expect(logger.messages.some((m) => m.message.includes('One or more backups failed'))).toBe(
+      true,
+    );
+    expect(process.exitCode).toBe(1);
+
+    process.exitCode = undefined;
+  });
 });

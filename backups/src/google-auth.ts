@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { createServer, Server } from 'node:http';
-import { HttpClient, Logger } from './types.js';
+import { saveEnvValue } from './env.js';
+import { FileSystem, HttpClient, Logger } from './types.js';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const AUTHORIZATION_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -235,6 +236,76 @@ export class GoogleAuthorizer {
     }
 
     return parsed.refresh_token;
+  }
+}
+
+export interface GoogleAuthManagerConfig {
+  credentials: GoogleOAuthCredentials;
+  projectRoot: string;
+  maxRetries?: number;
+}
+
+/**
+ * Wraps token refresh with an automatic interactive re-authorization retry.
+ * If the refresh token is invalid, it runs the OAuth consent flow, persists
+ * the new refresh token to .env, and retries up to maxRetries times.
+ */
+export class GoogleAuthManager implements GoogleAuth {
+  private credentials: GoogleOAuthCredentials;
+  private readonly projectRoot: string;
+  private readonly maxRetries: number;
+
+  constructor(
+    private readonly http: HttpClient,
+    private readonly fs: FileSystem,
+    private readonly logger: Logger,
+    private readonly authorizer: GoogleAuthorizer,
+    config: GoogleAuthManagerConfig,
+  ) {
+    this.credentials = config.credentials;
+    this.projectRoot = config.projectRoot;
+    this.maxRetries = config.maxRetries ?? 3;
+  }
+
+  async getAccessToken(): Promise<string> {
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        const client = new GoogleAuthClient(this.http, this.logger, this.credentials);
+        return await client.getAccessToken();
+      } catch (error) {
+        this.logger.warn(
+          `Google token refresh failed (attempt ${attempt}/${this.maxRetries}): ${String(error)}`,
+        );
+
+        if (attempt === this.maxRetries) {
+          throw new Error(
+            `Google authentication failed after ${this.maxRetries} attempts: ${String(error)}`,
+          );
+        }
+
+        try {
+          this.logger.info('Starting interactive Google re-authorization...');
+          const newRefreshToken = await this.authorizer.authorize(this.credentials);
+          this.credentials.refreshToken = newRefreshToken;
+          await saveEnvValue(this.fs, this.projectRoot, 'GOOGLE_REFRESH_TOKEN', newRefreshToken);
+          if (typeof process !== 'undefined' && process.env) {
+            process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
+          }
+          this.logger.success('Saved GOOGLE_REFRESH_TOKEN to .env');
+        } catch (authError) {
+          this.logger.warn(
+            `Google re-authorization failed (attempt ${attempt}/${this.maxRetries}): ${String(authError)}`,
+          );
+          if (attempt === this.maxRetries) {
+            throw new Error(
+              `Google authentication failed after ${this.maxRetries} attempts: ${String(authError)}`,
+            );
+          }
+        }
+      }
+    }
+
+    throw new Error('Google authentication failed');
   }
 }
 
