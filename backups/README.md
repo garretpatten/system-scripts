@@ -1,9 +1,9 @@
 # Backups
 
 This module contains scripts for backing up code repositories, Todoist tasks,
-Notion workspaces, browser bookmarks, and Standard Notes. The implementation has
-been ported to TypeScript so the backup logic is unit-testable with mocked
-dependencies.
+Notion workspaces, browser bookmarks, Standard Notes, and Obsidian notes. The
+implementation has been ported to TypeScript so the backup logic is unit-testable
+with mocked dependencies.
 
 - **`src/`** — TypeScript source code
   - `local-backup.ts` — Local GitHub repository backup
@@ -13,6 +13,7 @@ dependencies.
   - `brave-bookmarks-backup.ts` — Brave bookmarks HTML/JSON export
   - `chrome-bookmarks-backup.ts` — Chrome bookmarks HTML/JSON export
   - `standard-notes-backup.ts` — Standard Notes plaintext backup export
+  - `obsidian-notes-backup.ts` — Obsidian notes zip backup
   - `google-calendar-backup.ts` — Google Calendar export
   - `google-tasks-backup.ts` — Google Tasks export
   - `run-all.ts` — Orchestrator that runs all backups
@@ -35,6 +36,8 @@ dependencies.
   - `chrome-bookmarks-backup.sh` — Thin wrapper around `chrome-bookmarks-backup.ts`
 - **`standard-notes/`** — Backward-compatible shell wrapper
   - `standard-notes-backup.sh` — Thin wrapper around `standard-notes-backup.ts`
+- **`obsidian-notes/`** — Backward-compatible shell wrapper
+  - `obsidian-notes-backup.sh` — Thin wrapper around `obsidian-notes-backup.ts`
 - **`google-calendar/`** — Backward-compatible shell wrapper
   - `google-calendar-backup.sh` — Thin wrapper around
     `google-calendar-backup.ts`
@@ -472,6 +475,46 @@ npm run backup:standard-notes
 
 ---
 
+## 🪨 Obsidian Notes Export (`obsidian-notes/obsidian-notes-backup.sh`)
+
+Backs up the Obsidian notes vault stored at `~/Notes/`.
+
+### Obsidian Notes Export Features
+
+- Copies the entire `~/Notes/` directory preserving folder structure
+- Creates a zip backup: `~/Obsidian-Notes_YYYY-MM-DD.zip`
+- Exits gracefully with a helpful message when `~/Notes/` is not found
+
+### Obsidian Notes Export Requirements
+
+The Obsidian notes vault must be located at:
+
+```text
+$HOME/Notes/
+```
+
+If that directory is not found, the script logs a warning and exits without
+creating an archive.
+
+### Obsidian Notes Export Usage
+
+```bash
+./backups/obsidian-notes/obsidian-notes-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:obsidian-notes
+```
+
+### Obsidian Notes Export Output
+
+- **Backup archive**: `~/Obsidian-Notes_YYYY-MM-DD.zip`
+- **Logs**: `backups/logs/obsidian-notes-backup-YYYYMMDD-HHMMSS.log`
+
+---
+
 ## 📅 Google Calendar Export (`google-calendar/google-calendar-backup.sh`)
 
 Exports all calendars visible to the authenticated user — including secondary
@@ -552,8 +595,8 @@ with `task-list.json` (metadata) and `tasks.json` (all tasks).
 ## 🚀 Run All Backups
 
 To run the code-local, code-gitlab, todoist, notion, brave-bookmarks,
-chrome-bookmarks, standard-notes, google-calendar, and google-tasks backups in
-sequence:
+chrome-bookmarks, standard-notes, obsidian-notes, google-calendar, and
+google-tasks backups in sequence:
 
 ```bash
 ./backups/run-all.sh
@@ -606,6 +649,10 @@ All scripts create detailed logs in `backups/logs/`:
 **Standard Notes Export:**
 
 - `standard-notes-backup-YYYYMMDD-HHMMSS.log`
+
+**Obsidian Notes Export:**
+
+- `obsidian-notes-backup-YYYYMMDD-HHMMSS.log`
 
 **Google Calendar Export:**
 
@@ -779,6 +826,7 @@ crontab -e
 0 6 * * * cd /path/to/system-scripts && npm run backup:brave-bookmarks
 0 7 * * * cd /path/to/system-scripts && npm run backup:chrome-bookmarks
 0 8 * * * cd /path/to/system-scripts && npm run backup:standard-notes
+0 8 * * * cd /path/to/system-scripts && npm run backup:obsidian-notes
 0 9 * * * cd /path/to/system-scripts && npm run backup:google-calendar
 0 10 * * * cd /path/to/system-scripts && npm run backup:google-tasks
 ```

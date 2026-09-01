@@ -11,6 +11,7 @@
     "backup:brave-bookmarks": "tsx backups/src/brave-bookmarks-backup.ts",
     "backup:chrome-bookmarks": "tsx backups/src/chrome-bookmarks-backup.ts",
     "backup:standard-notes": "tsx backups/src/standard-notes-backup.ts",
+    "backup:obsidian-notes": "tsx backups/src/obsidian-notes-backup.ts",
     "backup:google-calendar": "tsx backups/src/google-calendar-backup.ts",
     "backup:google-tasks": "tsx backups/src/google-tasks-backup.ts",
     "backup:all": "tsx backups/src/run-all.ts",
