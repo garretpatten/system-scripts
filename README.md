@@ -11,9 +11,7 @@ system-scripts/
 │   ├── src/              # TypeScript backup implementations
 │   ├── __tests__/        # Jest unit tests
 │   ├── code/             # GitHub repository backup wrappers
-│   ├── todoist/          # Todoist backup wrapper
-  │   ├── notion/           # Notion workspace Markdown export wrapper
-  │   ├── standard-notes/   # Standard Notes plaintext backup wrapper
+│   ├── notion/           # Notion workspace Markdown export wrapper
 │   ├── obsidian-notes/   # Obsidian notes backup wrapper
 │   ├── google-calendar/    # Google Calendar export wrapper
 │   ├── google-tasks/       # Google Tasks export wrapper
@@ -29,9 +27,8 @@ system-scripts/
 
 ### 📦 Backups (`backups/`)
 
-Comprehensive backup module for code repositories, Todoist tasks, Notion
-workspaces, browser bookmarks, Standard Notes, Obsidian notes, Google Calendars,
-and Google Tasks.
+Comprehensive backup module for code repositories, Notion workspaces, browser
+bookmarks, Obsidian notes, Google Calendars, and Google Tasks.
 
 **Code backups:**
 
@@ -39,11 +36,6 @@ and Google Tasks.
 - Selective repository filtering
 - Detailed logging and error handling
 - Progress tracking and reporting
-
-**Todoist backup:**
-
-- Retrieves active tasks, projects, and labels via the Todoist REST API
-- Creates timestamped zip archives
 
 **Notion export:**
 
@@ -62,12 +54,6 @@ and Google Tasks.
 - Converts Google Chrome bookmarks to Netscape Bookmark File Format HTML
 - Preserves folder hierarchy and basic metadata
 - Creates dated HTML and JSON copies in the home directory
-
-**Standard Notes export:**
-
-- Backs up Standard Notes Plaintext Backups as Markdown
-- Cleans filenames to lowercase kebab-case and removes identifier suffixes
-- Preserves folder hierarchy and creates a dated zip archive
 
 **Obsidian notes export:**
 
@@ -181,19 +167,17 @@ Enhanced tmux session management following bash and tmux best practices:
 ### Running Backups
 
 ```bash
-# Run all backups (code-local, code-gitlab, todoist, notion, bookmarks,
-# standard-notes, obsidian-notes, google-calendar, google-tasks)
+# Run all backups (code-local, code-gitlab, notion, bookmarks, obsidian-notes,
+# google-calendar, google-tasks)
 npm run backup:all
 npm run backups
 
 # Run individual backups
 npm run backup:code-local
 npm run backup:code-gitlab
-npm run backup:todoist
 npm run backup:notion
 npm run backup:brave-bookmarks
 npm run backup:chrome-bookmarks
-npm run backup:standard-notes
 npm run backup:obsidian-notes
 npm run backup:google-calendar
 npm run backup:google-tasks

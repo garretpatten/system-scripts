@@ -8,11 +8,9 @@ import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { LocalBackup, LocalBackupConfig } from './local-backup.js';
 import { GitLabMirror, GitLabMirrorConfig } from './gitlab-mirror.js';
-import { TodoistBackup, TodoistBackupConfig } from './todoist-backup.js';
 import { NotionBackup, NotionBackupConfig } from './notion-backup.js';
 import { BraveBookmarksBackup, BraveBookmarksBackupConfig } from './brave-bookmarks-backup.js';
 import { ChromeBookmarksBackup, ChromeBookmarksBackupConfig } from './chrome-bookmarks-backup.js';
-import { StandardNotesBackup, StandardNotesBackupConfig } from './standard-notes-backup.js';
 import { ObsidianNotesBackup, ObsidianNotesBackupConfig } from './obsidian-notes-backup.js';
 import { GoogleCalendarBackup, GoogleCalendarBackupConfig } from './google-calendar-backup.js';
 import { GoogleTasksBackup, GoogleTasksBackupConfig } from './google-tasks-backup.js';
@@ -46,11 +44,9 @@ export class BackupOrchestrator {
 
     results['code-local'] = await this.runLocalBackup(logger);
     results['code-gitlab'] = await this.runGitlabMirror(logger);
-    results['todoist'] = await this.runTodoistBackup(logger);
     results['notion'] = await this.runNotionBackup(logger);
     results['brave-bookmarks'] = await this.runBraveBookmarksBackup(logger);
     results['chrome-bookmarks'] = await this.runChromeBookmarksBackup(logger);
-    results['standard-notes'] = await this.runStandardNotesBackup(logger);
     results['obsidian-notes'] = await this.runObsidianNotesBackup(logger);
     results['google-calendar'] = await this.runGoogleCalendarBackup(logger);
     results['google-tasks'] = await this.runGoogleTasksBackup(logger);
@@ -109,21 +105,6 @@ export class BackupOrchestrator {
     }
   }
 
-  private async runTodoistBackup(logger: Logger): Promise<boolean> {
-    try {
-      const config: TodoistBackupConfig = {
-        apiToken: this.context.env.TODOIST_API_TOKEN || '',
-        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
-        logDir: this.getLogDir(),
-      };
-      await new TodoistBackup(this.context).run(config);
-      return true;
-    } catch (error) {
-      logger.warn(`Backup failed or had errors: todoist: ${String(error)}`);
-      return false;
-    }
-  }
-
   private async runNotionBackup(logger: Logger): Promise<boolean> {
     try {
       const config: NotionBackupConfig = {
@@ -164,20 +145,6 @@ export class BackupOrchestrator {
       return true;
     } catch (error) {
       logger.warn(`Backup failed or had errors: chrome-bookmarks: ${String(error)}`);
-      return false;
-    }
-  }
-
-  private async runStandardNotesBackup(logger: Logger): Promise<boolean> {
-    try {
-      const config: StandardNotesBackupConfig = {
-        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
-        logDir: this.getLogDir(),
-      };
-      await new StandardNotesBackup(this.context).run(config);
-      return true;
-    } catch (error) {
-      logger.warn(`Backup failed or had errors: standard-notes: ${String(error)}`);
       return false;
     }
   }

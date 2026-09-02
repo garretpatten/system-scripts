@@ -10,16 +10,15 @@ application runtime; changes are almost always Bash and documentation.
 - **`backups/`** — backup module (TypeScript under `src/`, Jest tests under
   `__tests__/`, thin shell wrappers per service)
   - **`src/`** — backup implementations (`local-backup.ts`,
-    `gitlab-mirror.ts`, `todoist-backup.ts`, `notion-backup.ts`,
-    `brave-bookmarks-backup.ts`, `chrome-bookmarks-backup.ts`,
-    `standard-notes-backup.ts`, `obsidian-notes-backup.ts`,
+    `gitlab-mirror.ts`, `notion-backup.ts`, `brave-bookmarks-backup.ts`,
+    `chrome-bookmarks-backup.ts`, `obsidian-notes-backup.ts`,
     `google-calendar-backup.ts`, `google-tasks-backup.ts`), API clients, and
     shared helpers
     (`google-auth.ts` holds the shared Google OAuth 2.0 token refresh and the
     first-run interactive authorization flow)
-  - **`code/`**, **`todoist/`**, **`notion/`**, **`brave-bookmarks/`**,
-    **`chrome-bookmarks/`**, **`standard-notes/`**, **`obsidian-notes/`**,
-    **`google-calendar/`**, **`google-tasks/`** — thin shell wrappers around
+  - **`code/`**, **`notion/`**, **`brave-bookmarks/`**, **`chrome-bookmarks/`**,
+    **`obsidian-notes/`**, **`google-calendar/`**, **`google-tasks/`** — thin shell
+    wrappers around
     the TypeScript entry points
   - **`run-all.sh`** — orchestrates all backups (thin wrapper around
     `src/run-all.ts`)

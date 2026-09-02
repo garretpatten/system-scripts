@@ -1,23 +1,21 @@
 # Backups
 
-This module contains scripts for backing up code repositories, Todoist tasks,
-Notion workspaces, browser bookmarks, Standard Notes, and Obsidian notes. The
+This module contains scripts for backing up code repositories, Notion
+workspaces, browser bookmarks, and Obsidian notes. The
 implementation has been ported to TypeScript so the backup logic is unit-testable
 with mocked dependencies.
 
 - **`src/`** — TypeScript source code
   - `local-backup.ts` — Local GitHub repository backup
   - `gitlab-mirror.ts` — GitHub to GitLab mirror
-  - `todoist-backup.ts` — Todoist backup
   - `notion-backup.ts` — Notion Markdown export
   - `brave-bookmarks-backup.ts` — Brave bookmarks HTML/JSON export
   - `chrome-bookmarks-backup.ts` — Chrome bookmarks HTML/JSON export
-  - `standard-notes-backup.ts` — Standard Notes plaintext backup export
   - `obsidian-notes-backup.ts` — Obsidian notes zip backup
   - `google-calendar-backup.ts` — Google Calendar export
   - `google-tasks-backup.ts` — Google Tasks export
   - `run-all.ts` — Orchestrator that runs all backups
-  - `github.ts`, `gitlab.ts`, `todoist.ts`, `notion.ts` — API clients
+  - `github.ts`, `gitlab.ts`, `notion.ts` — API clients
   - `google-calendar.ts`, `google-tasks.ts` — Google API clients
   - `google-auth.ts` — Shared Google OAuth 2.0 token refresh
   - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
@@ -26,16 +24,12 @@ with mocked dependencies.
 - **`code/`** — Backward-compatible shell wrappers
   - `code-backup-local.sh` — Thin wrapper around `local-backup.ts`
   - `code-backup-gitlab.sh` — Thin wrapper around `gitlab-mirror.ts`
-- **`todoist/`** — Backward-compatible shell wrapper
-  - `todoist-backup.sh` — Thin wrapper around `todoist-backup.ts`
 - **`notion/`** — Backward-compatible shell wrapper
   - `notion-backup.sh` — Thin wrapper around `notion-backup.ts`
 - **`brave-bookmarks/`** — Backward-compatible shell wrapper
   - `brave-bookmarks-backup.sh` — Thin wrapper around `brave-bookmarks-backup.ts`
 - **`chrome-bookmarks/`** — Backward-compatible shell wrapper
   - `chrome-bookmarks-backup.sh` — Thin wrapper around `chrome-bookmarks-backup.ts`
-- **`standard-notes/`** — Backward-compatible shell wrapper
-  - `standard-notes-backup.sh` — Thin wrapper around `standard-notes-backup.ts`
 - **`obsidian-notes/`** — Backward-compatible shell wrapper
   - `obsidian-notes-backup.sh` — Thin wrapper around `obsidian-notes-backup.ts`
 - **`google-calendar/`** — Backward-compatible shell wrapper
@@ -76,7 +70,7 @@ shell entry points are now thin wrappers around the TypeScript implementation.
 - `git`
 - `zip` (local backup only)
 
-**Todoist, Notion, Standard Notes, and Google backups also require:**
+**Notion and Google backups also require:**
 
 - `zip`
 
@@ -146,16 +140,6 @@ GITLAB_VISIBILITY="private"
 GITLAB_HOST="https://gitlab.com"
 BACKUP_ROOT="$HOME/GitHub-GitLab-Backup"
 ```
-
-### Todoist backup
-
-```bash
-# Required
-TODOIST_API_TOKEN="your_todoist_api_token"
-```
-
-To create a Todoist token, visit **Todoist Settings → Integrations → Developer →
-API token**.
 
 ### Notion backup
 
@@ -284,43 +268,6 @@ npm run backup:code-gitlab
 
 ---
 
-## ✅ Todoist Backup (`todoist/todoist-backup.sh`)
-
-Backs up active Todoist tasks, projects, and labels.
-
-### Todoist Backup Features
-
-- Retrieves all active tasks via the Todoist REST API
-- Fetches projects and labels for context
-- Writes pretty-printed JSON files to a temporary directory
-- Creates a zip backup: `~/Todoist-Export_YYYY-MM-DD.zip`
-
-### Todoist Backup Usage
-
-```bash
-./backups/todoist/todoist-backup.sh
-```
-
-Or via npm:
-
-```bash
-npm run backup:todoist
-```
-
-### Todoist Backup Output
-
-- **Backup archive**: `~/Todoist-Export_YYYY-MM-DD.zip`
-- **Logs**: `backups/logs/todoist-backup-YYYYMMDD-HHMMSS.log`
-- **Errors**: `backups/logs/todoist-errors-YYYYMMDD-HHMMSS.log`
-
-The zip contains:
-
-- `tasks.json`
-- `projects.json`
-- `labels.json`
-
----
-
 ## Notion Workspace Export (`notion/notion-backup.sh`)
 
 Exports all pages and databases the integration can access as Markdown files in
@@ -429,49 +376,6 @@ npm run backup:chrome-bookmarks
 - **HTML export**: `~/chrome-bookmarks_YYYY-MM-DD.html`
 - **JSON copy**: `~/chrome-bookmarks_YYYY-MM-DD.json`
 - **Logs**: `backups/logs/chrome-bookmarks-backup-YYYYMMDD-HHMMSS.log`
-
----
-
-## 📝 Standard Notes Export (`standard-notes/standard-notes-backup.sh`)
-
-Backs up Standard Notes when **Plaintext Backups** is enabled and set to save in
-the home directory.
-
-### Standard Notes Export Features
-
-- Discards the Standard Notes identifier suffix from each filename (`-id_txt`)
-- Renotes files to lowercase kebab-case Markdown names (`name-of-note.md`)
-- Preserves nested folder structure from the Plaintext Backups directory
-- Creates a zip backup: `~/Standard-Notes_YYYY-MM-DD.zip`
-- Exits gracefully with a helpful message when Plaintext Backups is not enabled
-
-### Standard Notes Export Requirements
-
-Plaintext Backups must be enabled in Standard Notes and the destination must be:
-
-```text
-$HOME/garret.patten@proton.me/Plaintext Backups/
-```
-
-If that directory is not found, the script logs a warning and exits without
-creating an archive.
-
-### Standard Notes Export Usage
-
-```bash
-./backups/standard-notes/standard-notes-backup.sh
-```
-
-Or via npm:
-
-```bash
-npm run backup:standard-notes
-```
-
-### Standard Notes Export Output
-
-- **Backup archive**: `~/Standard-Notes_YYYY-MM-DD.zip`
-- **Logs**: `backups/logs/standard-notes-backup-YYYYMMDD-HHMMSS.log`
 
 ---
 
@@ -594,9 +498,8 @@ with `task-list.json` (metadata) and `tasks.json` (all tasks).
 
 ## 🚀 Run All Backups
 
-To run the code-local, code-gitlab, todoist, notion, brave-bookmarks,
-chrome-bookmarks, standard-notes, obsidian-notes, google-calendar, and
-google-tasks backups in sequence:
+To run the code-local, code-gitlab, notion, brave-bookmarks, chrome-bookmarks,
+obsidian-notes, google-calendar, and google-tasks backups in sequence:
 
 ```bash
 ./backups/run-all.sh
@@ -628,11 +531,6 @@ All scripts create detailed logs in `backups/logs/`:
 - `gh-gl-backup-YYYYMMDD-HHMMSS.log`
 - `gh-gl-errors-YYYYMMDD-HHMMSS.log`
 
-**Todoist Backup:**
-
-- `todoist-backup-YYYYMMDD-HHMMSS.log`
-- `todoist-errors-YYYYMMDD-HHMMSS.log`
-
 **Notion Export:**
 
 - `notion-backup-YYYYMMDD-HHMMSS.log`
@@ -645,10 +543,6 @@ All scripts create detailed logs in `backups/logs/`:
 **Chrome Bookmarks Export:**
 
 - `chrome-bookmarks-backup-YYYYMMDD-HHMMSS.log`
-
-**Standard Notes Export:**
-
-- `standard-notes-backup-YYYYMMDD-HHMMSS.log`
 
 **Obsidian Notes Export:**
 
@@ -709,75 +603,60 @@ Logs include:
    - Check that the GitLab project exists or auto-create is enabled
    - Review error log for specific GitLab API errors
 
-7. **Todoist: "Set TODOIST_API_TOKEN"**
-   - Add your Todoist API token to `.env`
-   - Ensure the token has not been revoked
-
-8. **Todoist: "Todoist API error"**
-   - Check your internet connection
-   - Verify the token is valid
-   - Review `backups/logs/todoist-errors-*.log` for details
-
-9. **Notion: "Set NOTION_API_TOKEN"**
+7. **Notion: "Set NOTION_API_TOKEN"**
    - Add your Notion integration token to `.env`
    - Ensure the integration has not been deleted or restricted
 
-10. **Notion: "No pages or databases found"**
-    - Share the pages and databases you want to export with your integration
-    - The Notion API cannot access private content automatically
+8. **Notion: "No pages or databases found"**
+   - Share the pages and databases you want to export with your integration
+   - The Notion API cannot access private content automatically
 
-11. **Notion: "Notion API error"**
-    - Check your internet connection
-    - Verify the token is valid
-    - Confirm the integration has access to the requested content
-    - Review `backups/logs/notion-errors-*.log` for details
+9. **Notion: "Notion API error"**
+   - Check your internet connection
+   - Verify the token is valid
+   - Confirm the integration has access to the requested content
+   - Review `backups/logs/notion-errors-*.log` for details
 
-12. **Brave Bookmarks: "Brave bookmarks file not found"**
+10. **Brave Bookmarks: "Brave bookmarks file not found"**
     - Ensure Brave has been launched at least once so the profile directory exists
     - Check that the bookmarks file exists at
       `~/.config/BraveSoftware/Brave-Browser/Default/Bookmarks` (Linux) or
       `~/Library/Application Support/BraveSoftware/Brave-Browser/Default/Bookmarks`
       (macOS)
 
-13. **Brave Bookmarks: "Brave appears to be running"**
+11. **Brave Bookmarks: "Brave appears to be running"**
     - This is a warning, not a fatal error
     - Close Brave and re-run the backup to ensure the bookmarks file is not locked
 
-14. **Brave Bookmarks: "Failed to parse Brave bookmarks JSON"**
+12. **Brave Bookmarks: "Failed to parse Brave bookmarks JSON"**
     - The Brave profile may be corrupted or the file may be partially written
     - Close Brave and try again
     - Review `backups/logs/brave-bookmarks-backup-*.log` for details
 
-15. **Chrome Bookmarks: "Chrome bookmarks file not found"**
+13. **Chrome Bookmarks: "Chrome bookmarks file not found"**
     - Ensure Chrome has been launched at least once so the profile directory exists
     - Check that the bookmarks file exists at
       `~/.config/google-chrome/Default/Bookmarks` (Linux) or
       `~/Library/Application Support/Google/Chrome/Default/Bookmarks` (macOS)
 
-16. **Chrome Bookmarks: "Chrome appears to be running"**
+14. **Chrome Bookmarks: "Chrome appears to be running"**
     - This is a warning, not a fatal error
     - Close Chrome and re-run the backup to ensure the bookmarks file is not locked
 
-17. **Chrome Bookmarks: "Failed to parse Chrome bookmarks JSON"**
+15. **Chrome Bookmarks: "Failed to parse Chrome bookmarks JSON"**
     - The Chrome profile may be corrupted or the file may be partially written
     - Close Chrome and try again
     - Review `backups/logs/chrome-bookmarks-backup-*.log` for details
 
-18. **Standard Notes: "Plaintext Backups must be enabled"**
-    - Enable **Plaintext Backups** in Standard Notes settings
-    - Set the backup location to your home directory
-    - Verify the directory exists at
-      `$HOME/garret.patten@proton.me/Plaintext Backups/`
-
-19. **Google: "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET"**
+16. **Google: "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET"**
     - Add your Google OAuth 2.0 Desktop app credentials to `.env`
 
-20. **Google: "Missing GOOGLE_REFRESH_TOKEN"**
+17. **Google: "Missing GOOGLE_REFRESH_TOKEN"**
     - Run `npm run backup:google-calendar` or `npm run backup:google-tasks`
       once in an interactive terminal to complete the browser authorization;
       the token is saved to `.env` automatically
 
-21. **Google: "Google OAuth token refresh failed"**
+18. **Google: "Google OAuth token refresh failed"**
     - The saved refresh token may have been revoked or the OAuth client
       regenerated; `backup:all` now tries the interactive re-authorization flow
       automatically (up to three attempts) and saves the new token to `.env`
@@ -788,7 +667,7 @@ Logs include:
     - Review `backups/logs/google-calendar-errors-*.log` or
       `backups/logs/google-tasks-errors-*.log` for details
 
-22. **Google: "Timed out waiting for Google authorization"**
+19. **Google: "Timed out waiting for Google authorization"**
     - Re-run the backup and complete the consent in your browser within five
       minutes; unattended `backup:all` runs will time out and continue with the
       remaining backups
@@ -800,9 +679,7 @@ Check the error log files for detailed error messages:
 ```bash
 cat backups/logs/errors-*.log
 cat backups/logs/gh-gl-errors-*.log
-cat backups/logs/todoist-errors-*.log
 cat backups/logs/notion-errors-*.log
-cat backups/logs/standard-notes-backup-*.log
 ```
 
 ---
@@ -821,14 +698,12 @@ crontab -e
 # Run individual backups
 0 2 * * * cd /path/to/system-scripts && npm run backup:code-local
 0 3 * * 0 cd /path/to/system-scripts && npm run backup:code-gitlab
-0 4 * * * cd /path/to/system-scripts && npm run backup:todoist
-0 5 * * * cd /path/to/system-scripts && npm run backup:notion
-0 6 * * * cd /path/to/system-scripts && npm run backup:brave-bookmarks
-0 7 * * * cd /path/to/system-scripts && npm run backup:chrome-bookmarks
-0 8 * * * cd /path/to/system-scripts && npm run backup:standard-notes
-0 8 * * * cd /path/to/system-scripts && npm run backup:obsidian-notes
-0 9 * * * cd /path/to/system-scripts && npm run backup:google-calendar
-0 10 * * * cd /path/to/system-scripts && npm run backup:google-tasks
+0 4 * * * cd /path/to/system-scripts && npm run backup:notion
+0 5 * * * cd /path/to/system-scripts && npm run backup:brave-bookmarks
+0 6 * * * cd /path/to/system-scripts && npm run backup:chrome-bookmarks
+0 7 * * * cd /path/to/system-scripts && npm run backup:obsidian-notes
+0 8 * * * cd /path/to/system-scripts && npm run backup:google-calendar
+0 9 * * * cd /path/to/system-scripts && npm run backup:google-tasks
 ```
 
 **Note:** When using cron, make sure environment variables are available in
@@ -881,7 +756,6 @@ git submodule update --init --recursive
   before running a backup
 - [GitHub API Documentation](https://docs.github.com/en/rest)
 - [GitLab API Documentation](https://docs.gitlab.com/ee/api/)
-- [Todoist REST API Documentation](https://developer.todoist.com/rest/v2/)
 - [Notion API Documentation](https://developers.notion.com/)
 - [Google Calendar API Documentation](https://developers.google.com/calendar/api/v3/reference)
 - [Google Tasks API Documentation](https://developers.google.com/tasks/reference/rest)

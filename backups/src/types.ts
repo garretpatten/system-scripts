@@ -5,7 +5,11 @@ export interface CommandResult {
 }
 
 export interface CommandRunner {
-  run(command: string, args: string[], options?: { cwd?: string; env?: NodeJS.ProcessEnv }): Promise<CommandResult>;
+  run(
+    command: string,
+    args: string[],
+    options?: { cwd?: string; env?: NodeJS.ProcessEnv },
+  ): Promise<CommandResult>;
 }
 
 export interface HttpResponse {
@@ -38,7 +42,12 @@ export interface Logger {
 }
 
 export interface Archive {
-  zipDirectory(sourceDirName: string, outputFileName: string, cwd: string, exclude?: string[]): Promise<void>;
+  zipDirectory(
+    sourceDirName: string,
+    outputFileName: string,
+    cwd: string,
+    exclude?: string[],
+  ): Promise<void>;
 }
 
 export interface DateProvider {
@@ -73,21 +82,6 @@ export interface GitHubRepo {
 export interface GitLabProject {
   id: number;
   pathWithNamespace: string;
-}
-
-export interface TodoistTask {
-  id: string;
-  content: string;
-}
-
-export interface TodoistProject {
-  id: string;
-  name: string;
-}
-
-export interface TodoistLabel {
-  id: string;
-  name: string;
 }
 
 export interface NotionObject {

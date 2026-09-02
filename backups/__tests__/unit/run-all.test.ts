@@ -42,7 +42,6 @@ describe('BackupOrchestrator', () => {
         GITHUB_TOKEN: 'gh-token',
         GITLAB_TOKEN: 'gl-token',
         GITLAB_NAMESPACE: 'octocat',
-        TODOIST_API_TOKEN: 'todoist-token',
         NOTION_API_TOKEN: 'notion-token',
         GOOGLE_CLIENT_ID: 'google-client-id',
         GOOGLE_CLIENT_SECRET: 'google-client-secret',
@@ -119,18 +118,6 @@ describe('BackupOrchestrator', () => {
       statusCode: 200,
       body: JSON.stringify([{ id: 42, full_path: 'octocat' }]),
     });
-    http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200', {
-      statusCode: 200,
-      body: JSON.stringify({ results: [], next_cursor: null }),
-    });
-    http.setResponse('GET', 'https://api.todoist.com/api/v1/projects?limit=200', {
-      statusCode: 200,
-      body: JSON.stringify({ results: [], next_cursor: null }),
-    });
-    http.setResponse('GET', 'https://api.todoist.com/api/v1/labels?limit=200', {
-      statusCode: 200,
-      body: JSON.stringify({ results: [], next_cursor: null }),
-    });
     http.setResponse('POST', 'https://api.notion.com/v1/search', {
       statusCode: 200,
       body: JSON.stringify({ results: [], next_cursor: null }),
@@ -186,18 +173,6 @@ describe('BackupOrchestrator', () => {
     http.setResponse('GET', 'https://gitlab.com/api/v4/namespaces?search=octocat', {
       statusCode: 200,
       body: JSON.stringify([{ id: 42, full_path: 'octocat' }]),
-    });
-    http.setResponse('GET', 'https://api.todoist.com/api/v1/tasks?limit=200', {
-      statusCode: 200,
-      body: JSON.stringify({ results: [], next_cursor: null }),
-    });
-    http.setResponse('GET', 'https://api.todoist.com/api/v1/projects?limit=200', {
-      statusCode: 200,
-      body: JSON.stringify({ results: [], next_cursor: null }),
-    });
-    http.setResponse('GET', 'https://api.todoist.com/api/v1/labels?limit=200', {
-      statusCode: 200,
-      body: JSON.stringify({ results: [], next_cursor: null }),
     });
     http.setResponse('POST', 'https://api.notion.com/v1/search', {
       statusCode: 200,

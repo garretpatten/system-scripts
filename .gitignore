@@ -10,9 +10,7 @@ errors-*.log
 code-backup-*.log
 google-calendar-*.log
 google-tasks-*.log
-todoist-*.log
 notion-*.log
-standard-notes-*.log
 
 # Backup output directories and archives
 $HOME/
@@ -21,12 +19,8 @@ Code-Export_*.zip
 Code-Export_*/
 Projects-Export_*.zip
 Projects-Export_*/
-Todoist-Export_*.zip
-Todoist-Export_*/
 Notion-Export_*.zip
 Notion-Export_*/
-Standard-Notes_*.zip
-Standard-Notes_*/
 Obsidian-Notes_*.zip
 Obsidian-Notes_*/
 Google-Calendar-Export_*.zip
