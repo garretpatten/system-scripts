@@ -132,4 +132,31 @@ describe('GitHubApiClient', () => {
       await expect(generator.next()).rejects.toThrow('GitHub API error: Bad credentials');
     });
   });
+
+  describe('listAllRepos', () => {
+    it('includes archived repos', async () => {
+      http.setResponse(
+        'GET',
+        'https://api.github.com/users/octocat/repos?page=1&per_page=100&type=all&sort=updated',
+        {
+          statusCode: 200,
+          body: JSON.stringify([
+            { full_name: 'octocat/hello', name: 'hello', clone_url: 'https://github.com/octocat/hello.git', ssh_url: 'git@github.com:octocat/hello.git', archived: false },
+            { full_name: 'octocat/archived', name: 'archived', clone_url: 'https://github.com/octocat/archived.git', ssh_url: 'git@github.com:octocat/archived.git', archived: true },
+          ]),
+        }
+      );
+
+      const repos = [];
+      for await (const repo of client.listAllRepos('octocat')) {
+        repos.push(repo);
+      }
+
+      expect(repos).toHaveLength(2);
+      expect(repos[0].name).toBe('hello');
+      expect(repos[0].archived).toBe(false);
+      expect(repos[1].name).toBe('archived');
+      expect(repos[1].archived).toBe(true);
+    });
+  });
 });

@@ -20,6 +20,7 @@ export interface HttpResponse {
 export interface HttpClient {
   get(url: string, headers?: Record<string, string>): Promise<HttpResponse>;
   post(url: string, body: string, headers?: Record<string, string>): Promise<HttpResponse>;
+  delete(url: string, headers?: Record<string, string>): Promise<HttpResponse>;
 }
 
 export interface FileSystem {

@@ -16,6 +16,8 @@ application runtime; changes are almost always Bash and documentation.
     shared helpers
     (`google-auth.ts` holds the shared Google OAuth 2.0 token refresh and the
     first-run interactive authorization flow)
+  - **`gitlab-mirror-cleanup.ts`** — removes GitLab mirrors for repos archived or
+    deleted on GitHub
   - **`code/`**, **`notion/`**, **`brave-bookmarks/`**, **`chrome-bookmarks/`**,
     **`obsidian-notes/`**, **`google-calendar/`**, **`google-tasks/`** — thin shell
     wrappers around

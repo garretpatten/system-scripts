@@ -8,6 +8,7 @@ with mocked dependencies.
 - **`src/`** — TypeScript source code
   - `local-backup.ts` — Local GitHub repository backup
   - `gitlab-mirror.ts` — GitHub to GitLab mirror
+  - `gitlab-mirror-cleanup.ts` — Remove stale GitLab mirrors
   - `notion-backup.ts` — Notion Markdown export
   - `brave-bookmarks-backup.ts` — Brave bookmarks HTML/JSON export
   - `chrome-bookmarks-backup.ts` — Chrome bookmarks HTML/JSON export
@@ -24,6 +25,7 @@ with mocked dependencies.
 - **`code/`** — Backward-compatible shell wrappers
   - `code-backup-local.sh` — Thin wrapper around `local-backup.ts`
   - `code-backup-gitlab.sh` — Thin wrapper around `gitlab-mirror.ts`
+  - `code-backup-gitlab-cleanup.sh` — Thin wrapper around `gitlab-mirror-cleanup.ts`
 - **`notion/`** — Backward-compatible shell wrapper
   - `notion-backup.sh` — Thin wrapper around `notion-backup.ts`
 - **`brave-bookmarks/`** — Backward-compatible shell wrapper
@@ -238,6 +240,7 @@ Mirrors all non-archived GitHub repositories to GitLab.
 - Creates/updates a local mirror clone (bare repo) for each
 - Ensures a same-named GitLab project exists under your namespace
 - Pushes a full mirror to GitLab (all branches, tags, and refs)
+- Automatically cleans up mirrors for repos that are archived or deleted on GitHub
 
 ### GitLab Mirror Usage
 
@@ -259,12 +262,56 @@ npm run backup:code-gitlab
    - Checks if a GitLab project exists (creates it if
      `AUTO_CREATE_GITLAB_PROJECTS=true`)
    - Pushes all branches, tags, and refs to GitLab as a mirror
+3. Runs cleanup to remove mirrors for repos that are archived or no longer exist on GitHub
 
 ### Output
 
 - **Local mirrors**: `$BACKUP_ROOT/mirrors-YYYYMMDD-HHMMSS/` (bare repos)
 - **Logs**: `backups/logs/gh-gl-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/gh-gl-errors-YYYYMMDD-HHMMSS.log`
+
+---
+
+## 🧹 GitLab Mirror Cleanup (`code/code-backup-gitlab-cleanup.sh`)
+
+Removes GitLab mirrors when their corresponding GitHub repository is archived or deleted.
+
+### GitLab Mirror Cleanup Features
+
+- Lists all GitHub repos, including archived ones
+- Lists all projects in the configured GitLab namespace
+- Deletes GitLab projects whose matching GitHub repo is archived or missing
+- Skips cleanup if no GitHub repos are found, preventing accidental mass deletion
+
+### GitLab Mirror Cleanup Usage
+
+Run manually:
+
+```bash
+./backups/code/code-backup-gitlab-cleanup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:code-gitlab-cleanup
+```
+
+The cleanup also runs automatically as the final step of `backup:code-gitlab`.
+
+### How It Works
+
+1. Fetches all repositories from GitHub (active and archived)
+2. Fetches all projects in the configured GitLab namespace
+3. For each GitLab project:
+   - Keeps the project if a non-archived GitHub repo with the same name exists
+   - Deletes the project if the matching GitHub repo is archived
+   - Deletes the project if no matching GitHub repo exists
+
+### Output
+
+- **Logs**: `backups/logs/gh-gl-cleanup-YYYYMMDD-HHMMSS.log`
+- **Errors**: `backups/logs/gh-gl-cleanup-errors-YYYYMMDD-HHMMSS.log`
 
 ---
 
@@ -513,7 +560,7 @@ npm run backups
 ```
 
 The orchestrator captures each backup's output in a combined log and reports the
-status of each step.
+status of each step. The `code-gitlab` step includes the automatic mirror cleanup.
 
 ---
 
@@ -530,6 +577,11 @@ All scripts create detailed logs in `backups/logs/`:
 
 - `gh-gl-backup-YYYYMMDD-HHMMSS.log`
 - `gh-gl-errors-YYYYMMDD-HHMMSS.log`
+
+**GitLab Mirror Cleanup:**
+
+- `gh-gl-cleanup-YYYYMMDD-HHMMSS.log`
+- `gh-gl-cleanup-errors-YYYYMMDD-HHMMSS.log`
 
 **Notion Export:**
 

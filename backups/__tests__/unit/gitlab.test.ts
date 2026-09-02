@@ -87,6 +87,71 @@ describe('GitLabApiClient', () => {
     });
   });
 
+  describe('deleteProject', () => {
+    it('succeeds when the project is deleted', async () => {
+      http.setResponse('DELETE', 'https://gitlab.com/api/v4/projects/123', {
+        statusCode: 202,
+        body: JSON.stringify({ message: '202 Accepted' }),
+      });
+
+      await client.deleteProject(123);
+
+      expect(http.requests[http.requests.length - 1].headers).toMatchObject({
+        'PRIVATE-TOKEN': 'token123',
+      });
+    });
+
+    it('throws when deletion fails', async () => {
+      http.setResponse('DELETE', 'https://gitlab.com/api/v4/projects/123', {
+        statusCode: 404,
+        body: JSON.stringify({ message: '404 Not Found' }),
+      });
+
+      await expect(client.deleteProject(123)).rejects.toThrow(
+        'GitLab project deletion failed for 123: 404 Not Found'
+      );
+    });
+  });
+
+  describe('listProjects', () => {
+    it('lists projects under a namespace', async () => {
+      http.setResponse(
+        'GET',
+        'https://gitlab.com/api/v4/projects?namespace_id=42&per_page=100&page=1',
+        {
+          statusCode: 200,
+          body: JSON.stringify([
+            { id: 1, path_with_namespace: 'octocat/hello' },
+            { id: 2, path_with_namespace: 'octocat/world' },
+          ]),
+        }
+      );
+
+      const projects = [];
+      for await (const project of client.listProjects(42)) {
+        projects.push(project);
+      }
+
+      expect(projects).toHaveLength(2);
+      expect(projects[0]).toEqual({ id: 1, pathWithNamespace: 'octocat/hello' });
+      expect(projects[1]).toEqual({ id: 2, pathWithNamespace: 'octocat/world' });
+    });
+
+    it('throws on API error messages', async () => {
+      http.setResponse(
+        'GET',
+        'https://gitlab.com/api/v4/projects?namespace_id=42&per_page=100&page=1',
+        {
+          statusCode: 200,
+          body: JSON.stringify({ message: 'Unauthorized' }),
+        }
+      );
+
+      const generator = client.listProjects(42);
+      await expect(generator.next()).rejects.toThrow('GitLab API error: Unauthorized');
+    });
+  });
+
   describe('buildRemoteUrl', () => {
     it('returns an oauth2 authenticated URL', () => {
       expect(client.buildRemoteUrl('octocat/hello')).toBe(

@@ -12,6 +12,10 @@ export class NodeHttpClient implements HttpClient {
     return this.request('POST', url, body, headers);
   }
 
+  async delete(url: string, headers?: Record<string, string>): Promise<HttpResponse> {
+    return this.request('DELETE', url, undefined, headers);
+  }
+
   private request(
     method: string,
     url: string,

@@ -59,6 +59,12 @@ chmod +x git-scripts/clone-all.sh
 ./git-scripts/clone-all.sh
 ```
 
+Or via npm from the project root:
+
+```bash
+npm run git:clone-all
+```
+
 ### clone-all Output
 
 - **Cloned repositories**: `~/Projects/` (or `$PROJECTS_DIR`)
@@ -91,6 +97,12 @@ available when sourced.
 ```bash
 # Sync all repos under ~/Projects (default path is current directory)
 ./git-scripts/sync-all.sh ~/Projects
+```
+
+Or via npm from the project root (defaults to current directory):
+
+```bash
+npm run git:sync-all
 ```
 
 ---

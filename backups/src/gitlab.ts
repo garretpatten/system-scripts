@@ -1,9 +1,11 @@
-import { HttpClient, Logger } from './types.js';
+import { GitLabProject, HttpClient, Logger } from './types.js';
 
 export interface GitLabClient {
   getNamespaceId(namespace: string): Promise<number>;
   projectExists(pathWithNamespace: string): Promise<boolean>;
   createProject(name: string, namespaceId: number, visibility: string): Promise<void>;
+  deleteProject(projectId: number): Promise<void>;
+  listProjects(namespaceId: number): AsyncGenerator<GitLabProject, void, unknown>;
   buildRemoteUrl(pathWithNamespace: string): string;
 }
 
@@ -73,6 +75,57 @@ export class GitLabApiClient implements GitLabClient {
         (body.error as string | undefined) ||
         'unknown error';
       throw new Error(`GitLab project creation failed for ${name}: ${message}`);
+    }
+  }
+
+  async deleteProject(projectId: number): Promise<void> {
+    const response = await this.http.delete(`${this.apiUrl}/projects/${projectId}`, this.headers());
+    if (response.statusCode !== 200 && response.statusCode !== 202 && response.statusCode !== 204) {
+      const body = this.parseJson(response.body);
+      const message =
+        (body.message as string | undefined) ||
+        (body.error as string | undefined) ||
+        `HTTP ${response.statusCode}`;
+      throw new Error(`GitLab project deletion failed for ${projectId}: ${message}`);
+    }
+  }
+
+  async *listProjects(namespaceId: number): AsyncGenerator<GitLabProject, void, unknown> {
+    const perPage = 100;
+    let page = 1;
+
+    while (true) {
+      const response = await this.http.get(
+        `${this.apiUrl}/projects?namespace_id=${namespaceId}&per_page=${perPage}&page=${page}`,
+        this.headers()
+      );
+      const parsed = this.parseJson(response.body);
+
+      if (!Array.isArray(parsed)) {
+        if (parsed.message) {
+          throw new Error(`GitLab API error: ${parsed.message}`);
+        }
+        break;
+      }
+
+      if (parsed.length === 0) {
+        break;
+      }
+
+      const projects: GitLabProject[] = parsed.map((project) => ({
+        id: Number((project as Record<string, unknown>).id),
+        pathWithNamespace: String((project as Record<string, unknown>).path_with_namespace),
+      }));
+
+      for (const project of projects) {
+        yield project;
+      }
+
+      if (parsed.length < perPage) {
+        break;
+      }
+
+      page++;
     }
   }
 

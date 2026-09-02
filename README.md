@@ -10,7 +10,11 @@ system-scripts/
 ├── backups/              # Repository, task, and workspace backups
 │   ├── src/              # TypeScript backup implementations
 │   ├── __tests__/        # Jest unit tests
-│   ├── code/             # GitHub repository backup wrappers
+  │   ├── code/             # GitHub repository backup wrappers
+  │   │   ├── code-backup-local.sh
+  │   │   ├── code-backup-gitlab.sh
+  │   │   └── code-backup-gitlab-cleanup.sh
+
 │   ├── notion/           # Notion workspace Markdown export wrapper
 │   ├── obsidian-notes/   # Obsidian notes backup wrapper
 │   ├── google-calendar/    # Google Calendar export wrapper
@@ -34,6 +38,7 @@ bookmarks, Obsidian notes, Google Calendars, and Google Tasks.
 
 - Automated git operations (pull, push, status checking)
 - Selective repository filtering
+- GitLab mirror cleanup for archived or deleted GitHub repos
 - Detailed logging and error handling
 - Progress tracking and reporting
 
@@ -175,12 +180,21 @@ npm run backups
 # Run individual backups
 npm run backup:code-local
 npm run backup:code-gitlab
+npm run backup:code-gitlab-cleanup
 npm run backup:notion
 npm run backup:brave-bookmarks
 npm run backup:chrome-bookmarks
 npm run backup:obsidian-notes
 npm run backup:google-calendar
 npm run backup:google-tasks
+
+# Run other repo scripts
+npm run git:clone-all
+npm run git:sync-all
+npm run config:runtime
+npm run tmux:setup-main
+npm run tmux:setup-dev
+npm run media:flatten-photos
 ```
 
 ### Running Tests

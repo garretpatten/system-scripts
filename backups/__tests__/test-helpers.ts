@@ -152,6 +152,15 @@ export class MockHttpClient implements HttpClient {
     }
     return response;
   }
+
+  async delete(url: string, headers?: Record<string, string>): Promise<HttpResponse> {
+    this.requests.push({ method: 'DELETE', url, headers });
+    const response = this.getResponse('DELETE', url);
+    if (!response) {
+      throw new Error(`No mock response for DELETE ${url}`);
+    }
+    return response;
+  }
 }
 
 export class MockCommandRunner implements CommandRunner {

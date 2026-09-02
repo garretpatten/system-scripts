@@ -37,13 +37,19 @@ chmod +x media-scripts/flatten-photos.sh
 ./media-scripts/flatten-photos.sh --keep-json "$HOME/Pictures/Mobile Photos"
 ```
 
+Or via npm from the project root:
+
+```bash
+npm run media:flatten-photos
+```
+
 ### Options
 
-| Option | Description |
-| --- | --- |
-| `-n`, `--dry-run` | Print planned moves/deletions without changing files |
-| `-k`, `--keep-json` | Skip deletion of `.json` files after flattening |
-| `-h`, `--help` | Show usage information |
+| Option              | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| `-n`, `--dry-run`   | Print planned moves/deletions without changing files |
+| `-k`, `--keep-json` | Skip deletion of `.json` files after flattening      |
+| `-h`, `--help`      | Show usage information                               |
 
 ### Logging
 

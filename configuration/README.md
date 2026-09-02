@@ -42,5 +42,11 @@ chmod +x configuration/runtime-configurations.sh
 ./configuration/runtime-configurations.sh
 ```
 
+Or via npm from the project root:
+
+```bash
+npm run config:runtime
+```
+
 The script prints what it created, appended, updated, or left unchanged, then
 exits with `Done.`

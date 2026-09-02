@@ -3,6 +3,7 @@ import { GitHubRepo, HttpClient, Logger } from './types.js';
 export interface GitHubClient {
   getAuthenticatedUser(token?: string): Promise<{ login: string }>;
   listRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown>;
+  listAllRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown>;
 }
 
 export class GitHubApiClient implements GitHubClient {
@@ -26,6 +27,22 @@ export class GitHubApiClient implements GitHubClient {
   }
 
   async *listRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown> {
+    for await (const repo of this.fetchRepos(username, token, false)) {
+      yield repo;
+    }
+  }
+
+  async *listAllRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown> {
+    for await (const repo of this.fetchRepos(username, token, true)) {
+      yield repo;
+    }
+  }
+
+  private async *fetchRepos(
+    username: string,
+    token: string | undefined,
+    includeArchived: boolean,
+  ): AsyncGenerator<GitHubRepo, void, unknown> {
     const perPage = 100;
     let page = 1;
 
@@ -55,13 +72,13 @@ export class GitHubApiClient implements GitHubClient {
       }
 
       const repos: GitHubRepo[] = parsed
-        .filter((repo) => (repo as Record<string, unknown>).archived === false)
+        .filter((repo) => includeArchived || (repo as Record<string, unknown>).archived === false)
         .map((repo) => ({
           fullName: String((repo as Record<string, unknown>).full_name),
           name: String((repo as Record<string, unknown>).name),
           cloneUrl: String((repo as Record<string, unknown>).clone_url),
           sshUrl: String((repo as Record<string, unknown>).ssh_url),
-          archived: false,
+          archived: (repo as Record<string, unknown>).archived === true,
         }));
 
       for (const repo of repos) {

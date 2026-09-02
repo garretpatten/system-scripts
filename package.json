@@ -6,6 +6,7 @@
   "scripts": {
     "backup:code-local": "tsx backups/src/local-backup.ts",
     "backup:code-gitlab": "tsx backups/src/gitlab-mirror.ts",
+    "backup:code-gitlab-cleanup": "tsx backups/src/gitlab-mirror-cleanup.ts",
     "backup:notion": "tsx backups/src/notion-backup.ts",
     "backup:brave-bookmarks": "tsx backups/src/brave-bookmarks-backup.ts",
     "backup:chrome-bookmarks": "tsx backups/src/chrome-bookmarks-backup.ts",
@@ -14,6 +15,12 @@
     "backup:google-tasks": "tsx backups/src/google-tasks-backup.ts",
     "backup:all": "tsx backups/src/run-all.ts",
     "backups": "tsx backups/src/run-all.ts",
+    "git:clone-all": "bash git-scripts/clone-all.sh",
+    "git:sync-all": "bash git-scripts/sync-all.sh",
+    "config:runtime": "bash configuration/runtime-configurations.sh",
+    "tmux:setup-main": "bash tmux/setup-main.sh",
+    "tmux:setup-dev": "bash tmux/setup-dev.sh",
+    "media:flatten-photos": "bash media-scripts/flatten-photos.sh",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "typecheck": "tsc --noEmit"
   },

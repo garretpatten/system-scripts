@@ -54,6 +54,13 @@ follow bash and tmux best practices.
 ./session-manager.sh dev
 ```
 
+Or via npm from the project root:
+
+```bash
+npm run tmux:setup-main
+npm run tmux:setup-dev
+```
+
 ### Session Manager Options
 
 ```bash

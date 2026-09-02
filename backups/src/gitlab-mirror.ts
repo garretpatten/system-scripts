@@ -8,6 +8,7 @@ import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { GitHubApiClient } from './github.js';
 import { GitLabApiClient } from './gitlab.js';
+import { GitLabMirrorCleanup, GitLabMirrorCleanupConfig } from './gitlab-mirror-cleanup.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -254,6 +255,16 @@ async function main(): Promise<void> {
 
   const mirror = new GitLabMirror(context);
   await mirror.run(config);
+
+  const cleanupConfig: GitLabMirrorCleanupConfig = {
+    githubToken: config.githubToken,
+    githubUsername: config.githubUsername,
+    gitlabToken: config.gitlabToken,
+    gitlabNamespace: config.gitlabNamespace,
+    gitlabHost: config.gitlabHost,
+    backupRoot: config.backupRoot,
+  };
+  await new GitLabMirrorCleanup(context).run(cleanupConfig);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
