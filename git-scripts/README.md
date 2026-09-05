@@ -12,7 +12,7 @@ A typical maintenance flow:
 ./git-scripts/clone-all.sh
 
 # 2. Pull latest changes for every repo already on disk
-./git-scripts/sync-all.sh ~/Projects
+./git-scripts/sync-all.sh
 
 # 3. Create a local zip backup (see backups/)
 ./backups/code/code-backup-local.sh
@@ -59,6 +59,12 @@ chmod +x git-scripts/clone-all.sh
 ./git-scripts/clone-all.sh
 ```
 
+You can also pass a projects directory as an argument:
+
+```bash
+./git-scripts/clone-all.sh "$HOME/Projects"
+```
+
 Or via npm from the project root:
 
 ```bash
@@ -95,11 +101,17 @@ available when sourced.
 ### sync-all Usage
 
 ```bash
-# Sync all repos under ~/Projects (default path is current directory)
-./git-scripts/sync-all.sh ~/Projects
+# Sync all repos under ~/Projects (default when no path is given)
+./git-scripts/sync-all.sh
 ```
 
-Or via npm from the project root (defaults to current directory):
+You can also pass a different directory to search:
+
+```bash
+./git-scripts/sync-all.sh ~/work-repos
+```
+
+Or via npm from the project root (defaults to ~/Projects):
 
 ```bash
 npm run git:sync-all

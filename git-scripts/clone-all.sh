@@ -21,8 +21,8 @@ GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 # Prefer SSH clone from GitHub? (requires your SSH keys set up for GitHub)
 USE_GITHUB_SSH="${USE_GITHUB_SSH:-false}"
 
-# Where to clone repositories (default: ~/Projects)
-PROJECTS_DIR="${PROJECTS_DIR:-$HOME/Projects}"
+# Where to clone repositories (resolved at runtime; see resolve_projects_dir)
+PROJECTS_DIR="${PROJECTS_DIR:-}"
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -62,6 +62,57 @@ log_error() {
 error_exit() {
     log_error "Fatal error: $1"
     exit 1
+}
+
+# Source shared helpers from sync-all.sh (get_default_branch, sync_repo, etc.).
+# This is done here so clone-all's log functions are defined first and are not
+# overwritten by sync-all's no-op sourced versions.
+SYNC_SCRIPT="$SCRIPT_DIR/sync-all.sh"
+if [[ -f "$SYNC_SCRIPT" ]]; then
+    # shellcheck disable=SC1090,SC1091
+    source "$SYNC_SCRIPT"
+fi
+
+# Resolves the directory where repositories live.
+# Priority:
+#   1. Positional argument passed to the script
+#   2. PROJECTS_DIR environment variable
+#   3. $HOME/Projects if it already exists
+#   4. Prompt the user for a path relative to $HOME
+resolve_projects_dir() {
+    local explicit_dir="${1:-}"
+
+    if [ -n "$explicit_dir" ]; then
+        echo "$explicit_dir"
+        return 0
+    fi
+
+    if [ -n "${PROJECTS_DIR:-}" ]; then
+        echo "$PROJECTS_DIR"
+        return 0
+    fi
+
+    local default_dir="$HOME/Projects"
+    if [ -d "$default_dir" ]; then
+        echo "$default_dir"
+        return 0
+    fi
+
+    local chosen_dir=""
+    while [ -z "$chosen_dir" ]; do
+        echo "Projects directory not found at $default_dir." >&2
+        read -r -p "Enter directory path relative to \$HOME (or absolute path): " chosen_dir
+        if [ -z "$chosen_dir" ]; then
+            echo "A directory path is required." >&2
+        fi
+    done
+
+    chosen_dir="${chosen_dir/#\~/$HOME}"
+    if [[ ! "$chosen_dir" = /* ]]; then
+        chosen_dir="$HOME/$chosen_dir"
+    fi
+
+    echo "$chosen_dir"
 }
 
 check_dependencies() {
@@ -183,7 +234,6 @@ clone_repository() {
     local repo_name="$3"
     local original_dir
     original_dir=$(pwd)
-    local sync_script="$SCRIPT_DIR/sync-all.sh"
 
     local effective_clone_url="$repo_url"
     if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -194,16 +244,16 @@ clone_repository() {
         log_success "Successfully cloned: $repo_name"
 
         if cd "$repo_path" 2>/dev/null; then
-            if [[ -f "$sync_script" ]]; then
-                # shellcheck disable=SC1090,SC1091
-                source "$sync_script"
-                local default_branch
-                if default_branch=$(get_default_branch 2>/dev/null); then
-                    log_info "Checking out default branch: $default_branch"
-                    git checkout "$default_branch" 2>>"$ERROR_LOG" || log_warning "Could not checkout $default_branch for $repo_name"
+            local default_branch
+            if default_branch=$(get_default_branch 2>/dev/null); then
+                log_info "Checking out default branch: $default_branch"
+                if git checkout "$default_branch" >/dev/null 2>>"$ERROR_LOG"; then
+                    log_success "Checked out default branch for $repo_name"
                 else
-                    log_warning "Could not determine default branch for $repo_name. Staying on current branch."
+                    log_warning "Could not checkout $default_branch for $repo_name"
                 fi
+            else
+                log_warning "Could not determine default branch for $repo_name. Staying on current branch."
             fi
             cd "$original_dir" 2>/dev/null || true
         fi
@@ -215,6 +265,9 @@ clone_repository() {
 }
 
 main() {
+    PROJECTS_DIR=$(resolve_projects_dir "${1:-}")
+    readonly PROJECTS_DIR
+
     setup_directories
 
     log_info "Starting GitHub clone-all"

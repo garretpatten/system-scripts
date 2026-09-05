@@ -20,12 +20,64 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*" >&2; }
     log_error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 else
-    # When sourced, these are no-ops. Sourcing script must provide its own logging.
-    log_info()    { :; }
-    log_success() { :; }
-    log_warning() { :; }
-    log_error()   { :; }
+    # When sourced, only define no-op log functions if the sourcing script has not
+    # already provided its own. This prevents a sourced script from clobbering
+    # an existing logger (for example, when sync-all.sh is sourced by clone-all.sh).
+    if ! command -v log_info &> /dev/null; then
+        log_info()    { :; }
+    fi
+    if ! command -v log_success &> /dev/null; then
+        log_success() { :; }
+    fi
+    if ! command -v log_warning &> /dev/null; then
+        log_warning() { :; }
+    fi
+    if ! command -v log_error &> /dev/null; then
+        log_error()   { :; }
+    fi
 fi
+
+# Resolves the directory where repositories live.
+# Priority:
+#   1. Positional argument passed to the script
+#   2. PROJECTS_DIR environment variable
+#   3. $HOME/Projects if it already exists
+#   4. Prompt the user for a path relative to $HOME
+resolve_projects_dir() {
+    local explicit_dir="${1:-}"
+
+    if [ -n "$explicit_dir" ]; then
+        echo "$explicit_dir"
+        return 0
+    fi
+
+    if [ -n "${PROJECTS_DIR:-}" ]; then
+        echo "$PROJECTS_DIR"
+        return 0
+    fi
+
+    local default_dir="$HOME/Projects"
+    if [ -d "$default_dir" ]; then
+        echo "$default_dir"
+        return 0
+    fi
+
+    local chosen_dir=""
+    while [ -z "$chosen_dir" ]; do
+        echo "Projects directory not found at $default_dir." >&2
+        read -r -p "Enter directory path relative to \$HOME (or absolute path): " chosen_dir
+        if [ -z "$chosen_dir" ]; then
+            echo "A directory path is required." >&2
+        fi
+    done
+
+    chosen_dir="${chosen_dir/#\~/$HOME}"
+    if [[ ! "$chosen_dir" = /* ]]; then
+        chosen_dir="$HOME/$chosen_dir"
+    fi
+
+    echo "$chosen_dir"
+}
 
 # Usage: get_default_branch
 # Echos the default branch name to stdout on success, returns 1 on failure.
@@ -134,13 +186,17 @@ sync_repo() {
 }
 
 main() {
-    local input_dir="${1:-.}"
-    
+    local input_dir="${1:-}"
+
+    if [[ -z "$input_dir" ]]; then
+        input_dir=$(resolve_projects_dir)
+    fi
+
     if [[ ! -d "$input_dir" ]]; then
         log_error "Directory not found: $input_dir"
         exit 1
     fi
-    
+
     local search_dir
     search_dir=$(cd "$input_dir" && pwd)
     log_info "Searching for git repositories in: $search_dir"
