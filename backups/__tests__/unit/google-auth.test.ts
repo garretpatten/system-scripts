@@ -160,13 +160,21 @@ describe('GoogleAuthorizer', () => {
     expect(listener.closed).toBe(true);
     expect(http.requests).toHaveLength(1);
     expect(http.requests[0].url).toBe('https://oauth2.googleapis.com/token');
-    expect(
-      logger.messages.some(
-        (m) =>
-          m.message.includes('https://accounts.google.com/o/oauth2/v2/auth') &&
-          m.message.includes('redirect_uri=http%3A%2F%2F127.0.0.1%3A43137'),
-      ),
-    ).toBe(true);
+    const loggedUrl = logger.messages
+      .map((m) => m.message)
+      .find((m) => {
+        try {
+          return new URL(m).pathname === '/o/oauth2/v2/auth';
+        } catch {
+          return false;
+        }
+      });
+    expect(loggedUrl).toBeDefined();
+    const parsed = new URL(loggedUrl!);
+    expect(`${parsed.origin}${parsed.pathname}`).toBe(
+      'https://accounts.google.com/o/oauth2/v2/auth',
+    );
+    expect(parsed.searchParams.get('redirect_uri')).toBe('http://127.0.0.1:43137');
   });
 
   it('throws when the user denies access', async () => {

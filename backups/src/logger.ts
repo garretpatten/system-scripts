@@ -8,6 +8,27 @@ export const ANSI_COLORS = {
   reset: '\u001b[0m',
 };
 
+const SECRET_QUERY_PARAM =
+  '(client_secret|refresh_token|access_token|api_key|apikey|token|password)=[^&\\s]+';
+
+const URL_WITH_USERINFO = /([a-z][a-z0-9+.-]*:\/\/)([^/@\s]+)@/gi;
+
+/**
+ * Masks credential-bearing fragments (URL userinfo such as
+ * `https://oauth2:<token>@...` and secret query parameters) so that
+ * credentials captured in tool output or error text never reach the console
+ * or log files in clear text.
+ */
+export function redactSecrets(message: string): string {
+  return message
+    .replace(URL_WITH_USERINFO, (match, scheme: string, userinfo: string) => {
+      const colonIndex = userinfo.indexOf(':');
+      const masked = colonIndex >= 0 ? `${userinfo.slice(0, colonIndex)}:***` : '***';
+      return `${scheme}${masked}@`;
+    })
+    .replace(new RegExp(SECRET_QUERY_PARAM, 'gi'), '$1=***');
+}
+
 export class ConsoleLogger implements Logger {
   constructor(private readonly prefix: string = '') {}
 
@@ -37,7 +58,7 @@ export class ConsoleLogger implements Logger {
     const prefix = this.prefix ? `[${this.prefix}] ` : '';
     const line = `${timestamp} [${level}] ${prefix}${message}`;
 
-    console.error(line);
+    console.error(redactSecrets(line));
   }
 }
 
@@ -76,7 +97,7 @@ export class FileLogger implements Logger {
 
   private append(level: string, message: string): void {
     const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const line = `${timestamp} [${level}] ${message}\n`;
+    const line = `${timestamp} [${level}] ${redactSecrets(message)}\n`;
     this.fs.appendFile(this.logFile, line).catch(() => undefined);
     if (level === 'ERROR' && this.errorLogFile) {
       this.fs.appendFile(this.errorLogFile, line).catch(() => undefined);
