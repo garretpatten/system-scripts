@@ -15,6 +15,7 @@ export interface CommandRunner {
 export interface HttpResponse {
   statusCode: number;
   body: string;
+  headers?: Record<string, string>;
 }
 
 export interface HttpClient {

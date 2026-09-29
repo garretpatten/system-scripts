@@ -15,6 +15,7 @@
     "backup:google-tasks": "tsx backups/src/google-tasks-backup.ts",
     "backup:all": "tsx backups/src/run-all.ts",
     "backups": "tsx backups/src/run-all.ts",
+    "github:security-report": "tsx github/src/security-report.ts",
     "git:clone-all": "bash git-scripts/clone-all.sh",
     "git:sync-all": "bash git-scripts/sync-all.sh",
     "config:runtime": "bash configuration/runtime-configurations.sh",

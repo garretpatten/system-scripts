@@ -16,6 +16,11 @@
     "sourceMap": true,
     "isolatedModules": true
   },
-  "include": ["backups/src/**/*", "backups/__tests__/**/*"],
+  "include": [
+    "backups/src/**/*",
+    "backups/__tests__/**/*",
+    "github/src/**/*",
+    "github/__tests__/**/*"
+  ],
   "exclude": ["node_modules", "backups/dist"]
 }
