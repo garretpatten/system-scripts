@@ -75,3 +75,9 @@ See [README.md](README.md), [backups/README.md](backups/README.md),
   user asks.
 - Do not commit secrets, tokens, or machine-specific absolute paths meant for
   one developer only.
+
+## GitHub Actions
+
+Whenever a GitHub workflow is added, all GitHub Action pins in that workflow
+should be updated to point to the full-length commit SHA of the most recent
+release.
