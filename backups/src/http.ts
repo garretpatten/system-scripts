@@ -41,6 +41,11 @@ export class NodeHttpClient implements HttpClient {
 
       const req = client(options, (res) => {
         let data = '';
+        const headers: Record<string, string> = {};
+        for (const [name, value] of Object.entries(res.headers)) {
+          if (value === undefined) continue;
+          headers[name.toLowerCase()] = Array.isArray(value) ? value.join(', ') : String(value);
+        }
         res.setEncoding('utf8');
         res.on('data', (chunk: string) => {
           data += chunk;
@@ -49,6 +54,7 @@ export class NodeHttpClient implements HttpClient {
           resolve({
             statusCode: res.statusCode ?? 0,
             body: data,
+            headers,
           });
         });
       });

@@ -26,6 +26,9 @@ application runtime; changes are almost always Bash and documentation.
     `src/run-all.ts`)
 - **`configuration/`** — `runtime-configurations.sh`
 - **`git-scripts/`** — `clone-all.sh`, `sync-all.sh`
+- **`github/`** — GitHub security report (TypeScript under `src/`, Jest tests
+  under `__tests__/`, `npm run github:security-report`; reuses shared runtime
+  helpers from `backups/src/`)
 - **`media-scripts/`** — `flatten-photos.sh`
 - **`tmux/`** — `setup-main.sh`, `setup-dev.sh`, `session-manager.sh`;
   shared helpers in `tmux-utils.sh`

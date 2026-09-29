@@ -22,6 +22,7 @@ system-scripts/
   │   └── run-all.sh        # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
+├── github/               # GitHub security and quality alert reporting
 ├── media-scripts/        # Photo library organization utilities
 ├── tmux/                 # Enhanced tmux session management
 └── README.md            # This file
@@ -85,6 +86,26 @@ bookmarks, Obsidian notes, Google Calendars, and Google Tasks.
 - ✅ Error handling and recovery
 - ✅ Progress indicators and reporting
 - ✅ Single command to run all backups
+
+### 🛡️ GitHub Security Reports (`github/`)
+
+Generates a dated report of open Dependabot and code scanning ("Security and
+quality") alerts for every repository owned by your GitHub profile.
+
+- `security-report.ts` - Iterates all owned repositories and reports alerts by
+  severity and project
+
+**Key Features:**
+
+- ✅ **Owned Repository Discovery**: Lists all repos owned by the token account
+  (public, private, and archived)
+- ✅ **Dependabot Alerts**: Fetches every open dependency alert with CVE/GHSA
+  details
+- ✅ **Code Scanning Alerts**: Fetches every open code scanning alert with rule
+  and location
+- ✅ **Dated Report**: Writes `~/GitHub-Security-Report_YYYY-MM-DD.md`
+- ✅ **Graceful Degradation**: Repositories without alerts enabled are listed
+  as warnings instead of failing the run
 
 ### 🔧 Git Utilities (`git-scripts/`)
 
@@ -195,6 +216,7 @@ npm run config:runtime
 npm run tmux:setup-main
 npm run tmux:setup-dev
 npm run media:flatten-photos
+npm run github:security-report
 ```
 
 ### Running Tests
@@ -236,6 +258,7 @@ All scripts include comprehensive logging:
 
 - `~/.tmux-session-*.log` - Tmux session logs
 - `backups/logs/` - Backup operation logs
+- `github/logs/` - GitHub security report logs
 - Colored output for better visibility
 - Timestamped entries with context
 
@@ -256,6 +279,7 @@ All scripts include comprehensive logging:
 
 - [Backups Documentation](backups/README.md)
 - [Configuration Documentation](configuration/README.md)
+- [GitHub Security Report Documentation](github/README.md)
 - [Git Scripts Documentation](git-scripts/README.md)
 - [Media Scripts Documentation](media-scripts/README.md)
 - [Tmux Scripts Documentation](tmux/README.md)
