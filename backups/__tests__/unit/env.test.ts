@@ -52,6 +52,44 @@ describe('loadEnvFile', () => {
     await loadEnvFile(fs, env, '/missing');
     expect(Object.keys(env)).toHaveLength(0);
   });
+
+  it('expands $VAR references from the ambient environment', async () => {
+    env.HOME = '/home/tester';
+    await fs.writeFile('/project/.env', 'BACKUP_ROOT="$HOME/GitHub-GitLab-Backup"\n');
+    await loadEnvFile(fs, env, '/project');
+
+    expect(env.BACKUP_ROOT).toBe('/home/tester/GitHub-GitLab-Backup');
+  });
+
+  it('expands ${VAR} references from the ambient environment', async () => {
+    env.HOME = '/home/tester';
+    await fs.writeFile('/project/.env', 'BACKUP_ROOT="${HOME}/GitHub-GitLab-Backup"\n');
+    await loadEnvFile(fs, env, '/project');
+
+    expect(env.BACKUP_ROOT).toBe('/home/tester/GitHub-GitLab-Backup');
+  });
+
+  it('expands references to variables defined earlier in the same file', async () => {
+    await fs.writeFile('/project/.env', 'ROOT=/srv\nBACKUP_ROOT="$ROOT/backups"\n');
+    await loadEnvFile(fs, env, '/project');
+
+    expect(env.BACKUP_ROOT).toBe('/srv/backups');
+  });
+
+  it('leaves unknown variable references as-is', async () => {
+    await fs.writeFile('/project/.env', 'BACKUP_ROOT="$UNDEFINED_VAR/data"\n');
+    await loadEnvFile(fs, env, '/project');
+
+    expect(env.BACKUP_ROOT).toBe('$UNDEFINED_VAR/data');
+  });
+
+  it('does not expand single-quoted values', async () => {
+    env.HOME = '/home/tester';
+    await fs.writeFile('/project/.env', "BACKUP_ROOT='$HOME/GitHub-GitLab-Backup'\n");
+    await loadEnvFile(fs, env, '/project');
+
+    expect(env.BACKUP_ROOT).toBe('$HOME/GitHub-GitLab-Backup');
+  });
 });
 
 describe('saveEnvValue', () => {

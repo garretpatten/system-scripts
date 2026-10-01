@@ -42,7 +42,11 @@ describe('GitLabMirrorCleanup', () => {
       runner,
     };
 
-    runner.setResponse('git', ['--version'], { stdout: 'git version 2.0', stderr: '', exitCode: 0 });
+    runner.setResponse('git', ['--version'], {
+      stdout: 'git version 2.0',
+      stderr: '',
+      exitCode: 0,
+    });
     runner.setResponse('curl', ['--version'], { stdout: 'curl 8.0', stderr: '', exitCode: 0 });
   });
 
@@ -69,7 +73,7 @@ describe('GitLabMirrorCleanup', () => {
       {
         statusCode: 200,
         body: JSON.stringify(repos),
-      }
+      },
     );
   };
 
@@ -87,22 +91,20 @@ describe('GitLabMirrorCleanup', () => {
       {
         statusCode: 200,
         body: JSON.stringify(projects),
-      }
+      },
     );
   };
 
   it('keeps mirrors of active GitHub repos', async () => {
     mockGithubUser();
-    mockGithubRepos([
-      { full_name: 'octocat/hello', name: 'hello', archived: false },
-    ]);
+    mockGithubRepos([{ full_name: 'octocat/hello', name: 'hello', archived: false }]);
     mockGitlabNamespace();
     mockGitlabProjects([{ id: 1, path_with_namespace: 'octocat/hello' }]);
 
     await new GitLabMirrorCleanup(context).run(baseConfig);
 
     expect(logger.messages.some((m) => m.message.includes('Keeping mirror: octocat/hello'))).toBe(
-      true
+      true,
     );
     expect(http.requests.filter((r) => r.method === 'DELETE')).toHaveLength(0);
   });
@@ -126,15 +128,21 @@ describe('GitLabMirrorCleanup', () => {
 
     await new GitLabMirrorCleanup(context).run(baseConfig);
 
-    expect(logger.messages.some((m) => m.message.includes('Deleting mirror (archived on GitHub): octocat/archived'))).toBe(true);
-    expect(http.requests.some((r) => r.method === 'DELETE' && r.url === 'https://gitlab.com/api/v4/projects/2')).toBe(true);
+    expect(
+      logger.messages.some((m) =>
+        m.message.includes('Deleting mirror (archived on GitHub): octocat/archived'),
+      ),
+    ).toBe(true);
+    expect(
+      http.requests.some(
+        (r) => r.method === 'DELETE' && r.url === 'https://gitlab.com/api/v4/projects/2',
+      ),
+    ).toBe(true);
   });
 
   it('deletes mirrors with no matching GitHub repo', async () => {
     mockGithubUser();
-    mockGithubRepos([
-      { full_name: 'octocat/hello', name: 'hello', archived: false },
-    ]);
+    mockGithubRepos([{ full_name: 'octocat/hello', name: 'hello', archived: false }]);
     mockGitlabNamespace();
     mockGitlabProjects([
       { id: 1, path_with_namespace: 'octocat/hello' },
@@ -148,8 +156,16 @@ describe('GitLabMirrorCleanup', () => {
 
     await new GitLabMirrorCleanup(context).run(baseConfig);
 
-    expect(logger.messages.some((m) => m.message.includes('Deleting mirror (no matching GitHub repo): octocat/deleted'))).toBe(true);
-    expect(http.requests.some((r) => r.method === 'DELETE' && r.url === 'https://gitlab.com/api/v4/projects/3')).toBe(true);
+    expect(
+      logger.messages.some((m) =>
+        m.message.includes('Deleting mirror (no matching GitHub repo): octocat/deleted'),
+      ),
+    ).toBe(true);
+    expect(
+      http.requests.some(
+        (r) => r.method === 'DELETE' && r.url === 'https://gitlab.com/api/v4/projects/3',
+      ),
+    ).toBe(true);
   });
 
   it('skips cleanup when no GitHub repos are found', async () => {
@@ -159,14 +175,14 @@ describe('GitLabMirrorCleanup', () => {
     await new GitLabMirrorCleanup(context).run(baseConfig);
 
     expect(logger.messages.some((m) => m.message.includes('No GitHub repos found'))).toBe(true);
-    expect(http.requests.filter((r) => r.method === 'GET' && r.url.includes('/namespaces'))).toHaveLength(0);
+    expect(
+      http.requests.filter((r) => r.method === 'GET' && r.url.includes('/namespaces')),
+    ).toHaveLength(0);
   });
 
   it('sets exit code when deletions fail', async () => {
     mockGithubUser();
-    mockGithubRepos([
-      { full_name: 'octocat/hello', name: 'hello', archived: false },
-    ]);
+    mockGithubRepos([{ full_name: 'octocat/hello', name: 'hello', archived: false }]);
     mockGitlabNamespace();
     mockGitlabProjects([{ id: 5, path_with_namespace: 'octocat/deleted' }]);
 
@@ -178,7 +194,9 @@ describe('GitLabMirrorCleanup', () => {
     await new GitLabMirrorCleanup(context).run(baseConfig);
 
     expect(process.exitCode).toBe(1);
-    expect(logger.messages.some((m) => m.message.includes('Failed to delete GitLab project'))).toBe(true);
+    expect(logger.messages.some((m) => m.message.includes('Failed to delete GitLab project'))).toBe(
+      true,
+    );
 
     process.exitCode = undefined;
   });

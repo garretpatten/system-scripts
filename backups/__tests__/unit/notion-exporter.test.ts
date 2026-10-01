@@ -68,17 +68,42 @@ describe('NotionExporter', () => {
       const objects = await exporter.discoverObjects();
 
       expect(objects).toHaveLength(2);
-      expect(objects[0]).toEqual({ id: 'page-1', object: 'page', title: 'My Page', parentId: null });
-      expect(objects[1]).toEqual({ id: 'db-1', object: 'database', title: 'My Database', parentId: null });
+      expect(objects[0]).toEqual({
+        id: 'page-1',
+        object: 'page',
+        title: 'My Page',
+        parentId: null,
+      });
+      expect(objects[1]).toEqual({
+        id: 'db-1',
+        object: 'database',
+        title: 'My Database',
+        parentId: null,
+      });
     });
   });
 
   describe('getParentPath', () => {
     it('builds nested paths', async () => {
       client.searchResults = [
-        { id: 'parent', object: 'page', parent: {}, properties: { title: { type: 'title', title: [{ plain_text: 'Parent' }] } } },
-        { id: 'child', object: 'page', parent: { page_id: 'parent' }, properties: { title: { type: 'title', title: [{ plain_text: 'Child' }] } } },
-        { id: 'grandchild', object: 'page', parent: { page_id: 'child' }, properties: { title: { type: 'title', title: [{ plain_text: 'Grandchild' }] } } },
+        {
+          id: 'parent',
+          object: 'page',
+          parent: {},
+          properties: { title: { type: 'title', title: [{ plain_text: 'Parent' }] } },
+        },
+        {
+          id: 'child',
+          object: 'page',
+          parent: { page_id: 'parent' },
+          properties: { title: { type: 'title', title: [{ plain_text: 'Child' }] } },
+        },
+        {
+          id: 'grandchild',
+          object: 'page',
+          parent: { page_id: 'child' },
+          properties: { title: { type: 'title', title: [{ plain_text: 'Grandchild' }] } },
+        },
       ];
       await exporter.discoverObjects();
 
@@ -87,8 +112,18 @@ describe('NotionExporter', () => {
 
     it('breaks cycles after one traversal', async () => {
       client.searchResults = [
-        { id: 'a', object: 'page', parent: { page_id: 'b' }, properties: { title: { type: 'title', title: [{ plain_text: 'A' }] } } },
-        { id: 'b', object: 'page', parent: { page_id: 'a' }, properties: { title: { type: 'title', title: [{ plain_text: 'B' }] } } },
+        {
+          id: 'a',
+          object: 'page',
+          parent: { page_id: 'b' },
+          properties: { title: { type: 'title', title: [{ plain_text: 'A' }] } },
+        },
+        {
+          id: 'b',
+          object: 'page',
+          parent: { page_id: 'a' },
+          properties: { title: { type: 'title', title: [{ plain_text: 'B' }] } },
+        },
       ];
       await exporter.discoverObjects();
 

@@ -116,7 +116,7 @@ export class LocalBackup {
     username: string,
     token: string | undefined,
     useSsh: boolean,
-    logger: Logger
+    logger: Logger,
   ): Promise<Array<{ name: string; cloneUrl: string }>> {
     logger.info(`Fetching GitHub repos (excluding archived) for: ${username}`);
     const client = new GitHubApiClient(this.context.http, logger);
@@ -136,7 +136,7 @@ export class LocalBackup {
     repo: { name: string; cloneUrl: string },
     backupDir: string,
     config: LocalBackupConfig,
-    logger: Logger
+    logger: Logger,
   ): Promise<boolean> {
     const repoPath = path.join(backupDir, repo.name);
     logger.info(`Processing repository: ${repo.name}`);
@@ -150,7 +150,11 @@ export class LocalBackup {
     return this.cloneRepository(repo.cloneUrl, repoPath, repo.name, config, logger);
   }
 
-  private async updateRepository(repoPath: string, repoName: string, logger: Logger): Promise<boolean> {
+  private async updateRepository(
+    repoPath: string,
+    repoName: string,
+    logger: Logger,
+  ): Promise<boolean> {
     const result = await this.context.sync.syncRepo(repoPath);
 
     for (const line of result.output.split('\n')) {
@@ -182,7 +186,7 @@ export class LocalBackup {
     repoPath: string,
     repoName: string,
     config: LocalBackupConfig,
-    logger: Logger
+    logger: Logger,
   ): Promise<boolean> {
     let effectiveUrl = repoUrl;
     if (!config.useSsh && config.githubToken) {
@@ -200,7 +204,9 @@ export class LocalBackup {
           logger.warn(`Could not checkout ${defaultBranch} for ${repoName}`);
         });
       } else {
-        logger.warn(`Could not determine default branch for ${repoName}. Staying on current branch.`);
+        logger.warn(
+          `Could not determine default branch for ${repoName}. Staying on current branch.`,
+        );
       }
 
       return true;
@@ -269,7 +275,6 @@ async function main(): Promise<void> {
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   main().catch((error) => {
-     
     console.error(error);
     process.exit(1);
   });

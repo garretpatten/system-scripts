@@ -69,7 +69,11 @@ describe('LocalBackup', () => {
       runner,
     };
 
-    runner.setResponse('git', ['--version'], { stdout: 'git version 2.0', stderr: '', exitCode: 0 });
+    runner.setResponse('git', ['--version'], {
+      stdout: 'git version 2.0',
+      stderr: '',
+      exitCode: 0,
+    });
     runner.setResponse('curl', ['--version'], { stdout: 'curl 8.0', stderr: '', exitCode: 0 });
     runner.setResponse('zip', ['--version'], { stdout: 'zip 3.0', stderr: '', exitCode: 0 });
   });
@@ -93,7 +97,7 @@ describe('LocalBackup', () => {
             archived: false,
           },
         ]),
-      }
+      },
     );
 
     git.defaultBranches.set('/home/user/Code-Export_2024-06-15/hello', 'main');
@@ -137,7 +141,7 @@ describe('LocalBackup', () => {
             archived: false,
           },
         ]),
-      }
+      },
     );
 
     const config: LocalBackupConfig = {
@@ -161,7 +165,7 @@ describe('LocalBackup', () => {
       {
         statusCode: 200,
         body: JSON.stringify([]),
-      }
+      },
     );
 
     const config: LocalBackupConfig = {
@@ -189,6 +193,8 @@ describe('LocalBackup', () => {
       logDir: '/logs',
     };
 
-    await expect(new LocalBackup(context).run(config)).rejects.toThrow('Missing required dependencies');
+    await expect(new LocalBackup(context).run(config)).rejects.toThrow(
+      'Missing required dependencies',
+    );
   });
 });

@@ -33,7 +33,7 @@ describe('GitLabApiClient', () => {
       });
 
       await expect(client.getNamespaceId('octocat')).rejects.toThrow(
-        'Could not resolve GitLab namespace: octocat'
+        'Could not resolve GitLab namespace: octocat',
       );
     });
   });
@@ -82,7 +82,7 @@ describe('GitLabApiClient', () => {
       });
 
       await expect(client.createProject('hello', 42, 'private')).rejects.toThrow(
-        'GitLab project creation failed for hello: name already taken'
+        'GitLab project creation failed for hello: name already taken',
       );
     });
   });
@@ -108,7 +108,7 @@ describe('GitLabApiClient', () => {
       });
 
       await expect(client.deleteProject(123)).rejects.toThrow(
-        'GitLab project deletion failed for 123: 404 Not Found'
+        'GitLab project deletion failed for 123: 404 Not Found',
       );
     });
   });
@@ -124,7 +124,7 @@ describe('GitLabApiClient', () => {
             { id: 1, path_with_namespace: 'octocat/hello' },
             { id: 2, path_with_namespace: 'octocat/world' },
           ]),
-        }
+        },
       );
 
       const projects = [];
@@ -144,7 +144,7 @@ describe('GitLabApiClient', () => {
         {
           statusCode: 200,
           body: JSON.stringify({ message: 'Unauthorized' }),
-        }
+        },
       );
 
       const generator = client.listProjects(42);
@@ -155,7 +155,19 @@ describe('GitLabApiClient', () => {
   describe('buildRemoteUrl', () => {
     it('returns an oauth2 authenticated URL', () => {
       expect(client.buildRemoteUrl('octocat/hello')).toBe(
-        'https://oauth2:token123@gitlab.com/octocat/hello.git'
+        'https://oauth2:token123@gitlab.com/octocat/hello.git',
+      );
+    });
+
+    it('honors a custom host', () => {
+      const selfHosted = new GitLabApiClient(
+        http,
+        logger,
+        'https://gitlab.example.com',
+        'token123',
+      );
+      expect(selfHosted.buildRemoteUrl('octocat/hello')).toBe(
+        'https://oauth2:token123@gitlab.example.com/octocat/hello.git',
       );
     });
   });

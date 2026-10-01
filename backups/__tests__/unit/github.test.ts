@@ -27,7 +27,7 @@ describe('GitHubApiClient', () => {
 
     it('throws when token is missing', async () => {
       await expect(client.getAuthenticatedUser()).rejects.toThrow(
-        'GitHub token is required to detect username'
+        'GitHub token is required to detect username',
       );
     });
 
@@ -38,7 +38,7 @@ describe('GitHubApiClient', () => {
       });
 
       await expect(client.getAuthenticatedUser('token123')).rejects.toThrow(
-        'Could not detect GitHub username from token'
+        'Could not detect GitHub username from token',
       );
     });
   });
@@ -51,10 +51,22 @@ describe('GitHubApiClient', () => {
         {
           statusCode: 200,
           body: JSON.stringify([
-            { full_name: 'octocat/hello', name: 'hello', clone_url: 'https://github.com/octocat/hello.git', ssh_url: 'git@github.com:octocat/hello.git', archived: false },
-            { full_name: 'octocat/archived', name: 'archived', clone_url: 'https://github.com/octocat/archived.git', ssh_url: 'git@github.com:octocat/archived.git', archived: true },
+            {
+              full_name: 'octocat/hello',
+              name: 'hello',
+              clone_url: 'https://github.com/octocat/hello.git',
+              ssh_url: 'git@github.com:octocat/hello.git',
+              archived: false,
+            },
+            {
+              full_name: 'octocat/archived',
+              name: 'archived',
+              clone_url: 'https://github.com/octocat/archived.git',
+              ssh_url: 'git@github.com:octocat/archived.git',
+              archived: true,
+            },
           ]),
-        }
+        },
       );
 
       const repos = [];
@@ -74,9 +86,15 @@ describe('GitHubApiClient', () => {
         {
           statusCode: 200,
           body: JSON.stringify([
-            { full_name: 'octocat/private', name: 'private', clone_url: 'https://github.com/octocat/private.git', ssh_url: 'git@github.com:octocat/private.git', archived: false },
+            {
+              full_name: 'octocat/private',
+              name: 'private',
+              clone_url: 'https://github.com/octocat/private.git',
+              ssh_url: 'git@github.com:octocat/private.git',
+              archived: false,
+            },
           ]),
-        }
+        },
       );
 
       const repos = [];
@@ -104,9 +122,17 @@ describe('GitHubApiClient', () => {
                     ssh_url: `git@github.com:octocat/repo${i}.git`,
                     archived: false,
                   }))
-                : [{ full_name: 'octocat/last', name: 'last', clone_url: 'https://github.com/octocat/last.git', ssh_url: 'git@github.com:octocat/last.git', archived: false }]
+                : [
+                    {
+                      full_name: 'octocat/last',
+                      name: 'last',
+                      clone_url: 'https://github.com/octocat/last.git',
+                      ssh_url: 'git@github.com:octocat/last.git',
+                      archived: false,
+                    },
+                  ],
             ),
-          }
+          },
         );
       }
 
@@ -125,7 +151,7 @@ describe('GitHubApiClient', () => {
         {
           statusCode: 200,
           body: JSON.stringify({ message: 'Bad credentials' }),
-        }
+        },
       );
 
       const generator = client.listRepos('octocat');
@@ -141,10 +167,22 @@ describe('GitHubApiClient', () => {
         {
           statusCode: 200,
           body: JSON.stringify([
-            { full_name: 'octocat/hello', name: 'hello', clone_url: 'https://github.com/octocat/hello.git', ssh_url: 'git@github.com:octocat/hello.git', archived: false },
-            { full_name: 'octocat/archived', name: 'archived', clone_url: 'https://github.com/octocat/archived.git', ssh_url: 'git@github.com:octocat/archived.git', archived: true },
+            {
+              full_name: 'octocat/hello',
+              name: 'hello',
+              clone_url: 'https://github.com/octocat/hello.git',
+              ssh_url: 'git@github.com:octocat/hello.git',
+              archived: false,
+            },
+            {
+              full_name: 'octocat/archived',
+              name: 'archived',
+              clone_url: 'https://github.com/octocat/archived.git',
+              ssh_url: 'git@github.com:octocat/archived.git',
+              archived: true,
+            },
           ]),
-        }
+        },
       );
 
       const repos = [];

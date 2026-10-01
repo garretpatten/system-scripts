@@ -22,7 +22,7 @@ export class NotionApiClient implements NotionClient {
     private readonly logger: Logger,
     private readonly token: string,
     private readonly version: string,
-    private readonly rateLimitDelayMs: number
+    private readonly rateLimitDelayMs: number,
   ) {}
 
   async *searchAll(): AsyncGenerator<Record<string, unknown>, void, unknown> {

@@ -13,6 +13,8 @@ class StubGitRepository implements GitRepository {
   clones: Array<{ url: string; path: string; mirror?: boolean }> = [];
   updates: string[] = [];
   pushes: Array<{ path: string; remoteUrl: string }> = [];
+  throwOnUrl: string | null = null;
+  private throwAttempts = 0;
 
   async clone(url: string, path: string, options?: { mirror?: boolean }): Promise<void> {
     this.clones.push({ url, path, mirror: options?.mirror });
@@ -24,6 +26,13 @@ class StubGitRepository implements GitRepository {
 
   async pushMirror(path: string, remoteUrl: string): Promise<void> {
     this.pushes.push({ path, remoteUrl });
+    if (this.throwOnUrl === remoteUrl && this.throwAttempts++ === 0) {
+      this.pushes.pop();
+      throw new Error(
+        'git push mirror failed: remote: GitLab: You are not allowed to force push code to a protected branch on this project.\n' +
+          ' ! [remote rejected] master -> master (pre-receive hook declined)\nerror: failed to push some refs',
+      );
+    }
   }
 
   async checkout(): Promise<void> {}
@@ -61,11 +70,15 @@ describe('GitLabMirror', () => {
       runner,
     };
 
-    runner.setResponse('git', ['--version'], { stdout: 'git version 2.0', stderr: '', exitCode: 0 });
+    runner.setResponse('git', ['--version'], {
+      stdout: 'git version 2.0',
+      stderr: '',
+      exitCode: 0,
+    });
     runner.setResponse('curl', ['--version'], { stdout: 'curl 8.0', stderr: '', exitCode: 0 });
   });
 
-  it('mirrors a repo to GitLab', async () => {
+  function setHappyPathResponses(name: string): void {
     http.setResponse('GET', 'https://api.github.com/user', {
       statusCode: 200,
       body: JSON.stringify({ login: 'octocat' }),
@@ -77,39 +90,48 @@ describe('GitLabMirror', () => {
         statusCode: 200,
         body: JSON.stringify([
           {
-            full_name: 'octocat/hello',
-            name: 'hello',
-            clone_url: 'https://github.com/octocat/hello.git',
-            ssh_url: 'git@github.com:octocat/hello.git',
+            full_name: `octocat/${name}`,
+            name,
+            clone_url: `https://github.com/octocat/${name}.git`,
+            ssh_url: `git@github.com:octocat/${name}.git`,
             archived: false,
           },
         ]),
-      }
+      },
     );
 
     http.setResponse('GET', 'https://gitlab.com/api/v4/namespaces?search=octocat', {
       statusCode: 200,
       body: JSON.stringify([{ id: 42, full_path: 'octocat' }]),
     });
+  }
 
-    http.setResponse('GET', 'https://gitlab.com/api/v4/projects/octocat%2Fhello', {
+  function setProjectExists(name: string, projectId: number): void {
+    http.setResponse('GET', `https://gitlab.com/api/v4/projects/octocat%2F${name}`, {
       statusCode: 200,
-      body: JSON.stringify({ id: 123 }),
+      body: JSON.stringify({ id: projectId }),
     });
+  }
 
-    const config: GitLabMirrorConfig = {
+  function baseConfig(autoCreate = true): GitLabMirrorConfig {
+    return {
       githubToken: 'gh-token',
       githubUsername: undefined,
       useSsh: false,
       gitlabToken: 'gl-token',
       gitlabNamespace: 'octocat',
-      autoCreateProjects: true,
+      autoCreateProjects: autoCreate,
       gitlabVisibility: 'private',
       gitlabHost: 'https://gitlab.com',
       backupRoot: '/backups',
     };
+  }
 
-    await new GitLabMirror(context).run(config);
+  it('mirrors a repo to GitLab', async () => {
+    setHappyPathResponses('hello');
+    setProjectExists('hello', 123);
+
+    await new GitLabMirror(context).run(baseConfig());
 
     expect(git.clones).toHaveLength(1);
     expect(git.clones[0].mirror).toBe(true);
@@ -118,6 +140,62 @@ describe('GitLabMirror', () => {
     expect(git.pushes[0].remoteUrl).toBe('https://oauth2:gl-token@gitlab.com/octocat/hello.git');
   });
 
+  it('self-heals protected branches that block force pushes', async () => {
+    setHappyPathResponses('protected-repo');
+    setProjectExists('protected-repo', 123);
+
+    http.setResponse('GET', 'https://gitlab.com/api/v4/projects/123/protected_branches', {
+      statusCode: 200,
+      body: JSON.stringify([
+        { name: 'master', allow_force_push: false },
+        { name: 'release', allow_force_push: true },
+      ]),
+    });
+    http.setResponse('PATCH', 'https://gitlab.com/api/v4/projects/123/protected_branches/master', {
+      statusCode: 200,
+      body: JSON.stringify({ name: 'master', allow_force_push: true }),
+    });
+
+    git.throwOnUrl = 'https://oauth2:gl-token@gitlab.com/octocat/protected-repo.git';
+
+    await new GitLabMirror(context).run(baseConfig());
+
+    expect(git.pushes).toHaveLength(1);
+    const patches = http.requests.filter((request) => request.method === 'PATCH');
+    expect(patches).toHaveLength(2);
+    const allowUrl = 'https://gitlab.com/api/v4/projects/123/protected_branches/master';
+    expect(patches[0].url).toBe(allowUrl);
+    expect(patches[1].url).toBe(allowUrl);
+    expect(logger.messages.some((m) => m.message.includes('temporarily allowing force push'))).toBe(
+      true,
+    );
+    expect(
+      logger.messages.filter((m) =>
+        m.message.includes('Backed up to GitLab: octocat/protected-repo'),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('fails the repo when protected branches cannot be healed', async () => {
+    setHappyPathResponses('blocked');
+    setProjectExists('blocked', 123);
+
+    http.setResponse('GET', 'https://gitlab.com/api/v4/projects/123/protected_branches', {
+      statusCode: 403,
+      body: JSON.stringify({ message: '403 Forbidden' }),
+    });
+
+    git.throwOnUrl = 'https://oauth2:gl-token@gitlab.com/octocat/blocked.git';
+
+    await new GitLabMirror(context).run(baseConfig());
+
+    expect(git.pushes).toHaveLength(0);
+    expect(
+      logger.messages.some((m) =>
+        m.message.includes('Failed to push mirror to GitLab for blocked'),
+      ),
+    ).toBe(true);
+  });
   it('creates missing GitLab projects when auto-create is enabled', async () => {
     http.setResponse('GET', 'https://api.github.com/user', {
       statusCode: 200,
@@ -137,7 +215,7 @@ describe('GitLabMirror', () => {
             archived: false,
           },
         ]),
-      }
+      },
     );
 
     http.setResponse('GET', 'https://gitlab.com/api/v4/namespaces?search=octocat', {
@@ -187,7 +265,7 @@ describe('GitLabMirror', () => {
             archived: false,
           },
         ]),
-      }
+      },
     );
 
     http.setResponse('GET', 'https://gitlab.com/api/v4/projects/octocat%2Fmissing', {

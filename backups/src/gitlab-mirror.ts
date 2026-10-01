@@ -8,6 +8,7 @@ import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { GitHubApiClient } from './github.js';
 import { GitLabApiClient } from './gitlab.js';
+import { GitLabProtectedBranch } from './gitlab.js';
 import { GitLabMirrorCleanup, GitLabMirrorCleanupConfig } from './gitlab-mirror-cleanup.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
@@ -27,6 +28,8 @@ export interface GitLabMirrorConfig {
 }
 
 export class GitLabMirror {
+  private logger!: Logger;
+
   constructor(private readonly context: BackupContext) {}
 
   async run(config: GitLabMirrorConfig): Promise<void> {
@@ -41,6 +44,7 @@ export class GitLabMirror {
     await this.context.fs.mkdir(mirrorsDir, { recursive: true });
 
     const logger = new FileLogger(this.context.logger, this.context.fs, logFile, errorLog);
+    this.logger = logger;
 
     logger.info('Starting GitHub -> GitLab backup');
     logger.info(`Local mirrors dir: ${mirrorsDir}`);
@@ -53,8 +57,13 @@ export class GitLabMirror {
 
     let namespaceId: number | undefined;
     if (config.autoCreateProjects) {
-    const gitlab = new GitLabApiClient(this.context.http, logger, config.gitlabHost, config.gitlabToken);
-    namespaceId = await gitlab.getNamespaceId(config.gitlabNamespace);
+      const gitlab = new GitLabApiClient(
+        this.context.http,
+        logger,
+        config.gitlabHost,
+        config.gitlabToken,
+      );
+      namespaceId = await gitlab.getNamespaceId(config.gitlabNamespace);
       logger.success(`Resolved GitLab namespace id: ${namespaceId}`);
     }
 
@@ -121,7 +130,7 @@ export class GitLabMirror {
     username: string,
     token: string | undefined,
     useSsh: boolean,
-    logger: Logger
+    logger: Logger,
   ): Promise<Array<{ fullName: string; name: string; cloneUrl: string }>> {
     logger.info(`Fetching GitHub repos (excluding archived) for: ${username}`);
     const client = new GitHubApiClient(this.context.http, logger);
@@ -143,7 +152,7 @@ export class GitLabMirror {
     mirrorsDir: string,
     config: GitLabMirrorConfig,
     namespaceId: number | undefined,
-    logger: Logger
+    logger: Logger,
   ): Promise<boolean> {
     const localPath = path.join(mirrorsDir, `${repo.name}.git`);
     const glPath = `${config.gitlabNamespace}/${repo.name}`;
@@ -154,7 +163,7 @@ export class GitLabMirror {
     if (!config.useSsh && config.githubToken) {
       effectiveCloneUrl = repo.cloneUrl.replace(
         'https://',
-        `https://x-access-token:${config.githubToken}@`
+        `https://x-access-token:${config.githubToken}@`,
       );
     }
 
@@ -171,7 +180,12 @@ export class GitLabMirror {
       return false;
     }
 
-    const gitlab = new GitLabApiClient(this.context.http, logger, config.gitlabHost, config.gitlabToken);
+    const gitlab = new GitLabApiClient(
+      this.context.http,
+      logger,
+      config.gitlabHost,
+      config.gitlabToken,
+    );
 
     try {
       const exists = await gitlab.projectExists(glPath);
@@ -185,7 +199,9 @@ export class GitLabMirror {
           await gitlab.createProject(repo.name, namespaceId, config.gitlabVisibility);
           logger.success(`Created GitLab project: ${glPath}`);
         } else {
-          logger.warn(`GitLab project missing and auto-create disabled; skipping push: ${repo.name}`);
+          logger.warn(
+            `GitLab project missing and auto-create disabled; skipping push: ${repo.name}`,
+          );
           return true;
         }
       } else {
@@ -194,7 +210,17 @@ export class GitLabMirror {
 
       const glUrl = gitlab.buildRemoteUrl(glPath);
       logger.info(`Pushing mirror to GitLab (all refs): ${glPath}`);
-      await this.context.git.pushMirror(localPath, glUrl);
+      try {
+        await this.context.git.pushMirror(localPath, glUrl);
+      } catch (error) {
+        if (!isProtectedBranchForcePushError(String(error))) {
+          throw error;
+        }
+        const healed = await this.pushWithForcePushAllowed(gitlab, glPath, localPath, glUrl);
+        if (!healed) {
+          throw error;
+        }
+      }
       logger.success(`Backed up to GitLab: ${glPath}`);
       return true;
     } catch (error) {
@@ -202,6 +228,65 @@ export class GitLabMirror {
       return false;
     }
   }
+
+  /**
+   * GitLab protected branches reject force pushes by default, and a mirror
+   * push must force-update refs whose history diverged from the source
+   * (e.g. after an upstream rewrite). Temporarily enable "Allowed to force
+   * push" on the affected branches, retry the push, then restore the
+   * original protection.
+   */
+  private async pushWithForcePushAllowed(
+    gitlab: GitLabApiClient,
+    glPath: string,
+    localPath: string,
+    glUrl: string,
+  ): Promise<boolean> {
+    let lockedBranches: GitLabProtectedBranch[] = [];
+    try {
+      const projectId = await gitlab.getProjectId(glPath);
+      if (projectId === null) return false;
+
+      const branches = await gitlab.listProtectedBranches(projectId);
+      lockedBranches = branches.filter((branch) => !branch.allowForcePush);
+      if (lockedBranches.length === 0) return false;
+
+      this.logger.info(
+        `Protected branches block mirror force push; temporarily allowing force push: ${lockedBranches
+          .map((branch) => branch.name)
+          .join(', ')} (${glPath})`,
+      );
+      for (const branch of lockedBranches) {
+        await gitlab.setProtectedBranchForcePush(projectId, branch.name, true);
+      }
+
+      try {
+        await this.context.git.pushMirror(localPath, glUrl);
+        return true;
+      } finally {
+        for (const branch of lockedBranches) {
+          try {
+            await gitlab.setProtectedBranchForcePush(projectId, branch.name, false);
+          } catch (restoreError) {
+            this.logger.error(
+              `Failed to restore force push protection for ${branch.name} on ${glPath}: ${String(
+                restoreError,
+              )}`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to push mirror after allowing force push for ${glPath}: ${String(error)}`,
+      );
+      return false;
+    }
+  }
+}
+
+function isProtectedBranchForcePushError(message: string): boolean {
+  return message.includes('not allowed to force push code to a protected branch');
 }
 
 async function main(): Promise<void> {
@@ -226,7 +311,9 @@ async function main(): Promise<void> {
     throw new Error('Set GITLAB_TOKEN (GitLab.com PAT) in env or .env');
   }
   if (!gitlabNamespace) {
-    throw new Error('Set GITLAB_NAMESPACE (your GitLab username or group full path) in env or .env');
+    throw new Error(
+      'Set GITLAB_NAMESPACE (your GitLab username or group full path) in env or .env',
+    );
   }
 
   const config: GitLabMirrorConfig = {
@@ -235,10 +322,12 @@ async function main(): Promise<void> {
     useSsh: (process.env.USE_GITHUB_SSH || 'false').toLowerCase() === 'true',
     gitlabToken,
     gitlabNamespace,
-    autoCreateProjects: (process.env.AUTO_CREATE_GITLAB_PROJECTS || 'true').toLowerCase() === 'true',
+    autoCreateProjects:
+      (process.env.AUTO_CREATE_GITLAB_PROJECTS || 'true').toLowerCase() === 'true',
     gitlabVisibility: process.env.GITLAB_VISIBILITY || 'private',
     gitlabHost: process.env.GITLAB_HOST || 'https://gitlab.com',
-    backupRoot: process.env.BACKUP_ROOT || path.join(process.env.HOME || '.', 'GitHub-GitLab-Backup'),
+    backupRoot:
+      process.env.BACKUP_ROOT || path.join(process.env.HOME || '.', 'GitHub-GitLab-Backup'),
   };
 
   const context: BackupContext = {
@@ -270,7 +359,6 @@ async function main(): Promise<void> {
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   main().catch((error) => {
-     
     console.error(error);
     process.exit(1);
   });

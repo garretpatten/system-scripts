@@ -9,7 +9,7 @@ export interface GitHubClient {
 export class GitHubApiClient implements GitHubClient {
   constructor(
     private readonly http: HttpClient,
-    private readonly logger: Logger
+    private readonly logger: Logger,
   ) {}
 
   async getAuthenticatedUser(token?: string): Promise<{ login: string }> {

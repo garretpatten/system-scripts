@@ -51,7 +51,7 @@ export class NotionBackup {
       logger,
       config.apiToken,
       '2022-06-28',
-      config.rateLimitDelayMs
+      config.rateLimitDelayMs,
     );
     const exporter = new NotionExporter(notionClient, this.context.fs, logger);
 
@@ -61,7 +61,7 @@ export class NotionBackup {
 
     if (objects.length === 0) {
       logger.warn(
-        'No pages or databases found. Ensure your Notion integration has been added to your workspace content.'
+        'No pages or databases found. Ensure your Notion integration has been added to your workspace content.',
       );
       return;
     }
@@ -195,7 +195,6 @@ async function main(): Promise<void> {
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   main().catch((error) => {
-     
     console.error(error);
     process.exit(1);
   });

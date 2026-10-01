@@ -1,8 +1,20 @@
 import { GitLabProject, HttpClient, Logger } from './types.js';
 
+export interface GitLabProtectedBranch {
+  name: string;
+  allowForcePush: boolean;
+}
+
 export interface GitLabClient {
   getNamespaceId(namespace: string): Promise<number>;
+  getProjectId(pathWithNamespace: string): Promise<number | null>;
   projectExists(pathWithNamespace: string): Promise<boolean>;
+  listProtectedBranches(projectId: number): Promise<GitLabProtectedBranch[]>;
+  setProtectedBranchForcePush(
+    projectId: number,
+    name: string,
+    allowForcePush: boolean,
+  ): Promise<void>;
   createProject(name: string, namespaceId: number, visibility: string): Promise<void>;
   deleteProject(projectId: number): Promise<void>;
   listProjects(namespaceId: number): AsyncGenerator<GitLabProject, void, unknown>;
@@ -14,7 +26,7 @@ export class GitLabApiClient implements GitLabClient {
     private readonly http: HttpClient,
     private readonly logger: Logger,
     private readonly host: string,
-    private readonly token: string
+    private readonly token: string,
   ) {}
 
   private get apiUrl(): string {
@@ -29,15 +41,15 @@ export class GitLabApiClient implements GitLabClient {
     const encoded = encodeURIComponent(namespace);
     const response = await this.http.get(
       `${this.apiUrl}/namespaces?search=${encoded}`,
-      this.headers()
+      this.headers(),
     );
     const body = this.parseJson(response.body);
     if (!Array.isArray(body)) {
       throw new Error('GitLab namespaces response was not an array');
     }
-    const match = body.find(
-      (entry: Record<string, unknown>) => entry.full_path === namespace
-    ) as Record<string, unknown> | undefined;
+    const match = body.find((entry: Record<string, unknown>) => entry.full_path === namespace) as
+      | Record<string, unknown>
+      | undefined;
     if (!match || typeof match.id !== 'number') {
       throw new Error(`Could not resolve GitLab namespace: ${namespace}`);
     }
@@ -45,20 +57,66 @@ export class GitLabApiClient implements GitLabClient {
   }
 
   async projectExists(pathWithNamespace: string): Promise<boolean> {
-    const encoded = encodeURIComponent(pathWithNamespace);
-    const response = await this.http.get(
-      `${this.apiUrl}/projects/${encoded}`,
-      this.headers()
-    );
-    const body = this.parseJson(response.body);
-    return typeof body.id === 'number';
+    return (await this.getProjectId(pathWithNamespace)) !== null;
   }
 
-  async createProject(
+  async getProjectId(pathWithNamespace: string): Promise<number | null> {
+    const encoded = encodeURIComponent(pathWithNamespace);
+    const response = await this.http.get(`${this.apiUrl}/projects/${encoded}`, this.headers());
+    const body = this.parseJson(response.body);
+    return typeof body.id === 'number' ? body.id : null;
+  }
+
+  async listProtectedBranches(projectId: number): Promise<GitLabProtectedBranch[]> {
+    const response = await this.http.get(
+      `${this.apiUrl}/projects/${projectId}/protected_branches`,
+      this.headers(),
+    );
+    const body = this.parseJson(response.body);
+    if (!Array.isArray(body)) {
+      return [];
+    }
+    return body
+      .filter(
+        (branch) =>
+          branch &&
+          typeof (branch as Record<string, unknown>).name === 'string' &&
+          typeof (branch as Record<string, unknown>).allow_force_push === 'boolean',
+      )
+      .map((branch) => {
+        const entry = branch as Record<string, unknown>;
+        return { name: entry.name as string, allowForcePush: entry.allow_force_push as boolean };
+      });
+  }
+
+  async setProtectedBranchForcePush(
+    projectId: number,
     name: string,
-    namespaceId: number,
-    visibility: string
+    allowForcePush: boolean,
   ): Promise<void> {
+    const encoded = encodeURIComponent(name);
+    const payload = JSON.stringify({ allow_force_push: allowForcePush });
+    const response = await this.http.patch(
+      `${this.apiUrl}/projects/${projectId}/protected_branches/${encoded}`,
+      payload,
+      {
+        ...this.headers(),
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode !== 200) {
+      const body = this.parseJson(response.body);
+      const message =
+        (body.message as string | undefined) ||
+        (body.error as string | undefined) ||
+        `HTTP ${response.statusCode}`;
+      throw new Error(
+        `GitLab protected branch update failed for ${name} (project ${projectId}): ${message}`,
+      );
+    }
+  }
+
+  async createProject(name: string, namespaceId: number, visibility: string): Promise<void> {
     const payload = JSON.stringify({
       name,
       namespace_id: namespaceId,
@@ -97,7 +155,7 @@ export class GitLabApiClient implements GitLabClient {
     while (true) {
       const response = await this.http.get(
         `${this.apiUrl}/projects?namespace_id=${namespaceId}&per_page=${perPage}&page=${page}`,
-        this.headers()
+        this.headers(),
       );
       const parsed = this.parseJson(response.body);
 
@@ -130,7 +188,8 @@ export class GitLabApiClient implements GitLabClient {
   }
 
   buildRemoteUrl(pathWithNamespace: string): string {
-    return `https://oauth2:${this.token}@gitlab.com/${pathWithNamespace}.git`;
+    const host = new URL(this.host).host;
+    return `https://oauth2:${this.token}@${host}/${pathWithNamespace}.git`;
   }
 
   private parseJson(text: string): Record<string, unknown> {

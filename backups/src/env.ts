@@ -1,6 +1,23 @@
 import { FileSystem } from './types.js';
 
 /**
+ * Expand `$VAR` and `${VAR}` references using variables already present in
+ * `env` (typically the ambient shell environment). Values referencing
+ * variables that are themselves only defined earlier in the same `.env` file
+ * are resolved through the accumulated map, mirroring shell semantics.
+ * Unknown references are left as-is.
+ */
+function expandEnvVars(value: string, env: NodeJS.ProcessEnv): string {
+  return value.replace(
+    /\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g,
+    (whole, braced, plain) => {
+      const name = braced || plain;
+      return env[name] !== undefined ? env[name] : whole;
+    },
+  );
+}
+
+/**
  * Load a .env file from the project root without overriding variables that are
  * already exported in the current shell.
  */
@@ -33,10 +50,17 @@ export async function loadEnvFile(
     const doubleQuoteMatch = value.match(/^"(.*)"$/);
     const singleQuoteMatch = value.match(/^'(.*)'$/);
 
+    let quote: 'double' | 'single' | null = null;
     if (doubleQuoteMatch) {
+      quote = 'double';
       value = doubleQuoteMatch[1];
     } else if (singleQuoteMatch) {
+      quote = 'single';
       value = singleQuoteMatch[1];
+    }
+
+    if (quote !== 'single') {
+      value = expandEnvVars(value, env);
     }
 
     if (env[key] === undefined || env[key] === '') {

@@ -239,7 +239,10 @@ Mirrors all non-archived GitHub repositories to GitLab.
 - Lists all non-archived GitHub repos you can access
 - Creates/updates a local mirror clone (bare repo) for each
 - Ensures a same-named GitLab project exists under your namespace
-- Pushes a full mirror to GitLab (all branches, tags, and refs)
+- Pushes all branches and tags to GitLab (GitHub's internal `refs/pull/*`
+  refs are excluded)
+- Self-heals GitLab protected branches that reject the mirror's force push
+  (temporarily enables "Allowed to force push" for the push, then restores it)
 - Automatically cleans up mirrors for repos that are archived or deleted on GitHub
 
 ### GitLab Mirror Usage
@@ -261,8 +264,10 @@ npm run backup:code-gitlab
    - Creates/updates a local bare mirror clone
    - Checks if a GitLab project exists (creates it if
      `AUTO_CREATE_GITLAB_PROJECTS=true`)
-   - Pushes all branches, tags, and refs to GitLab as a mirror
-3. Runs cleanup to remove mirrors for repos that are archived or no longer exist on GitHub
+   - Pushes all branches and tags to GitLab as a mirror (excluding GitHub's
+     internal `refs/pull/*` refs)
+3. Runs cleanup to remove mirrors for repos that are archived or no longer
+   exist on GitHub
 
 ### Output
 
@@ -653,6 +658,12 @@ Logs include:
 6. **GitLab: "Failed to push mirror"**
    - Verify `GITLAB_TOKEN` has `write_repository` scope
    - Check that the GitLab project exists or auto-create is enabled
+   - Protected branches: GitLab protects a project's default branch by default
+     and blocks force pushes to it. A mirror push must force-update a branch
+     whenever its history has been rewritten upstream, so the script
+     temporarily enables "Allowed to force push" for the affected branches
+     via the Protected Branches API and restores the setting afterwards
+     (requires the `api` scope; each flip-and-restore is logged)
    - Review error log for specific GitLab API errors
 
 7. **Notion: "Set NOTION_API_TOKEN"**

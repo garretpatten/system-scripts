@@ -5,7 +5,7 @@ export class ProcessCommandRunner implements CommandRunner {
   async run(
     command: string,
     args: string[],
-    options?: { cwd?: string; env?: NodeJS.ProcessEnv }
+    options?: { cwd?: string; env?: NodeJS.ProcessEnv },
   ): Promise<CommandResult> {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, {

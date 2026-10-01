@@ -7,7 +7,7 @@ export class ZipArchive implements Archive {
     sourceDirName: string,
     outputFileName: string,
     cwd: string,
-    exclude?: string[]
+    exclude?: string[],
   ): Promise<void> {
     const args = ['-r', outputFileName, sourceDirName];
     if (exclude && exclude.length > 0) {

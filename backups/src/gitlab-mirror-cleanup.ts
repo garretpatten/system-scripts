@@ -51,7 +51,12 @@ export class GitLabMirrorCleanup {
 
     const githubRepoByName = new Map(githubRepos.map((repo) => [repo.name, repo]));
 
-    const gitlab = new GitLabApiClient(this.context.http, logger, config.gitlabHost, config.gitlabToken);
+    const gitlab = new GitLabApiClient(
+      this.context.http,
+      logger,
+      config.gitlabHost,
+      config.gitlabToken,
+    );
     const namespaceId = await gitlab.getNamespaceId(config.gitlabNamespace);
     logger.success(`Resolved GitLab namespace id: ${namespaceId}`);
 
@@ -86,7 +91,9 @@ export class GitLabMirrorCleanup {
         logger.success(`Deleted GitLab project: ${project.pathWithNamespace}`);
         deleted++;
       } catch (error) {
-        logger.error(`Failed to delete GitLab project ${project.pathWithNamespace}: ${String(error)}`);
+        logger.error(
+          `Failed to delete GitLab project ${project.pathWithNamespace}: ${String(error)}`,
+        );
         failed++;
       }
     }
@@ -122,7 +129,10 @@ export class GitLabMirrorCleanup {
     logger.success('All dependencies found');
   }
 
-  private async resolveUsername(config: GitLabMirrorCleanupConfig, logger: Logger): Promise<string> {
+  private async resolveUsername(
+    config: GitLabMirrorCleanupConfig,
+    logger: Logger,
+  ): Promise<string> {
     if (config.githubUsername) {
       logger.success(`Using GitHub username from env: ${config.githubUsername}`);
       return config.githubUsername;
@@ -142,7 +152,7 @@ export class GitLabMirrorCleanup {
   private async fetchRepos(
     username: string,
     token: string | undefined,
-    logger: Logger
+    logger: Logger,
   ): Promise<Array<{ fullName: string; name: string; archived: boolean }>> {
     logger.info(`Fetching GitHub repos (including archived) for: ${username}`);
     const client = new GitHubApiClient(this.context.http, logger);
@@ -182,7 +192,9 @@ async function main(): Promise<void> {
     throw new Error('Set GITLAB_TOKEN (GitLab.com PAT) in env or .env');
   }
   if (!gitlabNamespace) {
-    throw new Error('Set GITLAB_NAMESPACE (your GitLab username or group full path) in env or .env');
+    throw new Error(
+      'Set GITLAB_NAMESPACE (your GitLab username or group full path) in env or .env',
+    );
   }
 
   const config: GitLabMirrorCleanupConfig = {
@@ -191,7 +203,8 @@ async function main(): Promise<void> {
     gitlabToken,
     gitlabNamespace,
     gitlabHost: process.env.GITLAB_HOST || 'https://gitlab.com',
-    backupRoot: process.env.BACKUP_ROOT || path.join(process.env.HOME || '.', 'GitHub-GitLab-Backup'),
+    backupRoot:
+      process.env.BACKUP_ROOT || path.join(process.env.HOME || '.', 'GitHub-GitLab-Backup'),
   };
 
   const context: BackupContext = {

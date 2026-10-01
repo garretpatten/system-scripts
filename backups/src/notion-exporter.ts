@@ -10,7 +10,7 @@ export class NotionExporter {
   constructor(
     private readonly client: NotionClient,
     private readonly fs: FileSystem,
-    private readonly logger: Logger
+    private readonly logger: Logger,
   ) {}
 
   async discoverObjects(): Promise<NotionObject[]> {
@@ -50,11 +50,7 @@ export class NotionExporter {
     await this.fs.writeFile(outputFile, lines.join('\n'));
   }
 
-  async exportDatabase(
-    databaseId: string,
-    title: string,
-    outputFile: string
-  ): Promise<void> {
+  async exportDatabase(databaseId: string, title: string, outputFile: string): Promise<void> {
     const dbInfo = await this.client.getDatabase(databaseId);
     const rows: Record<string, unknown>[] = [];
     for await (const row of this.client.queryDatabase(databaseId)) {
@@ -77,7 +73,7 @@ export class NotionExporter {
         lines.push('', `## ${entryTitle}`, '');
         for (const propName of properties) {
           const value = getPropertyValue(
-            ((row as Record<string, unknown>).properties as Record<string, unknown>)?.[propName]
+            ((row as Record<string, unknown>).properties as Record<string, unknown>)?.[propName],
           );
           lines.push(`- **${propName}**: ${value}`);
         }
@@ -104,8 +100,7 @@ export class NotionExporter {
     const id = String(raw.id);
     const object = String(raw.object) as 'page' | 'database';
     const parent = (raw.parent as Record<string, unknown>) ?? {};
-    const parentId =
-      String(parent.page_id ?? parent.database_id ?? parent.block_id ?? '') || null;
+    const parentId = String(parent.page_id ?? parent.database_id ?? parent.block_id ?? '') || null;
 
     let title = 'Untitled';
     if (object === 'page') {
@@ -199,7 +194,11 @@ export class NotionExporter {
         const code = block.code as Record<string, unknown>;
         const language = String(code?.language ?? '');
         const text = richTextToMarkdown(code);
-        return [`${indent}\`\`\`${language}`, ...text.split('\n').map((line) => `${indent}${line}`), `${indent}\`\`\``];
+        return [
+          `${indent}\`\`\`${language}`,
+          ...text.split('\n').map((line) => `${indent}${line}`),
+          `${indent}\`\`\``,
+        ];
       }
       case 'quote': {
         const text = richTextToMarkdown(block.quote as Record<string, unknown>);
@@ -223,17 +222,24 @@ export class NotionExporter {
       case 'toggle':
         return [];
       case 'child_page':
-        return [`${indent}*Child page: ${String((block.child_page as Record<string, unknown>)?.title ?? block.id)}*`];
+        return [
+          `${indent}*Child page: ${String((block.child_page as Record<string, unknown>)?.title ?? block.id)}*`,
+        ];
       case 'child_database':
-        return [`${indent}*Child database: ${String((block.child_database as Record<string, unknown>)?.title ?? block.id)}*`];
+        return [
+          `${indent}*Child database: ${String((block.child_database as Record<string, unknown>)?.title ?? block.id)}*`,
+        ];
       case 'link_to_page': {
         const link = block.link_to_page as Record<string, unknown>;
         if (link?.type === 'page_id') return [`${indent}*Linked page: ${String(link.page_id)}*`];
-        if (link?.type === 'database_id') return [`${indent}*Linked database: ${String(link.database_id)}*`];
+        if (link?.type === 'database_id')
+          return [`${indent}*Linked database: ${String(link.database_id)}*`];
         return [`${indent}*Linked page*`];
       }
       case 'bookmark':
-        return [`${indent}*Bookmark: ${String((block.bookmark as Record<string, unknown>)?.url ?? '')}*`];
+        return [
+          `${indent}*Bookmark: ${String((block.bookmark as Record<string, unknown>)?.url ?? '')}*`,
+        ];
       case 'image': {
         const image = block.image as Record<string, unknown>;
         const caption = richTextToMarkdown(image);
@@ -242,7 +248,9 @@ export class NotionExporter {
           return [`${indent}![${caption}](${url})`];
         }
         if (image?.type === 'file') {
-          return [`${indent}*Image: ${String((image.file as Record<string, unknown>)?.url ?? '')}*`];
+          return [
+            `${indent}*Image: ${String((image.file as Record<string, unknown>)?.url ?? '')}*`,
+          ];
         }
         return [`${indent}*Image*`];
       }
@@ -331,7 +339,8 @@ function getPropertyValue(property: unknown): string {
       if (formula.type === 'string') return String(formula.string ?? '');
       if (formula.type === 'number') return String(formula.number ?? '');
       if (formula.type === 'boolean') return String(formula.boolean ?? false);
-      if (formula.type === 'date') return String((formula.date as Record<string, unknown>)?.start ?? '');
+      if (formula.type === 'date')
+        return String((formula.date as Record<string, unknown>)?.start ?? '');
       return '';
     }
     case 'relation':
@@ -352,8 +361,11 @@ function getPropertyValue(property: unknown): string {
       return ((prop.files as Array<Record<string, unknown>>) ?? [])
         .map((f) =>
           String(
-            f.name ?? (f.file as Record<string, unknown>)?.url ?? (f.external as Record<string, unknown>)?.url ?? ''
-          )
+            f.name ??
+              (f.file as Record<string, unknown>)?.url ??
+              (f.external as Record<string, unknown>)?.url ??
+              '',
+          ),
         )
         .join('; ');
     case 'checkbox':
@@ -365,12 +377,18 @@ function getPropertyValue(property: unknown): string {
     case 'phone_number':
       return String(prop.phone_number ?? '');
     case 'created_by':
-      return String((prop.created_by as Record<string, unknown>)?.name ?? (prop.created_by as Record<string, unknown>)?.id ?? '');
+      return String(
+        (prop.created_by as Record<string, unknown>)?.name ??
+          (prop.created_by as Record<string, unknown>)?.id ??
+          '',
+      );
     case 'created_time':
       return String(prop.created_time ?? '');
     case 'last_edited_by':
       return String(
-        (prop.last_edited_by as Record<string, unknown>)?.name ?? (prop.last_edited_by as Record<string, unknown>)?.id ?? ''
+        (prop.last_edited_by as Record<string, unknown>)?.name ??
+          (prop.last_edited_by as Record<string, unknown>)?.id ??
+          '',
       );
     case 'last_edited_time':
       return String(prop.last_edited_time ?? '');

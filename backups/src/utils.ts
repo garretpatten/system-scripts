@@ -31,7 +31,7 @@ export function uniqueFilePath(
   dir: string,
   base: string,
   ext: string,
-  exists: (path: string) => boolean
+  exists: (path: string) => boolean,
 ): string {
   const path = `${dir}/${base}${ext}`;
   if (!exists(path)) {

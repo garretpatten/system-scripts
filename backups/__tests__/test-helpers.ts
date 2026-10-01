@@ -161,6 +161,15 @@ export class MockHttpClient implements HttpClient {
     }
     return response;
   }
+
+  async patch(url: string, body: string, headers?: Record<string, string>): Promise<HttpResponse> {
+    this.requests.push({ method: 'PATCH', url, headers });
+    const response = this.getResponse('PATCH', url);
+    if (!response) {
+      throw new Error(`No mock response for PATCH ${url}: ${body}`);
+    }
+    return response;
+  }
 }
 
 export class MockCommandRunner implements CommandRunner {
