@@ -140,6 +140,18 @@ describe('GitLabMirror', () => {
     expect(git.pushes[0].remoteUrl).toBe('https://oauth2:gl-token@gitlab.com/octocat/hello.git');
   });
 
+  it('reuses a stable mirrors directory across runs', async () => {
+    setHappyPathResponses('hello');
+    setProjectExists('hello', 123);
+    fs.existsPaths.add('/backups/mirrors/hello.git');
+
+    await new GitLabMirror(context).run(baseConfig());
+
+    expect(git.clones).toHaveLength(0);
+    expect(git.updates).toEqual(['/backups/mirrors/hello.git']);
+    expect(git.pushes).toHaveLength(1);
+  });
+
   it('self-heals protected branches that block force pushes', async () => {
     setHappyPathResponses('protected-repo');
     setProjectExists('protected-repo', 123);

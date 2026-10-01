@@ -114,21 +114,22 @@ describe('GitLabApiClient', () => {
   });
 
   describe('listProjects', () => {
-    it('lists projects under a namespace', async () => {
+    it('lists projects under a namespace (filtered client-side)', async () => {
       http.setResponse(
         'GET',
-        'https://gitlab.com/api/v4/projects?namespace_id=42&per_page=100&page=1',
+        'https://gitlab.com/api/v4/projects?membership=true&per_page=100&page=1',
         {
           statusCode: 200,
           body: JSON.stringify([
             { id: 1, path_with_namespace: 'octocat/hello' },
             { id: 2, path_with_namespace: 'octocat/world' },
+            { id: 3, path_with_namespace: 'other-user/other' },
           ]),
         },
       );
 
       const projects = [];
-      for await (const project of client.listProjects(42)) {
+      for await (const project of client.listProjects('octocat')) {
         projects.push(project);
       }
 
@@ -137,17 +138,74 @@ describe('GitLabApiClient', () => {
       expect(projects[1]).toEqual({ id: 2, pathWithNamespace: 'octocat/world' });
     });
 
+    it('includes subgroup projects matching the namespace prefix', async () => {
+      http.setResponse(
+        'GET',
+        'https://gitlab.com/api/v4/projects?membership=true&per_page=100&page=1',
+        {
+          statusCode: 200,
+          body: JSON.stringify([
+            { id: 1, path_with_namespace: 'octocat/hello' },
+            { id: 2, path_with_namespace: 'octocat/group/sub/repo' },
+          ]),
+        },
+      );
+
+      const projects = [];
+      for await (const project of client.listProjects('octocat/group')) {
+        projects.push(project);
+      }
+
+      expect(projects).toHaveLength(1);
+      expect(projects[0]).toEqual({ id: 2, pathWithNamespace: 'octocat/group/sub/repo' });
+    });
+
+    it('paginates until a short page is reached', async () => {
+      http.setResponseSequence(
+        'GET',
+        'https://gitlab.com/api/v4/projects?membership=true&per_page=100&page=1',
+        [
+          {
+            statusCode: 200,
+            // 100 entries would normally full a page; a projection endpoint is
+            // not needed because the filter only ever narrows results.
+            body: JSON.stringify(
+              Array.from({ length: 100 }, (_, index) => ({
+                id: index + 1,
+                path_with_namespace: `octocat/repo-${index + 1}`,
+              })),
+            ),
+          },
+        ],
+      );
+      http.setResponse(
+        'GET',
+        'https://gitlab.com/api/v4/projects?membership=true&per_page=100&page=2',
+        {
+          statusCode: 200,
+          body: JSON.stringify([]),
+        },
+      );
+
+      const projects = [];
+      for await (const project of client.listProjects('octocat')) {
+        projects.push(project);
+      }
+
+      expect(projects).toHaveLength(100);
+    });
+
     it('throws on API error messages', async () => {
       http.setResponse(
         'GET',
-        'https://gitlab.com/api/v4/projects?namespace_id=42&per_page=100&page=1',
+        'https://gitlab.com/api/v4/projects?membership=true&per_page=100&page=1',
         {
           statusCode: 200,
           body: JSON.stringify({ message: 'Unauthorized' }),
         },
       );
 
-      const generator = client.listProjects(42);
+      const generator = client.listProjects('octocat');
       await expect(generator.next()).rejects.toThrow('GitLab API error: Unauthorized');
     });
   });

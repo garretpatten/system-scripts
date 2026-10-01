@@ -17,7 +17,7 @@ export interface GitLabClient {
   ): Promise<void>;
   createProject(name: string, namespaceId: number, visibility: string): Promise<void>;
   deleteProject(projectId: number): Promise<void>;
-  listProjects(namespaceId: number): AsyncGenerator<GitLabProject, void, unknown>;
+  listProjects(namespace: string): AsyncGenerator<GitLabProject, void, unknown>;
   buildRemoteUrl(pathWithNamespace: string): string;
 }
 
@@ -148,13 +148,21 @@ export class GitLabApiClient implements GitLabClient {
     }
   }
 
-  async *listProjects(namespaceId: number): AsyncGenerator<GitLabProject, void, unknown> {
+  /**
+   * List projects belonging to `namespace` (a user or group full path,
+   * including subgroups). Querying only the authenticated user's memberships
+   * and filtering client-side is deliberate: GitLab ignores `namespace_id`
+   * filtering on GET /projects, which would otherwise enumerate every
+   * public project on the instance.
+   */
+  async *listProjects(namespace: string): AsyncGenerator<GitLabProject, void, unknown> {
     const perPage = 100;
     let page = 1;
+    const ownedPrefix = `${namespace}/`;
 
     while (true) {
       const response = await this.http.get(
-        `${this.apiUrl}/projects?namespace_id=${namespaceId}&per_page=${perPage}&page=${page}`,
+        `${this.apiUrl}/projects?membership=true&per_page=${perPage}&page=${page}`,
         this.headers(),
       );
       const parsed = this.parseJson(response.body);
@@ -170,10 +178,16 @@ export class GitLabApiClient implements GitLabClient {
         break;
       }
 
-      const projects: GitLabProject[] = parsed.map((project) => ({
-        id: Number((project as Record<string, unknown>).id),
-        pathWithNamespace: String((project as Record<string, unknown>).path_with_namespace),
-      }));
+      const projects: GitLabProject[] = parsed
+        .map((project) => ({
+          id: Number((project as Record<string, unknown>).id),
+          pathWithNamespace: String((project as Record<string, unknown>).path_with_namespace),
+        }))
+        .filter(
+          (project) =>
+            project.pathWithNamespace === namespace ||
+            project.pathWithNamespace.startsWith(ownedPrefix),
+        );
 
       for (const project of projects) {
         yield project;

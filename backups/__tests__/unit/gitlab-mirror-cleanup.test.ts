@@ -87,7 +87,7 @@ describe('GitLabMirrorCleanup', () => {
   const mockGitlabProjects = (projects: unknown[]) => {
     http.setResponse(
       'GET',
-      'https://gitlab.com/api/v4/projects?namespace_id=42&per_page=100&page=1',
+      'https://gitlab.com/api/v4/projects?membership=true&per_page=100&page=1',
       {
         statusCode: 200,
         body: JSON.stringify(projects),
@@ -199,5 +199,27 @@ describe('GitLabMirrorCleanup', () => {
     );
 
     process.exitCode = undefined;
+  });
+
+  it('treats already-marked-for-deletion mirrors as handled', async () => {
+    mockGithubUser();
+    mockGithubRepos([{ full_name: 'octocat/hello', name: 'hello', archived: false }]);
+    mockGitlabNamespace();
+    mockGitlabProjects([{ id: 6, path_with_namespace: 'octocat/deletion_scheduled-827' }]);
+
+    http.setResponse('DELETE', 'https://gitlab.com/api/v4/projects/6', {
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Project has already been marked for deletion' }),
+    });
+
+    await new GitLabMirrorCleanup(context).run(baseConfig);
+
+    expect(
+      logger.messages.some((m) =>
+        m.message.includes('Mirror already scheduled for deletion: octocat/deletion_scheduled-827'),
+      ),
+    ).toBe(true);
+    expect(logger.messages.some((m) => m.level === 'ERROR')).toBe(false);
+    expect(process.exitCode).toBeUndefined();
   });
 });

@@ -57,11 +57,9 @@ export class GitLabMirrorCleanup {
       config.gitlabHost,
       config.gitlabToken,
     );
-    const namespaceId = await gitlab.getNamespaceId(config.gitlabNamespace);
-    logger.success(`Resolved GitLab namespace id: ${namespaceId}`);
 
     const gitlabProjects: Array<{ id: number; name: string; pathWithNamespace: string }> = [];
-    for await (const project of gitlab.listProjects(namespaceId)) {
+    for await (const project of gitlab.listProjects(config.gitlabNamespace)) {
       gitlabProjects.push({
         id: project.id,
         name: path.basename(project.pathWithNamespace),
@@ -91,9 +89,13 @@ export class GitLabMirrorCleanup {
         logger.success(`Deleted GitLab project: ${project.pathWithNamespace}`);
         deleted++;
       } catch (error) {
-        logger.error(
-          `Failed to delete GitLab project ${project.pathWithNamespace}: ${String(error)}`,
-        );
+        const message = String(error);
+        if (message.includes('already been marked for deletion')) {
+          logger.info(`Mirror already scheduled for deletion: ${project.pathWithNamespace}`);
+          deleted++;
+          continue;
+        }
+        logger.error(`Failed to delete GitLab project ${project.pathWithNamespace}: ${message}`);
         failed++;
       }
     }

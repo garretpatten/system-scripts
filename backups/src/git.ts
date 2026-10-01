@@ -20,11 +20,10 @@ export class ProcessGitRepository implements GitRepository {
 
   async pushMirror(path: string, remoteUrl: string): Promise<void> {
     // Push explicit heads/tags refspecs instead of `--mirror`:
-    // - `--mirror` also tries to update GitHub's read-only `refs/pull/*` refs,
-    //   which remote servers reject, failing the whole push.
-    // - Force-updating a protected branch (e.g. after upstream history
-    //   rewrites) is rejected by GitLab; the error surfaces to the caller just
-    //   as `--mirror` would, but the other refs are still updated.
+    // - `--mirror` would also send GitHub's read-only `refs/pull/*` refs,
+    //   which servers reject (and which GitLab's all-or-nothing pre-receive
+    //   hook turns into a whole-push rejection).
+    // - Forcing protected branches is handled by the caller on failure.
     const result = await this.runner.run('git', [
       '-C',
       path,

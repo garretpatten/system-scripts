@@ -271,7 +271,7 @@ npm run backup:code-gitlab
 
 ### Output
 
-- **Local mirrors**: `$BACKUP_ROOT/mirrors-YYYYMMDD-HHMMSS/` (bare repos)
+- **Local mirrors**: `$BACKUP_ROOT/mirrors/` (bare repos, reused across runs)
 - **Logs**: `backups/logs/gh-gl-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/gh-gl-errors-YYYYMMDD-HHMMSS.log`
 

@@ -7,8 +7,7 @@ import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { GitHubApiClient } from './github.js';
-import { GitLabApiClient } from './gitlab.js';
-import { GitLabProtectedBranch } from './gitlab.js';
+import { GitLabApiClient, GitLabProtectedBranch } from './gitlab.js';
 import { GitLabMirrorCleanup, GitLabMirrorCleanupConfig } from './gitlab-mirror-cleanup.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
@@ -38,7 +37,7 @@ export class GitLabMirror {
     const logDir = path.join(path.dirname(config.backupRoot), 'logs');
     const logFile = path.join(logDir, `gh-gl-backup-${runTs}.log`);
     const errorLog = path.join(logDir, `gh-gl-errors-${runTs}.log`);
-    const mirrorsDir = path.join(config.backupRoot, `mirrors-${runTs}`);
+    const mirrorsDir = path.join(config.backupRoot, 'mirrors');
 
     await this.context.fs.mkdir(logDir, { recursive: true });
     await this.context.fs.mkdir(mirrorsDir, { recursive: true });
