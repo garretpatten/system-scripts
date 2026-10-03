@@ -17,6 +17,7 @@ describe('BackupOrchestrator', () => {
   let fs: MockFileSystem;
 
   beforeEach(() => {
+    process.exitCode = undefined;
     fs = new MockFileSystem();
     http = new MockHttpClient();
     logger = new MockLogger();
