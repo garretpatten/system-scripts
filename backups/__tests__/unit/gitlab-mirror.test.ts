@@ -207,6 +207,8 @@ describe('GitLabMirror', () => {
         m.message.includes('Failed to push mirror to GitLab for blocked'),
       ),
     ).toBe(true);
+
+    process.exitCode = undefined;
   });
   it('creates missing GitLab projects when auto-create is enabled', async () => {
     http.setResponse('GET', 'https://api.github.com/user', {
