@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleLogger, FileLogger, redactSecrets } from '../../src/logger.js';
 import { MockFileSystem, MockLogger } from '../test-helpers.js';
 
@@ -38,13 +38,13 @@ describe('ConsoleLogger', () => {
 
   beforeEach(() => {
     logged = [];
-    jest.spyOn(console, 'error').mockImplementation((line: string) => {
+    vi.spyOn(console, 'error').mockImplementation((line: string) => {
       logged.push(line);
     });
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('redacts credentials before writing to the console', () => {

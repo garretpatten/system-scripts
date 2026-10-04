@@ -10,7 +10,7 @@ implementation is TypeScript and unit-testable with mocked dependencies.
     code scanning alerts)
   - `report.ts` — Pure Markdown report builder
   - `security-report.ts` — Orchestrator and CLI entry point
-- **`__tests__/unit/`** — Jest unit tests with mocked HTTP and file-system
+- **`__tests__/unit/`** — Vitest unit tests with mocked HTTP and file-system
   clients
 
 ## What It Does

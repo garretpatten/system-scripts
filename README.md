@@ -9,7 +9,7 @@ macOS/Linux environments.
 system-scripts/
 ├── backups/              # Repository, task, and workspace backups
 │   ├── src/              # TypeScript backup implementations
-│   ├── __tests__/        # Jest unit tests
+│   ├── __tests__/        # Vitest unit tests
   │   ├── code/             # GitHub repository backup wrappers
   │   │   ├── code-backup-local.sh
   │   │   ├── code-backup-gitlab.sh

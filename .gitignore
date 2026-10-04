@@ -42,6 +42,9 @@ Thumbs.db
 # Node
 node_modules/
 
+# Test coverage output
+coverage/
+
 # TypeScript build output
 backups/dist/
 
