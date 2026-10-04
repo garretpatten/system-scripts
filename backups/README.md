@@ -21,7 +21,7 @@ with mocked dependencies.
   - `google-auth.ts` — Shared Google OAuth 2.0 token refresh
   - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
     abstractions
-- **`__tests__/unit/`** — Jest unit tests with mocked I/O
+- **`__tests__/unit/`** — Vitest unit tests with mocked I/O
 - **`code/`** — Backward-compatible shell wrappers
   - `code-backup-local.sh` — Thin wrapper around `local-backup.ts`
   - `code-backup-gitlab.sh` — Thin wrapper around `gitlab-mirror.ts`
@@ -43,7 +43,7 @@ with mocked dependencies.
 
 ## Running Tests
 
-The test suite uses Jest with mocked HTTP, file-system, git, and archive
+The test suite uses Vitest with mocked HTTP, file-system, git, and archive
 clients so no real API calls or git operations are performed.
 
 ```bash
