@@ -13,6 +13,7 @@
     "backup:obsidian-notes": "tsx backups/src/obsidian-notes-backup.ts",
     "backup:google-calendar": "tsx backups/src/google-calendar-backup.ts",
     "backup:google-tasks": "tsx backups/src/google-tasks-backup.ts",
+    "backup:google-photos": "tsx backups/src/google-photos-backup.ts",
     "backup:all": "tsx backups/src/run-all.ts",
     "backups": "tsx backups/src/run-all.ts",
     "github:security-report": "tsx github/src/security-report.ts",

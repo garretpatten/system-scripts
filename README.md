@@ -19,7 +19,8 @@ system-scripts/
 │   ├── obsidian-notes/   # Obsidian notes backup wrapper
 │   ├── google-calendar/    # Google Calendar export wrapper
 │   ├── google-tasks/       # Google Tasks export wrapper
-  │   └── run-all.sh        # Run all backups
+│   ├── google-photos/      # Google Photos Takeout backup (spec + wrapper)
+│   └── run-all.sh          # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
 ├── github/               # GitHub security and quality alert reporting
@@ -77,6 +78,14 @@ bookmarks, Obsidian notes, Google Calendars, and Google Tasks.
 - Exports all task lists and tasks via the Google Tasks API
 - Includes completed, deleted, and hidden tasks (configurable)
 - Creates timestamped zip archives
+
+**Google Photos backup:**
+
+- Downloads Google Takeout archive slices with resume, retry, and size
+  verification
+- Extracts slices and merges media into a flat, deduplicated local library
+- Keeps a SHA-256 state manifest so repeat exports only copy new photos
+- Records titles, capture dates, camera info, and albums in the manifest
 
 **Key Features:**
 
@@ -208,6 +217,7 @@ npm run backup:chrome-bookmarks
 npm run backup:obsidian-notes
 npm run backup:google-calendar
 npm run backup:google-tasks
+npm run backup:google-photos
 
 # Run other repo scripts
 npm run git:clone-all

@@ -12,8 +12,8 @@ application runtime; changes are almost always Bash and documentation.
   - **`src/`** — backup implementations (`local-backup.ts`,
     `gitlab-mirror.ts`, `notion-backup.ts`, `brave-bookmarks-backup.ts`,
     `chrome-bookmarks-backup.ts`, `obsidian-notes-backup.ts`,
-    `google-calendar-backup.ts`, `google-tasks-backup.ts`), API clients, and
-    shared helpers
+    `google-calendar-backup.ts`, `google-tasks-backup.ts`,
+    `google-photos-backup.ts`), API clients, and shared helpers
     (`google-auth.ts` holds the shared Google OAuth 2.0 token refresh and the
     first-run interactive authorization flow)
   - **`gitlab-mirror-cleanup.ts`** — removes GitLab mirrors for repos archived or
@@ -22,6 +22,8 @@ application runtime; changes are almost always Bash and documentation.
     **`obsidian-notes/`**, **`google-calendar/`**, **`google-tasks/`** — thin shell
     wrappers around
     the TypeScript entry points
+  - **`google-photos/`** — Google Photos Takeout backup wrapper and design spec
+    (`SPEC.md`; user-initiated, not part of `run-all.sh`)
   - **`run-all.sh`** — orchestrates all backups (thin wrapper around
     `src/run-all.ts`)
 - **`configuration/`** — `runtime-configurations.sh`
