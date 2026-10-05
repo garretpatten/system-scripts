@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   Archive,
   CommandResult,
@@ -11,6 +12,8 @@ import {
   SyncClient,
   SyncResult,
 } from '../src/types.js';
+import { MediaFs } from '../src/google-photos-media-fs.js';
+import { DownloadTransport, FetchResult, HeadResult } from '../src/google-photos-download.js';
 
 export class MockLogger implements Logger {
   messages: Array<{ level: string; message: string }> = [];
@@ -174,6 +177,7 @@ export class MockHttpClient implements HttpClient {
 
 export class MockCommandRunner implements CommandRunner {
   responses: Map<string, CommandResult> = new Map();
+  effects: Map<string, () => void> = new Map();
   commands: Array<{ command: string; args: string[]; options?: { cwd?: string } }> = [];
 
   key(command: string, args: string[]): string {
@@ -184,12 +188,21 @@ export class MockCommandRunner implements CommandRunner {
     this.responses.set(this.key(command, args), result);
   }
 
+  /** Registers a side effect (e.g. simulating extracted files) for a command. */
+  setEffect(command: string, args: string[], effect: () => void): void {
+    this.effects.set(this.key(command, args), effect);
+  }
+
   async run(
     command: string,
     args: string[],
     options?: { cwd?: string; env?: NodeJS.ProcessEnv },
   ): Promise<CommandResult> {
     this.commands.push({ command, args, options });
+    const effect = this.effects.get(this.key(command, args));
+    if (effect) {
+      effect();
+    }
     const response = this.responses.get(this.key(command, args));
     if (!response) {
       return { stdout: '', stderr: '', exitCode: 0 };
@@ -261,5 +274,192 @@ export class MockDateProvider implements DateProvider {
 
   now(): Date {
     return new Date(this.date.getTime());
+  }
+}
+
+export class MockMediaFs implements MediaFs {
+  files = new Map<string, string>();
+  directories = new Set<string>();
+  failOnHash: string[] = [];
+  freeSpaceBytes: number | null = null;
+
+  private normalize(p: string): string {
+    return p.replace(/\/+/g, '/');
+  }
+
+  private addDirRecursive(p: string): void {
+    this.directories.add(p);
+    const absolute = p.startsWith('/');
+    const parts = p.split('/');
+    let current = absolute ? '/' : '';
+    for (const part of parts) {
+      if (!part) continue;
+      current = current === '/' || current === '' ? `${current}${part}` : `${current}/${part}`;
+      this.directories.add(current);
+    }
+  }
+
+  async mkdirRecursive(p: string): Promise<void> {
+    this.addDirRecursive(this.normalize(p));
+  }
+
+  async rmRecursive(p: string): Promise<void> {
+    const target = this.normalize(p);
+    for (const file of [...this.files.keys()]) {
+      if (file === target || file.startsWith(`${target}/`)) {
+        this.files.delete(file);
+      }
+    }
+    for (const dir of [...this.directories]) {
+      if (dir === target || dir.startsWith(`${target}/`)) {
+        this.directories.delete(dir);
+      }
+    }
+  }
+
+  async exists(p: string): Promise<boolean> {
+    const target = this.normalize(p);
+    return this.files.has(target) || this.directories.has(target);
+  }
+
+  async readdirRecursive(root: string): Promise<string[]> {
+    const base = this.normalize(root);
+    const results: string[] = [];
+    for (const file of this.files.keys()) {
+      if (file.startsWith(`${base}/`)) {
+        results.push(file.slice(base.length + 1));
+      }
+    }
+    return results;
+  }
+
+  async size(p: string): Promise<number> {
+    const content = this.files.get(this.normalize(p));
+    if (content === undefined) {
+      throw new Error(`File not found: ${p}`);
+    }
+    return Buffer.byteLength(content);
+  }
+
+  async rename(source: string, destination: string): Promise<void> {
+    const src = this.normalize(source);
+    const dest = this.normalize(destination);
+    const content = this.files.get(src);
+    if (content === undefined) {
+      throw new Error(`File not found: ${source}`);
+    }
+    this.files.delete(src);
+    this.files.set(dest, content);
+    this.addDirRecursive(dest.split('/').slice(0, -1).join('/'));
+  }
+
+  async copyFile(source: string, destination: string): Promise<void> {
+    const src = this.normalize(source);
+    const content = this.files.get(src);
+    if (content === undefined) {
+      throw new Error(`File not found: ${source}`);
+    }
+    this.files.set(this.normalize(destination), content);
+  }
+
+  async unlink(p: string): Promise<void> {
+    this.files.delete(this.normalize(p));
+  }
+
+  async readTextFile(p: string): Promise<string> {
+    const content = this.files.get(this.normalize(p));
+    if (content === undefined) {
+      throw new Error(`File not found: ${p}`);
+    }
+    return content;
+  }
+
+  async writeTextFile(p: string, data: string): Promise<void> {
+    const target = this.normalize(p);
+    this.files.set(target, data);
+    this.addDirRecursive(target.split('/').slice(0, -1).join('/'));
+  }
+
+  async hashFile(p: string): Promise<string> {
+    const content = this.files.get(this.normalize(p));
+    if (content === undefined) {
+      throw new Error(`File not found: ${p}`);
+    }
+    if (this.failOnHash.includes(this.normalize(p))) {
+      throw new Error(`Simulated hash failure for ${p}`);
+    }
+    return createHash('sha256').update(content).digest('hex');
+  }
+
+  async freeSpace(): Promise<number | null> {
+    return this.freeSpaceBytes;
+  }
+
+  /** Test helper: seed a file, creating parent directories. */
+  seedFile(p: string, content: string): void {
+    const target = this.normalize(p);
+    this.files.set(target, content);
+    this.addDirRecursive(target.split('/').slice(0, -1).join('/'));
+  }
+}
+
+export interface MockFetchPlan {
+  /** Bytes the simulated server holds for this URL. */
+  bytes: string;
+  statusCode?: number;
+  /** Fail with this error on the Nth fetchToFile call (1-based), after writing `partialBytes`. */
+  failOnCall?: number;
+  partialBytes?: number;
+}
+
+export class MockDownloadTransport implements DownloadTransport {
+  headResponses = new Map<string, HeadResult>();
+  fetchPlans = new Map<string, MockFetchPlan>();
+  fetchCalls: Array<{ url: string; destPath: string; offset: number }> = [];
+  private fetchCounts = new Map<string, number>();
+
+  constructor(private readonly mediaFs: MockMediaFs) {}
+
+  setHead(url: string, result: HeadResult): void {
+    this.headResponses.set(url, result);
+  }
+
+  setFetch(url: string, plan: MockFetchPlan): void {
+    this.fetchPlans.set(url, plan);
+  }
+
+  async head(url: string): Promise<HeadResult> {
+    const result = this.headResponses.get(url);
+    if (!result) {
+      throw new Error(`No mock HEAD response for ${url}`);
+    }
+    return result;
+  }
+
+  async fetchToFile(url: string, destPath: string, offset: number): Promise<FetchResult> {
+    this.fetchCalls.push({ url, destPath, offset });
+    const plan = this.fetchPlans.get(url);
+    if (!plan) {
+      throw new Error(`No mock fetch plan for ${url}`);
+    }
+    const call = (this.fetchCounts.get(url) ?? 0) + 1;
+    this.fetchCounts.set(url, call);
+
+    if (plan.failOnCall === call) {
+      if (plan.partialBytes && plan.partialBytes > offset) {
+        this.mediaFs.seedFile(destPath, plan.bytes.slice(0, plan.partialBytes));
+      }
+      throw new Error('Simulated network failure');
+    }
+
+    const statusCode = plan.statusCode ?? (offset > 0 ? 206 : 200);
+    const start = offset > 0 && statusCode === 206 ? offset : 0;
+    const chunk = plan.bytes.slice(start);
+    if (offset > 0 && statusCode === 206 && this.mediaFs.files.has(destPath)) {
+      this.mediaFs.files.set(destPath, (this.mediaFs.files.get(destPath) ?? '') + chunk);
+    } else {
+      this.mediaFs.seedFile(destPath, chunk);
+    }
+    return { statusCode, bytesWritten: Buffer.byteLength(chunk) };
   }
 }
