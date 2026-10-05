@@ -46,7 +46,6 @@ with mocked dependencies.
   - `google-tasks-backup.sh` — Thin wrapper around `google-tasks-backup.ts`
 - **`google-photos/`** — Google Photos Takeout backup
   - `google-photos-backup.sh` — Thin wrapper around `google-photos-backup.ts`
-  - `SPEC.md` — Design specification for the Takeout pipeline
 - **`run-all.sh`** — Thin wrapper around `run-all.ts`
 
 ## Running Tests
@@ -213,6 +212,10 @@ sanctioned way to export an existing library is
 after you request the export:
 
 ```bash
+# Required for --mode download or --mode full: the download links from your
+# Takeout export email ("Your Google data is ready"), comma-separated
+GOOGLE_PHOTOS_TAKEOUT_URLS="https://takeout.googleapis.com/...,https://takeout.googleapis.com/..."
+
 # Optional: defaults shown
 GOOGLE_PHOTOS_SLICES_DIR="$HOME/Downloads/google-photos-takeout"
 GOOGLE_PHOTOS_TARGET_DIR="$HOME/Pictures/Google Photos"
@@ -599,12 +602,35 @@ export archives must be requested by hand and expire after about a week.
 
 ### Google Photos Backup Prerequisites
 
-1. Go to [takeout.google.com](https://takeout.google.com), click
-   **Deselect all**, check only **Google Photos**, and create the export.
-2. Pick a large archive size (e.g. 50 GB) to minimize slice count.
-3. When the export is ready (usually hours for big libraries; Google emails a
-   link), collect the slice download URLs: open the link and copy each
-   `https://takeout.googleapis.com/...` URL into a text file, one per line.
+If you have never used Google Takeout before, follow these steps once per
+export (roughly every six months):
+
+1. Sign in to [takeout.google.com](https://takeout.google.com) with the Google
+   account that holds your photos.
+2. Click **Deselect all**, then scroll down and check **Google Photos**.
+3. Click the button **All photo albums included** and make sure every album is
+   checked, then click **OK**.
+4. Click **Next step**. Choose:
+   - **Send download link via email** as the delivery method
+   - **Export once** as the frequency
+   - **.zip** as the file type
+   - **50 GB** as the archive size (largest available — fewer slices to
+     download)
+5. Click **Create export**. Google builds the archive in the background — for
+   large libraries this takes hours to days. You can close the page; you will
+   get an email when it is ready.
+6. When the **"Your Google data is ready"** email arrives, open it and copy
+   every download link it contains (right-click each download button and pick
+   **Copy link address**). The same links are listed at
+   [takeout.google.com](https://takeout.google.com) under **Previous exports**.
+   They expire about a week after the export finishes.
+7. Paste the links, comma-separated, into `GOOGLE_PHOTOS_TAKEOUT_URLS` in the
+   project's `.env` file (copy the line from `.env.example` and fill in the
+   URLs between the quotes).
+
+Run the backup (below) before the links expire. To download manually instead,
+place the archive files from the email into the slices directory yourself and
+use `--mode merge`.
 
 Remember the request again roughly every six months; the pipeline handles the
 rest incrementally.
@@ -612,14 +638,14 @@ rest incrementally.
 ### Google Photos Backup Usage
 
 ```bash
-# Full pipeline: download the URLs in links.txt, extract, and merge
-./backups/google-photos/google-photos-backup.sh --urls ~/Downloads/takeout-links.txt
+# Full pipeline using GOOGLE_PHOTOS_TAKEOUT_URLS from .env (recommended)
+npm run backup:google-photos
 
-# Or comma-separated URLs inline
+# One-shot with links passed inline instead of .env
 ./backups/google-photos/google-photos-backup.sh --urls "https://takeout.googleapis.com/...,https://takeout.googleapis.com/..."
 
-# Download slices only (run merge later)
-./backups/google-photos/google-photos-backup.sh --mode download --urls links.txt
+# Download slices only (run merge later, e.g. when disks are slower)
+./backups/google-photos/google-photos-backup.sh --mode download
 
 # Merge archives already downloaded manually into the slices directory
 ./backups/google-photos/google-photos-backup.sh --mode merge
@@ -629,12 +655,11 @@ rest incrementally.
 
 # Also keep the Takeout .json metadata files next to the media
 ./backups/google-photos/google-photos-backup.sh --mode merge --keep-json
-
-# Or via npm script
-npm run backup:google-photos -- --mode merge --urls links.txt
 ```
 
-Directories can also be set with `GOOGLE_PHOTOS_SLICES_DIR` and
+`GOOGLE_PHOTOS_TAKEOUT_URLS` must be set in `.env` (or passed via `--urls`)
+for download runs; the directories can also be adjusted with
+`GOOGLE_PHOTOS_SLICES_DIR` and
 `GOOGLE_PHOTOS_TARGET_DIR` in `.env` (defaults:
 `~/Downloads/google-photos-takeout` and `~/Pictures/Google Photos`).
 
@@ -886,9 +911,8 @@ crontab -e
 
 # Google Photos backups are user-initiated (a fresh Takeout must be requested
 # by hand, roughly twice a year), so there is no cron entry for them. When a
-# new export is ready, run:
-#   ./backups/google-photos/google-photos-backup.sh \
-#     --mode merge --urls ~/Downloads/takeout-links.txt
+# new export is ready, set GOOGLE_PHOTOS_TAKEOUT_URLS in .env and run:
+#   ./backups/google-photos/google-photos-backup.sh --mode full
 ```
 
 **Note:** When using cron, make sure environment variables are available in

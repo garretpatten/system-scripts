@@ -22,8 +22,8 @@ application runtime; changes are almost always Bash and documentation.
     **`obsidian-notes/`**, **`google-calendar/`**, **`google-tasks/`** — thin shell
     wrappers around
     the TypeScript entry points
-  - **`google-photos/`** — Google Photos Takeout backup wrapper and design spec
-    (`SPEC.md`; user-initiated, not part of `run-all.sh`)
+  - **`google-photos/`** — Google Photos Takeout backup wrapper
+    (user-initiated, not part of `run-all.sh`)
   - **`run-all.sh`** — orchestrates all backups (thin wrapper around
     `src/run-all.ts`)
 - **`configuration/`** — `runtime-configurations.sh`

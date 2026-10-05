@@ -108,9 +108,10 @@ export class GooglePhotosBackup {
     }
     if ((config.mode === 'download' || config.mode === 'full') && config.urls.length === 0) {
       throw new Error(
-        'No Takeout download URLs provided. Export at takeout.google.com, then pass ' +
-          'the download links via --urls <file>, or use --mode merge with archives ' +
-          'already placed in the slices directory',
+        'No Takeout download URLs provided. Request an export at takeout.google.com, ' +
+          'then paste its download links (comma-separated) into ' +
+          'GOOGLE_PHOTOS_TAKEOUT_URLS in .env, or pass --urls "url1,url2". ' +
+          'If you already downloaded the archives yourself, use --mode merge',
       );
     }
   }
@@ -206,8 +207,8 @@ Downloads and merges a Google Photos Takeout export into a local library.
 
 Options:
   --mode <download|merge|full>  Pipeline stage to run (default: full)
-  --urls <file|url,url,...>     Takeout download links: a file with one URL per
-                                line, or comma-separated URLs
+  --urls <url,url,...>          Takeout download links, comma-separated
+                                (or set GOOGLE_PHOTOS_TAKEOUT_URLS in .env)
   --slices <dir>                Archive directory (default: GOOGLE_PHOTOS_SLICES_DIR
                                 or ~/Downloads/google-photos-takeout)
   --target <dir>                Library directory (default: GOOGLE_PHOTOS_TARGET_DIR
@@ -221,10 +222,10 @@ export function parseArgs(
   argv: string[],
   env: NodeJS.ProcessEnv,
   homeDir: string,
-): GooglePhotosBackupConfig & { urlsFile?: string } {
-  const config: GooglePhotosBackupConfig & { urlsFile?: string } = {
+): GooglePhotosBackupConfig {
+  const config: GooglePhotosBackupConfig = {
     mode: 'full',
-    urls: [],
+    urls: TakeoutDownloader.parseUrls(env.GOOGLE_PHOTOS_TAKEOUT_URLS || ''),
     slicesDir:
       env.GOOGLE_PHOTOS_SLICES_DIR || path.join(homeDir, 'Downloads', 'google-photos-takeout'),
     targetDir: env.GOOGLE_PHOTOS_TARGET_DIR || path.join(homeDir, 'Pictures', 'Google Photos'),
@@ -252,7 +253,7 @@ export function parseArgs(
         break;
       }
       case '--urls':
-        config.urlsFile = next();
+        config.urls = TakeoutDownloader.parseUrls(next());
         break;
       case '--slices':
         config.slicesDir = next();
@@ -295,16 +296,6 @@ async function main(): Promise<void> {
 
   const homeDir = process.env.HOME || process.env.USERPROFILE || '.';
   const config = parseArgs(process.argv.slice(2), process.env, homeDir);
-
-  // --urls points either at a file containing one URL per line, or at
-  // inline comma-separated URLs pasted on the command line.
-  if (config.urlsFile) {
-    if (await mediaFs.exists(config.urlsFile)) {
-      config.urls = TakeoutDownloader.parseUrls(await mediaFs.readTextFile(config.urlsFile));
-    } else {
-      config.urls = TakeoutDownloader.parseUrls(config.urlsFile);
-    }
-  }
 
   config.logDir = path.join(projectRoot, 'backups', 'logs');
 

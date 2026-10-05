@@ -18,6 +18,7 @@ import { formatRunTimestamp } from '../../src/utils.js';
 const RUN_TS = formatRunTimestamp(new Date('2026-10-04T12:00:00Z'));
 
 const URL_1 = 'https://takeout.googleapis.com/download?filename=takeout-slice-001.zip&token=abc';
+const URL_2 = 'https://takeout.googleapis.com/download?filename=takeout-slice-002.zip&token=def';
 
 describe('GooglePhotosBackup', () => {
   let context: BackupContext;
@@ -244,11 +245,24 @@ describe('parseArgs', () => {
     expect(config.dryRun).toBe(true);
   });
 
-  it('records the raw --urls value for later resolution', () => {
-    const config = parseArgs(['--urls', '/tmp/links.txt'], {}, '/home/user');
+  it('reads Takeout URLs from GOOGLE_PHOTOS_TAKEOUT_URLS', () => {
+    const config = parseArgs(
+      [],
+      { GOOGLE_PHOTOS_TAKEOUT_URLS: `${URL_1},${URL_2}` },
+      '/home/user',
+    );
 
-    expect(config.urlsFile).toBe('/tmp/links.txt');
-    expect(config.urls).toEqual([]);
+    expect(config.urls).toEqual([URL_1, URL_2]);
+  });
+
+  it('lets --urls override URLs from the environment', () => {
+    const config = parseArgs(
+      ['--urls', `${URL_1}`],
+      { GOOGLE_PHOTOS_TAKEOUT_URLS: `${URL_2}` },
+      '/home/user',
+    );
+
+    expect(config.urls).toEqual([URL_1]);
   });
 
   it('rejects an invalid mode and unknown options', () => {
