@@ -10,7 +10,7 @@ jobs:
   quality-checks:
     name: 'Linters'
     # yamllint disable-line rule:line-length
-    uses: garretpatten/quality-checks/.github/workflows/quality-checks.yaml@master
+    uses: garretpatten/quality-checks/.github/workflows/quality-checks.yaml@72ec29587c0f3cc59d9d3a35acbe04215e46abe5
     with:
       eslint_run: true
       hadolint_run: true
