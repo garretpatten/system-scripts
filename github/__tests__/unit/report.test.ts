@@ -156,6 +156,38 @@ describe('buildSecurityReport', () => {
     expect(report).toContain('Broken \\| pipes');
   });
 
+  it('escapes backslashes and pipes so cells cannot break out of the table', () => {
+    const warningCell = (warning: string): string => {
+      const report = buildSecurityReport({
+        ...input,
+        repos: [repoReport({ warnings: [warning] })],
+      });
+      const start = report.indexOf('#### Warnings');
+      const line =
+        report
+          .slice(start)
+          .split('\n')
+          .find((entry) => entry.startsWith('- ')) ?? '';
+      return line.replace(/^- /, '');
+    };
+
+    expect(warningCell('a|b')).toBe('a\\|b');
+    expect(warningCell('a\\|b')).toBe('a\\\\\\|b');
+    expect(warningCell('trailing \\')).toBe('trailing \\\\');
+    expect(warningCell('line1\nline2')).toBe('line1 line2');
+
+    const report = buildSecurityReport({
+      ...input,
+      repos: [repoReport({ warnings: ['Cell | with \\ pipe| breaking\nrows'] })],
+    });
+    const warningRow =
+      report
+        .split('\n')
+        .filter((entry) => entry.startsWith('- '))
+        .find((entry) => entry.includes('Cell')) ?? '';
+    expect(warningRow.match(/(?<!\\)\|/g) ?? []).toHaveLength(0);
+  });
+
   it('records warnings per repository', () => {
     const report = buildSecurityReport({
       ...input,

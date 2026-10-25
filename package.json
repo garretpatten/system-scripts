@@ -28,6 +28,13 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
+  "overrides": {
+    "katex": "^0.18.2",
+    "smol-toml": "^1.9.0",
+    "markdownlint-cli": {
+      "js-yaml": "^5.4.1"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
     "@types/node": "^24.19.0",
