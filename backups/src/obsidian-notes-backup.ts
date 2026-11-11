@@ -6,10 +6,8 @@ import { ProcessGitRepository, ProcessSyncClient } from './git.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
 import {
-  copyZipToExternalDrive,
-  EXTERNAL_DRIVE_LABEL,
+  copyArchiveToExternalDrive,
   moveZipToExportDir,
-  resolveExternalDriveMount,
   resolveLocalExportDir,
 } from './export-dir.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
@@ -70,26 +68,13 @@ export class ObsidianNotesBackup {
 
     const exportsDir = resolveLocalExportDir(config.homeDir, date);
     const archivePath = await moveZipToExportDir(this.context.fs, logger, backupZip, exportsDir);
-    await this.copyArchiveToExternalDrive(archivePath, date, logger);
+    await copyArchiveToExternalDrive(this.context.fs, this.context.env, logger, archivePath, date);
 
     logger.success('Obsidian Notes backup completed!');
     logger.info(`Notes backed up: ${fileCount}`);
     logger.info(`Archive: ${archivePath}`);
 
     await this.context.fs.rm(backupDir, { recursive: true, force: true });
-  }
-
-  private async copyArchiveToExternalDrive(
-    archivePath: string,
-    date: Date,
-    logger: Logger,
-  ): Promise<void> {
-    const driveMount = await resolveExternalDriveMount(this.context.fs, this.context.env);
-    if (driveMount) {
-      await copyZipToExternalDrive(this.context.fs, logger, archivePath, driveMount, date);
-      return;
-    }
-    logger.warn(`External drive "${EXTERNAL_DRIVE_LABEL}" not found; skipping external copy`);
   }
 
   private async checkDependencies(logger: Logger): Promise<void> {

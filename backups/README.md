@@ -122,13 +122,17 @@ instead of directly into the home directory:
 - **External drive**: when a drive labeled `T7 Shield` is mounted, each zip is
   also copied to `<mount>/Garret/Exports/Exports_YYYY-MM-DD/`
   (`/Volumes/T7 Shield/...` on macOS,
-  `/run/media/<user>/T7 Shield/...` on Linux)
+  `/run/media/<user>/T7 Shield/...` on Linux). Set
+  `EXTERNAL_DRIVE_EXPORT_SUBPATH` (e.g. `Backup/Archives`) to override the
+  `Garret/Exports` subpath on the drive.
 
-The drive is located by volume label at the usual mount points. If the drive is
-not attached, the local archive is still written and the external copy is
-skipped with a warning. If the external copy fails, the backup continues — the
-local archive is the source of truth. Existing dated `Exports_*` directories
-are never cleaned up automatically.
+The drive is located by volume label at the usual mount points; the label
+directory must exist as a directory at one of those locations and is trusted
+as-is. The mount is probed once per process run and the result is reused by all
+backups in that run. If the drive is not attached, the local archive is still
+written and the external copy is skipped with a warning. If the external copy
+fails, the backup continues — the local archive is the source of truth.
+Existing dated `Exports_*` directories are never cleaned up automatically.
 
 ---
 

@@ -1,4 +1,5 @@
 import { BackupOrchestrator } from '../../src/run-all.js';
+import { resetExternalDriveMountCache } from '../../src/export-dir.js';
 import { BackupContext } from '../../src/types.js';
 import {
   MockArchive,
@@ -23,6 +24,7 @@ describe('BackupOrchestrator', () => {
     logger = new MockLogger();
     runner = new MockCommandRunner();
     const archive = new MockArchive(fs);
+    resetExternalDriveMountCache();
 
     context = {
       logger,

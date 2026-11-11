@@ -7,6 +7,7 @@ import {
   readdir,
   stat,
   copyFile,
+  rename,
 } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { FileSystem } from './types.js';
@@ -22,6 +23,10 @@ export class RealFileSystem implements FileSystem {
 
   async copyFile(source: string, destination: string): Promise<void> {
     await copyFile(source, destination);
+  }
+
+  async rename(source: string, destination: string): Promise<void> {
+    await rename(source, destination);
   }
 
   async writeFile(path: string, data: string): Promise<void> {

@@ -73,6 +73,17 @@ export class MockFileSystem implements FileSystem {
     this.existsPaths.add(destination);
   }
 
+  async rename(source: string, destination: string): Promise<void> {
+    const content = this.files.get(source);
+    if (content === undefined) {
+      throw new Error(`File not found: ${source}`);
+    }
+    this.files.delete(source);
+    this.files.set(destination, content);
+    this.existsPaths.delete(source);
+    this.existsPaths.add(destination);
+  }
+
   async writeFile(path: string, data: string): Promise<void> {
     this.files.set(path, data);
     this.existsPaths.add(path);
