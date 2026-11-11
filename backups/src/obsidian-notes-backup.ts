@@ -5,11 +5,7 @@ import { NodeHttpClient } from './http.js';
 import { ProcessGitRepository, ProcessSyncClient } from './git.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
-import {
-  copyArchiveToExternalDrive,
-  moveZipToExportDir,
-  resolveLocalExportDir,
-} from './export-dir.js';
+import { storeArchive } from './export-dir.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
@@ -66,9 +62,14 @@ export class ObsidianNotesBackup {
 
     await this.createBackup(backupDirName, config.homeDir, logger);
 
-    const exportsDir = resolveLocalExportDir(config.homeDir, date);
-    const archivePath = await moveZipToExportDir(this.context.fs, logger, backupZip, exportsDir);
-    await copyArchiveToExternalDrive(this.context.fs, this.context.env, logger, archivePath, date);
+    const archivePath = await storeArchive(
+      this.context.fs,
+      this.context.env,
+      logger,
+      backupZip,
+      config.homeDir,
+      date,
+    );
 
     logger.success('Obsidian Notes backup completed!');
     logger.info(`Notes backed up: ${fileCount}`);

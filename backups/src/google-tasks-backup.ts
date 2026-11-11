@@ -4,11 +4,7 @@ import { ProcessCommandRunner } from './command-runner.js';
 import { NodeHttpClient } from './http.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
-import {
-  copyArchiveToExternalDrive,
-  moveZipToExportDir,
-  resolveLocalExportDir,
-} from './export-dir.js';
+import { storeArchive } from './export-dir.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import {
   GoogleAuth,
@@ -87,9 +83,14 @@ export class GoogleTasksBackup {
 
     await this.createBackup(exportDirName, config.homeDir, logger);
 
-    const exportsDir = resolveLocalExportDir(config.homeDir, date);
-    const archivePath = await moveZipToExportDir(this.context.fs, logger, exportZip, exportsDir);
-    await copyArchiveToExternalDrive(this.context.fs, this.context.env, logger, archivePath, date);
+    const archivePath = await storeArchive(
+      this.context.fs,
+      this.context.env,
+      logger,
+      exportZip,
+      config.homeDir,
+      date,
+    );
 
     logger.success('Google Tasks export completed!');
     logger.info(`Task lists backed up: ${taskLists.length}`);

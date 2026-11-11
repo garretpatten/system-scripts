@@ -98,18 +98,30 @@ export async function copyZipToExternalDrive(
   }
 }
 
-export async function copyArchiveToExternalDrive(
+export async function storeArchive(
   fs: FileSystem,
   env: NodeJS.ProcessEnv,
   logger: Logger,
-  archivePath: string,
+  zipPath: string,
+  homeDir: string,
   date: Date,
-): Promise<void> {
+): Promise<string> {
+  const archivePath = await moveZipToExportDir(
+    fs,
+    logger,
+    zipPath,
+    resolveLocalExportDir(homeDir, date),
+  );
   const driveMount = await resolveExternalDriveMount(fs, env);
   if (!driveMount) {
     logger.warn(`External drive "${EXTERNAL_DRIVE_LABEL}" not found; skipping external copy`);
-    return;
+    return archivePath;
   }
-  const destinationDir = resolveDriveExportDir(driveMount, date, env);
-  await copyZipToExternalDrive(fs, logger, archivePath, destinationDir);
+  await copyZipToExternalDrive(
+    fs,
+    logger,
+    archivePath,
+    resolveDriveExportDir(driveMount, date, env),
+  );
+  return archivePath;
 }

@@ -4,11 +4,7 @@ import { ProcessCommandRunner } from './command-runner.js';
 import { NodeHttpClient } from './http.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
-import {
-  copyArchiveToExternalDrive,
-  moveZipToExportDir,
-  resolveLocalExportDir,
-} from './export-dir.js';
+import { storeArchive } from './export-dir.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { NotionApiClient } from './notion.js';
 import { NotionExporter } from './notion-exporter.js';
@@ -103,9 +99,14 @@ export class NotionBackup {
 
     await this.createBackup(exportDirName, config.homeDir, logger);
 
-    const exportsDir = resolveLocalExportDir(config.homeDir, date);
-    const archivePath = await moveZipToExportDir(this.context.fs, logger, exportZip, exportsDir);
-    await copyArchiveToExternalDrive(this.context.fs, this.context.env, logger, archivePath, date);
+    const archivePath = await storeArchive(
+      this.context.fs,
+      this.context.env,
+      logger,
+      exportZip,
+      config.homeDir,
+      date,
+    );
 
     await this.context.fs.rm(exportDir, { recursive: true, force: true });
 

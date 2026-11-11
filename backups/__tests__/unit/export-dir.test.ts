@@ -1,5 +1,4 @@
 import {
-  copyArchiveToExternalDrive,
   copyZipToExternalDrive,
   EXTERNAL_DRIVE_LABEL,
   formatExportDirName,
@@ -8,6 +7,7 @@ import {
   resolveDriveExportDir,
   resolveExternalDriveMount,
   resolveLocalExportDir,
+  storeArchive,
 } from '../../src/export-dir.js';
 import { MockFileSystem, MockLogger } from '../test-helpers.js';
 
@@ -184,56 +184,61 @@ describe('export-dir helpers', () => {
     });
   });
 
-  describe('copyArchiveToExternalDrive', () => {
+  describe('storeArchive', () => {
     let fs: MockFileSystem;
     let logger: MockLogger;
+
+    const zipName = 'Notion-Export_2024-06-15.zip';
+    const zipPath = `/home/user/${zipName}`;
+    const localArchivePath = `/home/user/Exports/Exports_2024-06-15/${zipName}`;
 
     beforeEach(() => {
       fs = new MockFileSystem();
       logger = new MockLogger();
       resetExternalDriveMountCache();
+      fs.files.set(zipPath, 'zip-content');
+    });
+
+    it('moves the zip into the local export dir', async () => {
+      const archivePath = await storeArchive(fs, {}, logger, zipPath, '/home/user', date);
+
+      expect(archivePath).toBe(localArchivePath);
+      expect(fs.files.get(localArchivePath)).toBe('zip-content');
+      expect(fs.files.get(zipPath)).toBeUndefined();
     });
 
     it('copies the archive to the drive export dir when mounted', async () => {
       fs.directories.add('/Volumes/T7 Shield');
-      const zipPath = '/home/user/Exports/Exports_2024-06-15/Notion-Export_2024-06-15.zip';
-      fs.files.set(zipPath, 'zip-content');
 
-      await copyArchiveToExternalDrive(fs, {}, logger, zipPath, date);
+      await storeArchive(fs, {}, logger, zipPath, '/home/user', date);
 
-      expect(
-        fs.files.get(
-          '/Volumes/T7 Shield/Garret/Exports/Exports_2024-06-15/Notion-Export_2024-06-15.zip',
-        ),
-      ).toBe('zip-content');
+      expect(fs.files.get(`/Volumes/T7 Shield/Garret/Exports/Exports_2024-06-15/${zipName}`)).toBe(
+        'zip-content',
+      );
     });
 
     it('honors the drive subpath env override', async () => {
       fs.directories.add('/Volumes/T7 Shield');
-      const zipPath = '/home/user/Exports/Exports_2024-06-15/Notion-Export_2024-06-15.zip';
-      fs.files.set(zipPath, 'zip-content');
 
-      await copyArchiveToExternalDrive(
+      await storeArchive(
         fs,
         { EXTERNAL_DRIVE_EXPORT_SUBPATH: 'Backup/Archives' },
         logger,
         zipPath,
+        '/home/user',
         date,
       );
 
-      expect(
-        fs.files.get(
-          '/Volumes/T7 Shield/Backup/Archives/Exports_2024-06-15/Notion-Export_2024-06-15.zip',
-        ),
-      ).toBe('zip-content');
+      expect(fs.files.get(`/Volumes/T7 Shield/Backup/Archives/Exports_2024-06-15/${zipName}`)).toBe(
+        'zip-content',
+      );
     });
 
-    it('warns and skips the copy when the drive is not mounted', async () => {
-      const zipPath = '/home/user/Exports/Exports_2024-06-15/Notion-Export_2024-06-15.zip';
-      fs.files.set(zipPath, 'zip-content');
+    it('warns and keeps the local archive when the drive is not mounted', async () => {
+      const archivePath = await storeArchive(fs, {}, logger, zipPath, '/home/user', date);
 
-      await copyArchiveToExternalDrive(fs, {}, logger, zipPath, date);
-
+      expect(archivePath).toBe(localArchivePath);
+      expect(fs.files.get(localArchivePath)).toBe('zip-content');
       expect(
         logger.messages.some((m) => m.level === 'WARN' && m.message.includes('T7 Shield')),
       ).toBe(true);
