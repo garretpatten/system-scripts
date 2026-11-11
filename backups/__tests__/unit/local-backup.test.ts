@@ -55,7 +55,7 @@ describe('LocalBackup', () => {
     runner = new MockCommandRunner();
     git = new StubGitRepository();
     sync = new StubSyncClient();
-    archive = new MockArchive();
+    archive = new MockArchive(fs);
 
     context = {
       logger,
@@ -118,6 +118,10 @@ describe('LocalBackup', () => {
     expect(archive.calls).toHaveLength(1);
     expect(archive.calls[0].sourceDirName).toBe('Code-Export_2024-06-15');
     expect(archive.calls[0].cwd).toBe('/home/user');
+    expect(fs.files.get('/home/user/Code-Export_2024-06-15.zip')).toBeUndefined();
+    expect(fs.files.get('/home/user/Exports/Exports_2024-06-15/Code-Export_2024-06-15.zip')).toBe(
+      'zip-content',
+    );
   });
 
   it('updates existing repositories', async () => {

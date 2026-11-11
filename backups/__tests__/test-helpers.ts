@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import path from 'node:path';
 import {
   Archive,
   CommandResult,
@@ -61,6 +62,15 @@ export class MockFileSystem implements FileSystem {
     this.files.delete(path);
     this.directories.delete(path);
     this.existsPaths.delete(path);
+  }
+
+  async copyFile(source: string, destination: string): Promise<void> {
+    const content = this.files.get(source);
+    if (content === undefined) {
+      throw new Error(`File not found: ${source}`);
+    }
+    this.files.set(destination, content);
+    this.existsPaths.add(destination);
   }
 
   async writeFile(path: string, data: string): Promise<void> {
@@ -259,6 +269,8 @@ export class MockArchive implements Archive {
   calls: Array<{ sourceDirName: string; outputFileName: string; cwd: string; exclude?: string[] }> =
     [];
 
+  constructor(private readonly fs?: FileSystem) {}
+
   async zipDirectory(
     sourceDirName: string,
     outputFileName: string,
@@ -266,6 +278,9 @@ export class MockArchive implements Archive {
     exclude?: string[],
   ): Promise<void> {
     this.calls.push({ sourceDirName, outputFileName, cwd, exclude });
+    if (this.fs) {
+      await this.fs.writeFile(path.join(cwd, outputFileName), 'zip-content');
+    }
   }
 }
 

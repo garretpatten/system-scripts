@@ -30,7 +30,7 @@ describe('GoogleCalendarBackup', () => {
     http = new MockHttpClient();
     logger = new MockLogger();
     runner = new MockCommandRunner();
-    archive = new MockArchive();
+    archive = new MockArchive(fs);
 
     context = {
       logger,
@@ -126,6 +126,10 @@ describe('GoogleCalendarBackup', () => {
     expect(archive.calls[0].sourceDirName).toBe('Google-Calendar-Export_2024-06-15');
     expect(archive.calls[0].outputFileName).toBe('Google-Calendar-Export_2024-06-15.zip');
     expect(archive.calls[0].cwd).toBe('/home/user');
+    expect(fs.files.get('/home/user/Google-Calendar-Export_2024-06-15.zip')).toBeUndefined();
+    expect(
+      fs.files.get('/home/user/Exports/Exports_2024-06-15/Google-Calendar-Export_2024-06-15.zip'),
+    ).toBe('zip-content');
   });
 
   it('refreshes the access token only once per run', async () => {

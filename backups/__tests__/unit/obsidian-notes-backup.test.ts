@@ -32,7 +32,7 @@ describe('ObsidianNotesBackup', () => {
     http = new MockHttpClient();
     logger = new MockLogger();
     runner = new MockCommandRunner();
-    archive = new MockArchive();
+    archive = new MockArchive(fs);
 
     context = {
       logger,
@@ -76,9 +76,36 @@ describe('ObsidianNotesBackup', () => {
     expect(archive.calls[0].sourceDirName).toBe('Obsidian-Notes_2024-06-15');
     expect(archive.calls[0].outputFileName).toBe('Obsidian-Notes_2024-06-15.zip');
     expect(archive.calls[0].cwd).toBe(homeDir);
+    expect(fs.files.get('/home/user/Obsidian-Notes_2024-06-15.zip')).toBeUndefined();
+    expect(
+      fs.files.get('/home/user/Exports/Exports_2024-06-15/Obsidian-Notes_2024-06-15.zip'),
+    ).toBe('zip-content');
     expect(
       logger.messages.some((m) => m.message.includes('Obsidian Notes backup completed!')),
     ).toBe(true);
+    expect(logger.messages.some((m) => m.message.includes('Archive: '))).toBe(true);
+  });
+
+  it('copies the archive to the external drive when mounted', async () => {
+    const homeDir = '/home/user';
+    setupSourceFs(fs, homeDir);
+    fs.directories.add('/Volumes/T7 Shield');
+
+    const config: ObsidianNotesBackupConfig = {
+      homeDir,
+      logDir: '/logs',
+    };
+
+    await new ObsidianNotesBackup(context).run(config);
+
+    expect(
+      fs.files.get(
+        '/Volumes/T7 Shield/Garret/Exports/Exports_2024-06-15/Obsidian-Notes_2024-06-15.zip',
+      ),
+    ).toBe('zip-content');
+    expect(
+      logger.messages.some((m) => m.level === 'WARN' && m.message.includes('external drive')),
+    ).toBe(false);
   });
 
   it('exits gracefully when the source directory does not exist', async () => {

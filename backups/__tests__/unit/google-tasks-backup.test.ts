@@ -26,7 +26,7 @@ describe('GoogleTasksBackup', () => {
     http = new MockHttpClient();
     logger = new MockLogger();
     runner = new MockCommandRunner();
-    archive = new MockArchive();
+    archive = new MockArchive(fs);
 
     context = {
       logger,
@@ -124,6 +124,10 @@ describe('GoogleTasksBackup', () => {
     expect(archive.calls[0].sourceDirName).toBe('Google-Tasks-Export_2024-06-15');
     expect(archive.calls[0].outputFileName).toBe('Google-Tasks-Export_2024-06-15.zip');
     expect(archive.calls[0].cwd).toBe('/home/user');
+    expect(fs.files.get('/home/user/Google-Tasks-Export_2024-06-15.zip')).toBeUndefined();
+    expect(
+      fs.files.get('/home/user/Exports/Exports_2024-06-15/Google-Tasks-Export_2024-06-15.zip'),
+    ).toBe('zip-content');
   });
 
   it('passes inclusion flags to the tasks endpoint', async () => {

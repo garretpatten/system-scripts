@@ -28,6 +28,7 @@ export interface HttpClient {
 export interface FileSystem {
   mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
   rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
+  copyFile(source: string, destination: string): Promise<void>;
   writeFile(path: string, data: string): Promise<void>;
   appendFile(path: string, data: string): Promise<void>;
   readFile(path: string): Promise<string>;

@@ -22,7 +22,7 @@ describe('BackupOrchestrator', () => {
     http = new MockHttpClient();
     logger = new MockLogger();
     runner = new MockCommandRunner();
-    const archive = new MockArchive();
+    const archive = new MockArchive(fs);
 
     context = {
       logger,

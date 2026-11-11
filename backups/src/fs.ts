@@ -1,4 +1,13 @@
-import { mkdir, rm, writeFile, appendFile, readFile, readdir, stat } from 'node:fs/promises';
+import {
+  mkdir,
+  rm,
+  writeFile,
+  appendFile,
+  readFile,
+  readdir,
+  stat,
+  copyFile,
+} from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { FileSystem } from './types.js';
 
@@ -9,6 +18,10 @@ export class RealFileSystem implements FileSystem {
 
   async rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
     await rm(path, { recursive: options?.recursive ?? false, force: options?.force ?? false });
+  }
+
+  async copyFile(source: string, destination: string): Promise<void> {
+    await copyFile(source, destination);
   }
 
   async writeFile(path: string, data: string): Promise<void> {
