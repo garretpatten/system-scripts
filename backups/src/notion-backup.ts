@@ -4,6 +4,7 @@ import { ProcessCommandRunner } from './command-runner.js';
 import { NodeHttpClient } from './http.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
+import { storeArchive } from './export-dir.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { NotionApiClient } from './notion.js';
 import { NotionExporter } from './notion-exporter.js';
@@ -98,12 +99,21 @@ export class NotionBackup {
 
     await this.createBackup(exportDirName, config.homeDir, logger);
 
+    const archivePath = await storeArchive(
+      this.context.fs,
+      this.context.env,
+      logger,
+      exportZip,
+      config.homeDir,
+      date,
+    );
+
     await this.context.fs.rm(exportDir, { recursive: true, force: true });
 
     logger.success('Notion export completed!');
     logger.info(`Pages exported: ${exportedPages}`);
     logger.info(`Databases exported: ${exportedDatabases}`);
-    logger.info(`Archive: ${exportZip}`);
+    logger.info(`Archive: ${archivePath}`);
   }
 
   private async checkDependencies(logger: Logger): Promise<void> {

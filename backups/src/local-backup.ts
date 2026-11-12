@@ -5,6 +5,7 @@ import { NodeHttpClient } from './http.js';
 import { ProcessGitRepository, ProcessSyncClient } from './git.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
+import { storeArchive } from './export-dir.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
 import { GitHubApiClient } from './github.js';
 import { BackupContext, Logger } from './types.js';
@@ -65,10 +66,21 @@ export class LocalBackup {
 
     await this.createBackup(backupDirName, config.homeDir, logger);
 
+    const backupZip = path.join(config.homeDir, `${backupDirName}.zip`);
+    const archivePath = await storeArchive(
+      this.context.fs,
+      this.context.env,
+      logger,
+      backupZip,
+      config.homeDir,
+      date,
+    );
+
     logger.success('Backup process completed!');
     logger.info(`Total repositories: ${repos.length}`);
     logger.info(`Successful: ${ok}`);
     logger.info(`Failed: ${fail}`);
+    logger.info(`Archive: ${archivePath}`);
 
     if (fail > 0) {
       logger.warn(`Some repositories failed to process. Check error log: ${errorLog}`);

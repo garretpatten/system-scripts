@@ -24,8 +24,8 @@ with mocked dependencies.
   - `google-photos-download.ts`, `google-photos-takeout.ts`,
     `google-photos-state.ts`, `google-photos-merge.ts`,
     `google-photos-media-fs.ts` — Google Photos Takeout pipeline modules
-  - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts` — shared
-    abstractions
+  - `logger.ts`, `env.ts`, `fs.ts`, `http.ts`, `git.ts`, `archive.ts`,
+    `export-dir.ts` — shared abstractions
 - **`__tests__/unit/`** — Vitest unit tests with mocked I/O
 - **`code/`** — Backward-compatible shell wrappers
   - `code-backup-local.sh` — Thin wrapper around `local-backup.ts`
@@ -109,6 +109,30 @@ sudo apt install git curl zip
 ```bash
 sudo yum install git curl zip
 ```
+
+---
+
+## 📦 Export Archives & External Drive Copy
+
+All zip-producing backups (`code`, `notion`, `obsidian-notes`,
+`google-calendar`, `google-tasks`) write their zips into a dated directory
+instead of directly into the home directory:
+
+- **Local**: `~/Exports/Exports_YYYY-MM-DD/`
+- **External drive**: when a drive labeled `T7 Shield` is mounted, each zip is
+  also copied to `<mount>/Garret/Exports/Exports_YYYY-MM-DD/`
+  (`/Volumes/T7 Shield/...` on macOS,
+  `/run/media/<user>/T7 Shield/...` on Linux). Set
+  `EXTERNAL_DRIVE_EXPORT_SUBPATH` (e.g. `Backup/Archives`) to override the
+  `Garret/Exports` subpath on the drive.
+
+The drive is located by volume label at the usual mount points; the label
+directory must exist as a directory at one of those locations and is trusted
+as-is. The mount is probed once per process run and the result is reused by all
+backups in that run. If the drive is not attached, the local archive is still
+written and the external copy is skipped with a warning. If the external copy
+fails, the backup continues — the local archive is the source of truth.
+Existing dated `Exports_*` directories are never cleaned up automatically.
 
 ---
 
@@ -235,7 +259,7 @@ Creates a local, zipped directory of all your non-archived GitHub repositories.
 
 - Fetches all non-archived repositories from your GitHub account
 - Clones new repositories or updates existing ones to their latest default branch
-- Creates a zip backup: `~/Code-Export_YYYY-MM-DD.zip`
+- Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Code-Export_YYYY-MM-DD.zip`
 - Excludes `.git` directories and system files from the zip archive
 
 ### Local Backup Usage
@@ -253,7 +277,7 @@ npm run backup:code-local
 ### Local Backup Output
 
 - **Local repositories**: `~/Code-Export_YYYY-MM-DD/`
-- **Backup archive**: `~/Code-Export_YYYY-MM-DD.zip`
+- **Backup archive**: `~/Exports/Exports_YYYY-MM-DD/Code-Export_YYYY-MM-DD.zip`
 - **Logs**: `backups/logs/code-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/errors-YYYYMMDD-HHMMSS.log`
 
@@ -362,7 +386,7 @@ nested folders that mirror the workspace structure.
   blocks, quotes, and other basic blocks
 - Exports each database as a Markdown file listing its entries and properties
 - Ignores toggle block wrappers (their children are exported inline)
-- Creates a zip backup: `~/Notion-Export_YYYY-MM-DD.zip`
+- Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Notion-Export_YYYY-MM-DD.zip`
 
 ### Notion Export Limitations
 
@@ -386,7 +410,7 @@ npm run backup:notion
 
 ### Notion Export Output
 
-- **Backup archive**: `~/Notion-Export_YYYY-MM-DD.zip`
+- **Backup archive**: `~/Exports/Exports_YYYY-MM-DD/Notion-Export_YYYY-MM-DD.zip`
 - **Logs**: `backups/logs/notion-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/notion-errors-YYYYMMDD-HHMMSS.log`
 
@@ -467,7 +491,7 @@ Backs up the Obsidian notes vault stored at `~/Notes/`.
 ### Obsidian Notes Export Features
 
 - Copies the entire `~/Notes/` directory preserving folder structure
-- Creates a zip backup: `~/Obsidian-Notes_YYYY-MM-DD.zip`
+- Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Obsidian-Notes_YYYY-MM-DD.zip`
 - Exits gracefully with a helpful message when `~/Notes/` is not found
 
 ### Obsidian Notes Export Requirements
@@ -495,7 +519,7 @@ npm run backup:obsidian-notes
 
 ### Obsidian Notes Export Output
 
-- **Backup archive**: `~/Obsidian-Notes_YYYY-MM-DD.zip`
+- **Backup archive**: `~/Exports/Exports_YYYY-MM-DD/Obsidian-Notes_YYYY-MM-DD.zip`
 - **Logs**: `backups/logs/obsidian-notes-backup-YYYYMMDD-HHMMSS.log`
 
 ---
@@ -514,7 +538,7 @@ and shared calendars with at least reader access — together with their events.
 - Optionally includes deleted/cancelled events
   (`GOOGLE_CALENDAR_SHOW_DELETED="true"`)
 - Writes pretty-printed JSON files to a temporary directory
-- Creates a zip backup: `~/Google-Calendar-Export_YYYY-MM-DD.zip`
+- Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Google-Calendar-Export_YYYY-MM-DD.zip`
 
 ### Google Calendar Export Usage
 
@@ -530,7 +554,7 @@ npm run backup:google-calendar
 
 ### Google Calendar Export Output
 
-- **Backup archive**: `~/Google-Calendar-Export_YYYY-MM-DD.zip`
+- **Backup archive**: `~/Exports/Exports_YYYY-MM-DD/Google-Calendar-Export_YYYY-MM-DD.zip`
 - **Logs**: `backups/logs/google-calendar-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/google-calendar-errors-YYYYMMDD-HHMMSS.log`
 
@@ -552,7 +576,7 @@ Exports all task lists and tasks belonging to the authenticated user.
   (configurable via `GOOGLE_TASKS_SHOW_COMPLETED`, `GOOGLE_TASKS_SHOW_DELETED`,
   and `GOOGLE_TASKS_SHOW_HIDDEN`)
 - Writes pretty-printed JSON files to a temporary directory
-- Creates a zip backup: `~/Google-Tasks-Export_YYYY-MM-DD.zip`
+- Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Google-Tasks-Export_YYYY-MM-DD.zip`
 
 ### Google Tasks Export Usage
 
@@ -568,7 +592,7 @@ npm run backup:google-tasks
 
 ### Google Tasks Export Output
 
-- **Backup archive**: `~/Google-Tasks-Export_YYYY-MM-DD.zip`
+- **Backup archive**: `~/Exports/Exports_YYYY-MM-DD/Google-Tasks-Export_YYYY-MM-DD.zip`
 - **Logs**: `backups/logs/google-tasks-backup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/google-tasks-errors-YYYYMMDD-HHMMSS.log`
 
