@@ -1,6 +1,7 @@
 # System Scripts
 
-[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/garretpatten/badge.svg)](https://hub.xerj.org/contributors/garretpatten)
+[![License: MIT](https://img.shields.io/github/license/garretpatten/system-scripts?style=flat-square)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/garretpatten/system-scripts/tests.yaml?branch=master&label=CI&logo=github&style=flat-square)](https://github.com/garretpatten/system-scripts/actions/workflows/tests.yaml)
 
 A collection of system administration and development workflow scripts for
 macOS/Linux environments.
