@@ -1,5 +1,7 @@
 # System Scripts
 
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/garretpatten/badge.svg)](https://hub.xerj.org/contributors/garretpatten)
+
 A collection of system administration and development workflow scripts for
 macOS/Linux environments.
 
