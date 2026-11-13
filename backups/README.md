@@ -220,6 +220,11 @@ read-only scopes:
 - `https://www.googleapis.com/auth/calendar.readonly`
 - `https://www.googleapis.com/auth/tasks.readonly`
 
+**Note:** The OAuth app itself may be configured with broader permissions,
+but these backups deliberately request only the read-only scopes above and
+perform no writes to Google Calendar or Google Tasks. Do not broaden
+`GOOGLE_BACKUP_SCOPES` in `src/google-auth.ts` to match the app.
+
 Subsequent runs — including `npm run backup:all` and cron jobs — reuse the
 saved token and run unattended. If the refresh token is revoked or expires,
 `backup:all` automatically re-runs the browser authorization flow (up to three
