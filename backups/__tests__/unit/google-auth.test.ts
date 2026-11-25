@@ -131,6 +131,8 @@ describe('buildAuthorizationUrl', () => {
     expect(parsed.searchParams.get('response_type')).toBe('code');
     expect(parsed.searchParams.get('scope')).toBe(
       'https://www.googleapis.com/auth/calendar.readonly ' +
+        'https://www.googleapis.com/auth/contacts.other.readonly ' +
+        'https://www.googleapis.com/auth/contacts.readonly ' +
         'https://www.googleapis.com/auth/tasks.readonly',
     );
     expect(parsed.searchParams.get('access_type')).toBe('offline');

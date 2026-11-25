@@ -8,6 +8,7 @@ import { ChromeBookmarksBackup, ChromeBookmarksBackupConfig } from './chrome-boo
 import { ObsidianNotesBackup, ObsidianNotesBackupConfig } from './obsidian-notes-backup.js';
 import { GoogleCalendarBackup, GoogleCalendarBackupConfig } from './google-calendar-backup.js';
 import { GoogleTasksBackup, GoogleTasksBackupConfig } from './google-tasks-backup.js';
+import { GoogleContactsBackup, GoogleContactsBackupConfig } from './google-contacts-backup.js';
 import { GoogleOAuthCredentials } from './google-auth.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
@@ -47,6 +48,7 @@ export class BackupOrchestrator {
     results['obsidian-notes'] = await this.runObsidianNotesBackup(logger);
     results['google-calendar'] = await this.runGoogleCalendarBackup(logger);
     results['google-tasks'] = await this.runGoogleTasksBackup(logger);
+    results['google-contacts'] = await this.runGoogleContactsBackup(logger);
 
     logger.info('Backup summary:');
     for (const [name, status] of Object.entries(results)) {
@@ -207,6 +209,22 @@ export class BackupOrchestrator {
       return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: google-tasks: ${String(error)}`);
+      return 'failed';
+    }
+  }
+
+  private async runGoogleContactsBackup(logger: Logger): Promise<RunStatus> {
+    try {
+      const config: GoogleContactsBackupConfig = {
+        credentials: this.loadGoogleCredentials(),
+        homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
+        logDir: this.getLogDir(),
+        projectRoot: this.getProjectRoot(),
+      };
+      await new GoogleContactsBackup(this.context).run(config);
+      return 'ok';
+    } catch (error) {
+      logger.warn(`Backup failed or had errors: google-contacts: ${String(error)}`);
       return 'failed';
     }
   }

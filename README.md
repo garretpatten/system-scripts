@@ -25,6 +25,7 @@ system-scripts/
 │   ├── obsidian-notes/    # Obsidian notes backup wrapper
 │   ├── google-calendar/   # Google Calendar export wrapper
 │   ├── google-tasks/      # Google Tasks export wrapper
+│   ├── google-contacts/   # Google Contacts export wrapper
 │   ├── google-photos/     # Google Photos Takeout backup (spec + wrapper)
 │   └── run-all.sh         # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
@@ -40,7 +41,8 @@ system-scripts/
 ### 📦 Backups (`backups/`)
 
 Comprehensive backup module for code repositories, Notion workspaces, browser
-bookmarks, Obsidian notes, Google Calendars, and Google Tasks.
+bookmarks, Obsidian notes, Google Calendars, Google Tasks, and Google
+Contacts.
 
 **Code backups:**
 
@@ -83,6 +85,13 @@ bookmarks, Obsidian notes, Google Calendars, and Google Tasks.
 
 - Exports all task lists and tasks via the Google Tasks API
 - Includes completed, deleted, and hidden tasks (configurable)
+- Creates timestamped zip archives
+
+**Google Contacts export:**
+
+- Exports all contacts, contact groups (labels), and auto-saved "Other
+  contacts" via the Google People API
+- Captures contact photos as metadata only (no image downloads)
 - Creates timestamped zip archives
 
 **Google Photos backup:**
@@ -209,7 +218,7 @@ Enhanced tmux session management following bash and tmux best practices:
 
 ```bash
 # Run all backups (code-local, code-gitlab, notion, bookmarks, obsidian-notes,
-# google-calendar, google-tasks)
+# google-calendar, google-tasks, google-contacts)
 npm run backup:all
 npm run backups
 
@@ -223,6 +232,7 @@ npm run backup:chrome-bookmarks
 npm run backup:obsidian-notes
 npm run backup:google-calendar
 npm run backup:google-tasks
+npm run backup:google-contacts
 npm run backup:google-photos
 
 # Run other repo scripts

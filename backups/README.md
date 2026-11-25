@@ -15,11 +15,12 @@ with mocked dependencies.
   - `obsidian-notes-backup.ts` — Obsidian notes zip backup
   - `google-calendar-backup.ts` — Google Calendar export
   - `google-tasks-backup.ts` — Google Tasks export
+  - `google-contacts-backup.ts` — Google Contacts export
   - `google-photos-backup.ts` — Google Photos Takeout backup (download,
     extract, merge)
   - `run-all.ts` — Orchestrator that runs all backups
   - `github.ts`, `gitlab.ts`, `notion.ts` — API clients
-  - `google-calendar.ts`, `google-tasks.ts` — Google API clients
+  - `google-calendar.ts`, `google-tasks.ts`, `google-contacts.ts` — Google API clients
   - `google-auth.ts` — Shared Google OAuth 2.0 token refresh
   - `google-photos-download.ts`, `google-photos-takeout.ts`,
     `google-photos-state.ts`, `google-photos-merge.ts`,
@@ -44,6 +45,8 @@ with mocked dependencies.
     `google-calendar-backup.ts`
 - **`google-tasks/`** — Backward-compatible shell wrapper
   - `google-tasks-backup.sh` — Thin wrapper around `google-tasks-backup.ts`
+- **`google-contacts/`** — Backward-compatible shell wrapper
+  - `google-contacts-backup.sh` — Thin wrapper around `google-contacts-backup.ts`
 - **`google-photos/`** — Google Photos Takeout backup
   - `google-photos-backup.sh` — Thin wrapper around `google-photos-backup.ts`
 - **`run-all.sh`** — Thin wrapper around `run-all.ts`
@@ -115,8 +118,8 @@ sudo yum install git curl zip
 ## 📦 Export Archives & External Drive Copy
 
 All zip-producing backups (`code`, `notion`, `obsidian-notes`,
-`google-calendar`, `google-tasks`) write their zips into a dated directory
-instead of directly into the home directory:
+`google-calendar`, `google-tasks`, `google-contacts`) write their zips into a
+dated directory instead of directly into the home directory:
 
 - **Local**: `~/Exports/Exports_YYYY-MM-DD/`
 - **External drive**: when a drive labeled `T7 Shield` is mounted, each zip is
@@ -187,9 +190,9 @@ After creating the integration, you must share each page or database you want to
 export with the integration from its **Share** menu. The Notion API can only
 access content explicitly shared with the integration.
 
-### Google Calendar and Google Tasks backups
+### Google Calendar, Google Tasks, and Google Contacts backups
 
-Both Google backups share the same OAuth 2.0 credentials:
+All Google backups share the same OAuth 2.0 credentials:
 
 ```bash
 # Required
@@ -208,22 +211,36 @@ GOOGLE_TASKS_SHOW_HIDDEN="true"
 
 Create an OAuth 2.0 **Desktop app** client in the
 [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and
-enable the **Google Calendar API** and **Google Tasks API** for the project.
+enable the **Google Calendar API**, **Google Tasks API**, and **People API**
+for the project.
 
-You do not need to create a refresh token yourself. The first time you run
-either Google backup individually (`npm run backup:google-calendar` or
-`npm run backup:google-tasks`), the script starts a local listener, prints a
+You do not need to create a refresh token yourself. The first time you run a
+Google backup individually (`npm run backup:google-calendar`,
+`npm run backup:google-tasks`, or `npm run backup:google-contacts`), the
+script starts a local listener, prints a
 Google consent URL to open in your browser, and exchanges the authorization
 for a refresh token that is saved to `.env`. The consent requests these
 read-only scopes:
 
 - `https://www.googleapis.com/auth/calendar.readonly`
+- `https://www.googleapis.com/auth/contacts.other.readonly`
+- `https://www.googleapis.com/auth/contacts.readonly`
 - `https://www.googleapis.com/auth/tasks.readonly`
+
+(`contacts.other.readonly` covers the auto-saved "Other contacts" that
+`contacts.readonly` alone cannot read.)
 
 **Note:** The OAuth app itself may be configured with broader permissions,
 but these backups deliberately request only the read-only scopes above and
-perform no writes to Google Calendar or Google Tasks. Do not broaden
-`GOOGLE_BACKUP_SCOPES` in `src/google-auth.ts` to match the app.
+perform no writes to Google Calendar, Google Tasks, or Google Contacts. Do not
+broaden `GOOGLE_BACKUP_SCOPES` in `src/google-auth.ts` to match the app.
+
+**Existing installs — one-time re-authorization:** the saved
+`GOOGLE_REFRESH_TOKEN` was granted before the contacts scopes were added, so
+People API calls fail with `403 ... insufficient scopes` until you
+re-authorize once. Remove `GOOGLE_REFRESH_TOKEN` from `.env` and run
+`npm run backup:google-contacts` in an interactive terminal; the consent flow
+re-requests all four scopes and saves the new token automatically.
 
 Subsequent runs — including `npm run backup:all` and cron jobs — reuse the
 saved token and run unattended. If the refresh token is revoked or expires,
@@ -613,6 +630,55 @@ with `task-list.json` (metadata) and `tasks.json` (all tasks).
 
 ---
 
+## 👥 Google Contacts Export (`google-contacts/google-contacts-backup.sh`)
+
+Exports every contact in the authenticated user's Google account, including
+the labels (contact groups) index and the auto-saved "Other contacts".
+
+### Google Contacts Export Features
+
+- Guides you through a one-time Google authorization on first run and saves
+  the refresh token to `.env`
+- Exports every contact with all People API fields, including group
+  memberships, so per-contact label membership is recoverable
+- Exports the contact groups (labels) index and the "Other contacts"
+  auto-saved by Gmail and Chat interactions
+- Includes contact photos as metadata only: the photo URLs inside the JSON
+  are captured, but the image bytes are not downloaded, and People API photo
+  URLs are short-lived
+- Writes pretty-printed JSON files to a temporary directory
+- Fails loudly: collections that cannot be exported are logged as errors and
+  the run exits non-zero instead of writing an empty export
+- Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Google-Contacts-Export_YYYY-MM-DD.zip`
+
+### Google Contacts Export Usage
+
+```bash
+./backups/google-contacts/google-contacts-backup.sh
+```
+
+Or via npm:
+
+```bash
+npm run backup:google-contacts
+```
+
+### Google Contacts Export Output
+
+- **Backup archive**: `~/Exports/Exports_YYYY-MM-DD/Google-Contacts-Export_YYYY-MM-DD.zip`
+- **Logs**: `backups/logs/google-contacts-backup-YYYYMMDD-HHMMSS.log`
+- **Errors**: `backups/logs/google-contacts-errors-YYYYMMDD-HHMMSS.log`
+
+The zip contains three flat JSON files (no per-contact or per-label
+directories):
+
+- `contacts.json` — every contact from `people/me/connections`, all fields
+  including group memberships
+- `contact-groups.json` — the labels / contact groups index
+- `other-contacts.json` — the auto-saved "Other contacts"
+
+---
+
 ## 📸 Google Photos Backup (`google-photos/google-photos-backup.sh`)
 
 Downloads a [Google Takeout](https://takeout.google.com) export of your Google
@@ -722,8 +788,8 @@ for download runs; the directories can also be adjusted with
 ## 🚀 Run All Backups
 
 To run the code-local, code-gitlab, notion, brave-bookmarks, chrome-bookmarks,
-obsidian-notes, google-calendar, and google-tasks backups in sequence (the
-Google Photos backup is user-initiated and not included):
+obsidian-notes, google-calendar, google-tasks, and google-contacts backups in
+sequence (the Google Photos backup is user-initiated and not included):
 
 ```bash
 ./backups/run-all.sh
@@ -791,6 +857,11 @@ All scripts create detailed logs in `backups/logs/`:
 
 - `google-tasks-backup-YYYYMMDD-HHMMSS.log`
 - `google-tasks-errors-YYYYMMDD-HHMMSS.log`
+
+**Google Contacts Export:**
+
+- `google-contacts-backup-YYYYMMDD-HHMMSS.log`
+- `google-contacts-errors-YYYYMMDD-HHMMSS.log`
 
 **Google Photos Backup:**
 
@@ -897,9 +968,10 @@ Logs include:
     - Add your Google OAuth 2.0 Desktop app credentials to `.env`
 
 17. **Google: "Missing GOOGLE_REFRESH_TOKEN"**
-    - Run `npm run backup:google-calendar` or `npm run backup:google-tasks`
-      once in an interactive terminal to complete the browser authorization;
-      the token is saved to `.env` automatically
+    - Run `npm run backup:google-calendar`, `npm run backup:google-tasks`,
+      or `npm run backup:google-contacts` once in an interactive terminal to
+      complete the browser authorization; the token is saved to `.env`
+      automatically
 
 18. **Google: "Google OAuth token refresh failed"**
     - The saved refresh token may have been revoked or the OAuth client
@@ -907,15 +979,25 @@ Logs include:
       automatically (up to three attempts) and saves the new token to `.env`
     - You can also remove `GOOGLE_REFRESH_TOKEN` from `.env` and run an
       individual Google backup once to re-authorize
-    - Ensure the authorization was granted the `calendar.readonly` and
-      `tasks.readonly` scopes
-    - Review `backups/logs/google-calendar-errors-*.log` or
-      `backups/logs/google-tasks-errors-*.log` for details
+    - Ensure the authorization was granted the `calendar.readonly`,
+      `contacts.other.readonly`, `contacts.readonly`, and `tasks.readonly`
+      scopes
+    - Review `backups/logs/google-calendar-errors-*.log`,
+      `backups/logs/google-tasks-errors-*.log`, or
+      `backups/logs/google-contacts-errors-*.log` for details
 
 19. **Google: "Timed out waiting for Google authorization"**
     - Re-run the backup and complete the consent in your browser within five
       minutes; unattended `backup:all` runs will time out and continue with the
       remaining backups
+
+20. **Google Contacts: "Request had insufficient authentication scopes"**
+    - The saved refresh token predates the contacts scopes; remove
+      `GOOGLE_REFRESH_TOKEN` from `.env` and run
+      `npm run backup:google-contacts` once interactively to re-authorize
+    - Also confirm the **People API** is enabled for the OAuth project in the
+      Google Cloud Console
+    - Review `backups/logs/google-contacts-errors-*.log` for details
 
 ### Getting Help
 
@@ -949,6 +1031,7 @@ crontab -e
 0 7 * * * cd /path/to/system-scripts && npm run backup:obsidian-notes
 0 8 * * * cd /path/to/system-scripts && npm run backup:google-calendar
 0 9 * * * cd /path/to/system-scripts && npm run backup:google-tasks
+0 10 * * * cd /path/to/system-scripts && npm run backup:google-contacts
 
 # Google Photos backups are user-initiated (a fresh Takeout must be requested
 # by hand, roughly twice a year), so there is no cron entry for them. When a
@@ -1009,5 +1092,6 @@ git submodule update --init --recursive
 - [Notion API Documentation](https://developers.notion.com/)
 - [Google Calendar API Documentation](https://developers.google.com/calendar/api/v3/reference)
 - [Google Tasks API Documentation](https://developers.google.com/tasks/reference/rest)
+- [Google People API Documentation](https://developers.google.com/people/api/rest)
 - [Git Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 - [GitLab Personal Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
