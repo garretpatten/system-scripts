@@ -2,6 +2,55 @@ import { GoogleAuth } from './google-auth.js';
 import { GoogleApiError } from './google-api-error.js';
 import { HttpClient, Logger } from './types.js';
 
+/**
+ * Every person field the People API documents for `personFields`. The API
+ * rejects `*` as a field mask ("Invalid personFields mask path"), so the
+ * full list has to be spelled out.
+ */
+export const PERSON_FIELDS = [
+  'addresses',
+  'ageRanges',
+  'biographies',
+  'birthdays',
+  'calendarUrls',
+  'clientData',
+  'coverPhotos',
+  'emailAddresses',
+  'events',
+  'externalIds',
+  'genders',
+  'imClients',
+  'interests',
+  'locales',
+  'locations',
+  'memberships',
+  'metadata',
+  'miscKeywords',
+  'names',
+  'nicknames',
+  'occupations',
+  'organizations',
+  'phoneNumbers',
+  'photos',
+  'relations',
+  'sipAddresses',
+  'skills',
+  'urls',
+  'userDefined',
+].join(',');
+
+/**
+ * The readMask paths the otherContacts endpoint documents for the
+ * READ_SOURCE_TYPE_CONTACT source; `*` is rejected here as well.
+ */
+export const OTHER_CONTACTS_READ_MASK = [
+  'emailAddresses',
+  'metadata',
+  'names',
+  'phoneNumbers',
+  'photos',
+].join(',');
+
 export interface GoogleContactsClient {
   fetchContacts(): Promise<unknown[]>;
   fetchContactGroups(): Promise<unknown[]>;
@@ -18,12 +67,13 @@ export class GoogleContactsApiClient implements GoogleContactsClient {
   ) {}
 
   async fetchContacts(): Promise<unknown[]> {
-    // personFields=* captures every person field, including group
-    // memberships; the People API documents 1000 as the maximum page size.
+    // The full documented field list captures everything on each person,
+    // including group memberships; the People API documents 1000 as the
+    // maximum page size.
     return this.fetchPagedCollection(
       '/people/me/connections',
       {
-        personFields: '*',
+        personFields: PERSON_FIELDS,
         pageSize: '1000',
       },
       'connections',
@@ -38,7 +88,7 @@ export class GoogleContactsApiClient implements GoogleContactsClient {
     return this.fetchPagedCollection(
       '/otherContacts',
       {
-        readMask: '*',
+        readMask: OTHER_CONTACTS_READ_MASK,
         pageSize: '1000',
       },
       'otherContacts',

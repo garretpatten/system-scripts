@@ -2,6 +2,7 @@ import {
   GoogleContactsBackup,
   GoogleContactsBackupConfig,
 } from '../../src/google-contacts-backup.js';
+import { OTHER_CONTACTS_READ_MASK, PERSON_FIELDS } from '../../src/google-contacts.js';
 import { resetExternalDriveMountCache } from '../../src/export-dir.js';
 import { BackupContext } from '../../src/types.js';
 import {
@@ -13,11 +14,9 @@ import {
   MockLogger,
 } from '../test-helpers.js';
 
-const CONNECTIONS_URL =
-  'https://people.googleapis.com/v1/people/me/connections?personFields=*&pageSize=1000';
+const CONNECTIONS_URL = `https://people.googleapis.com/v1/people/me/connections?personFields=${encodeURIComponent(PERSON_FIELDS)}&pageSize=1000`;
 const CONTACT_GROUPS_URL = 'https://people.googleapis.com/v1/contactGroups?pageSize=1000';
-const OTHER_CONTACTS_URL =
-  'https://people.googleapis.com/v1/otherContacts?readMask=*&pageSize=1000';
+const OTHER_CONTACTS_URL = `https://people.googleapis.com/v1/otherContacts?readMask=${encodeURIComponent(OTHER_CONTACTS_READ_MASK)}&pageSize=1000`;
 
 const CONTACTS = [
   {
