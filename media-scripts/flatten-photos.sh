@@ -77,17 +77,17 @@ directory, remove empty subdirectories, skip content duplicates, and delete
 .json metadata files.
 
 Arguments:
-  TARGET_DIR    Directory to flatten (default: ${DEFAULT_TARGET})
+    TARGET_DIR    Directory to flatten (default: ${DEFAULT_TARGET})
 
 Options:
-  -n, --dry-run     Show what would happen without changing files
-  -k, --keep-json   Keep .json files after flattening
-  -h, --help        Show this help message
+    -n, --dry-run     Show what would happen without changing files
+    -k, --keep-json   Keep .json files after flattening
+    -h, --help        Show this help message
 
 Examples:
-  $(basename "$0")
-  $(basename "$0") "$HOME/Pictures/Mobile Photos"
-  $(basename "$0") --dry-run "$HOME/Downloads/takeout"
+    $(basename "$0")
+    $(basename "$0") "$HOME/Pictures/Mobile Photos"
+    $(basename "$0") --dry-run "$HOME/Downloads/takeout"
 EOF
 }
 
