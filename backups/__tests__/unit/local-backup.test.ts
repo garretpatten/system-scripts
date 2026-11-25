@@ -208,7 +208,7 @@ describe('LocalBackup', () => {
     };
 
     await expect(new LocalBackup(context).run(config)).rejects.toThrow(
-      'Missing required dependencies',
+      'Missing required dependency: git',
     );
   });
 });

@@ -157,7 +157,11 @@ describe('GitLabApiClient', () => {
       }
 
       expect(projects).toHaveLength(1);
-      expect(projects[0]).toEqual({ id: 2, path: 'repo', pathWithNamespace: 'octocat/group/sub/repo' });
+      expect(projects[0]).toEqual({
+        id: 2,
+        path: 'repo',
+        pathWithNamespace: 'octocat/group/sub/repo',
+      });
     });
 
     it('paginates until a short page is reached', async () => {
@@ -212,9 +216,7 @@ describe('GitLabApiClient', () => {
 
   describe('buildRemoteUrl', () => {
     it('returns a clean HTTPS URL without credentials', () => {
-      expect(client.buildRemoteUrl('octocat/hello')).toBe(
-        'https://gitlab.com/octocat/hello.git',
-      );
+      expect(client.buildRemoteUrl('octocat/hello')).toBe('https://gitlab.com/octocat/hello.git');
     });
 
     it('honors a custom host', () => {

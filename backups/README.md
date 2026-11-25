@@ -362,16 +362,17 @@ npm run backup:code-gitlab-cleanup
 
 The cleanup also runs automatically as the final step of `backup:code-gitlab`.
 
-### How It Works
+### Cleanup Behavior
 
 1. Fetches all repositories from GitHub (active and archived)
 2. Fetches all projects in the configured GitLab namespace
 3. For each GitLab project:
-   - Keeps the project if a non-archived GitHub repo with the same name exists
+   - Keeps the project if a non-archived GitHub repo with the same name
+     (raw or slugified, e.g. "My Repo" -> "my-repo") exists
    - Deletes the project if the matching GitHub repo is archived
    - Deletes the project if no matching GitHub repo exists
 
-### Output
+### Cleanup Output
 
 - **Logs**: `backups/logs/gh-gl-cleanup-YYYYMMDD-HHMMSS.log`
 - **Errors**: `backups/logs/gh-gl-cleanup-errors-YYYYMMDD-HHMMSS.log`
@@ -391,6 +392,8 @@ nested folders that mirror the workspace structure.
   blocks, quotes, and other basic blocks
 - Exports each database as a Markdown file listing its entries and properties
 - Ignores toggle block wrappers (their children are exported inline)
+- Fails loudly: pages or databases that cannot be exported are logged as
+  errors and the run exits non-zero instead of writing empty exports
 - Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Notion-Export_YYYY-MM-DD.zip`
 
 ### Notion Export Limitations
@@ -543,6 +546,8 @@ and shared calendars with at least reader access — together with their events.
 - Optionally includes deleted/cancelled events
   (`GOOGLE_CALENDAR_SHOW_DELETED="true"`)
 - Writes pretty-printed JSON files to a temporary directory
+- Fails loudly: calendars whose events cannot be exported are logged as
+  errors and the run exits non-zero instead of writing empty exports
 - Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Google-Calendar-Export_YYYY-MM-DD.zip`
 
 ### Google Calendar Export Usage
@@ -581,6 +586,8 @@ Exports all task lists and tasks belonging to the authenticated user.
   (configurable via `GOOGLE_TASKS_SHOW_COMPLETED`, `GOOGLE_TASKS_SHOW_DELETED`,
   and `GOOGLE_TASKS_SHOW_HIDDEN`)
 - Writes pretty-printed JSON files to a temporary directory
+- Fails loudly: task lists whose tasks cannot be exported are logged as
+  errors and the run exits non-zero instead of writing empty exports
 - Creates a zip backup: `~/Exports/Exports_YYYY-MM-DD/Google-Tasks-Export_YYYY-MM-DD.zip`
 
 ### Google Tasks Export Usage
@@ -730,7 +737,12 @@ npm run backups
 ```
 
 The orchestrator captures each backup's output in a combined log and reports the
-status of each step. The `code-gitlab` step includes the automatic mirror cleanup.
+status of each step (`OK`, `FAILED`, or `SKIPPED`). Backups that require
+credentials you have not configured (`code-gitlab` without `GITLAB_TOKEN` /
+`GITLAB_NAMESPACE`, `notion` without `NOTION_API_TOKEN`) are skipped with a
+warning instead of failing with confusing API errors. The run exits non-zero
+when any executed backup fails. The `code-gitlab` step includes the automatic
+mirror cleanup.
 
 ---
 

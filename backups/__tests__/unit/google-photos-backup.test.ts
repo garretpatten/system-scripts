@@ -246,11 +246,7 @@ describe('parseArgs', () => {
   });
 
   it('reads Takeout URLs from GOOGLE_PHOTOS_TAKEOUT_URLS', () => {
-    const config = parseArgs(
-      [],
-      { GOOGLE_PHOTOS_TAKEOUT_URLS: `${URL_1},${URL_2}` },
-      '/home/user',
-    );
+    const config = parseArgs([], { GOOGLE_PHOTOS_TAKEOUT_URLS: `${URL_1},${URL_2}` }, '/home/user');
 
     expect(config.urls).toEqual([URL_1, URL_2]);
   });

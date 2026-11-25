@@ -190,9 +190,9 @@ describe('GoogleTasksBackup', () => {
         (m) => m.level === 'ERROR' && m.message.includes('Failed to export tasks for task list'),
       ),
     ).toBe(true);
-    expect(logger.messages.some((m) => m.message.includes('Some task lists failed to export'))).toBe(
-      true,
-    );
+    expect(
+      logger.messages.some((m) => m.message.includes('Some task lists failed to export')),
+    ).toBe(true);
     expect(process.exitCode).toBe(1);
     expect(archive.calls).toHaveLength(1);
 

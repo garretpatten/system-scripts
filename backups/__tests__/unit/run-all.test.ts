@@ -155,6 +155,60 @@ describe('BackupOrchestrator', () => {
     expect(process.exitCode).not.toBe(1);
   });
 
+  it('skips unconfigured backups instead of running them with empty credentials', async () => {
+    delete context.env.GITLAB_TOKEN;
+    delete context.env.GITLAB_NAMESPACE;
+    delete context.env.NOTION_API_TOKEN;
+
+    http.setResponse('GET', 'https://api.github.com/user', {
+      statusCode: 200,
+      body: JSON.stringify({ login: 'octocat' }),
+    });
+    http.setResponse(
+      'GET',
+      'https://api.github.com/user/repos?page=1&per_page=100&type=all&sort=updated',
+      {
+        statusCode: 200,
+        body: JSON.stringify([]),
+      },
+    );
+    http.setResponse('POST', 'https://oauth2.googleapis.com/token', {
+      statusCode: 200,
+      body: JSON.stringify({ access_token: 'google-access-token' }),
+    });
+    http.setResponse(
+      'GET',
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ items: [] }),
+      },
+    );
+    http.setResponse(
+      'GET',
+      'https://tasks.googleapis.com/tasks/v1/users/@me/lists?maxResults=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ items: [] }),
+      },
+    );
+
+    const orchestrator = new BackupOrchestrator(context);
+    await orchestrator.run({ homeDir: '/home/user', logDir: '/logs' });
+
+    const summary = logger.messages.filter((m) => m.message.includes(': SKIPPED'));
+    expect(summary).toHaveLength(2);
+    expect(summary.some((m) => m.message.includes('code-gitlab'))).toBe(true);
+    expect(summary.some((m) => m.message.includes('notion'))).toBe(true);
+    expect(
+      logger.messages.some((m) => m.message.includes('GITLAB_TOKEN and GITLAB_NAMESPACE')),
+    ).toBe(true);
+    expect(
+      logger.messages.some((m) => m.message.includes('NOTION_API_TOKEN is not configured')),
+    ).toBe(true);
+    expect(process.exitCode).toBeUndefined();
+  });
+
   it('continues with remaining backups when Chrome bookmarks are missing', async () => {
     fs.files.delete('/home/user/.config/google-chrome/Default/Bookmarks');
     fs.existsPaths.delete('/home/user/.config/google-chrome/Default/Bookmarks');

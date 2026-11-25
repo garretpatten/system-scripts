@@ -30,7 +30,6 @@ Session Types:
 
 Options:
     -h, --help     Show this help message
-    -v, --verbose  Enable verbose output
 
 Examples:
     $0 main        # Start/attach to main session
@@ -102,7 +101,6 @@ handle_session() {
 
 # Main function
 main() {
-# verbose=false
     local session_type=""
 
     # Parse arguments
@@ -111,10 +109,6 @@ main() {
             -h|--help)
                 show_usage
                 exit 0
-                ;;
-            -v|--verbose)
-                # verbose
-                shift
                 ;;
             main|dev|list|kill|killall|info)
                 session_type="$1"

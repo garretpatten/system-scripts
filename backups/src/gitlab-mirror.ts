@@ -1,11 +1,6 @@
-import { loadEnvFile } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ProcessGitRepository } from './git.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
-import { ConsoleLogger, FileLogger } from './logger.js';
+import { createBackupContext } from './backup-context.js';
+import { checkDependencies } from './dependencies.js';
+import { FileLogger } from './logger.js';
 import { GitHubApiClient, githubTokenAuth } from './github.js';
 import { GitLabApiClient, GitLabProtectedBranch } from './gitlab.js';
 import { GitLabMirrorCleanup, GitLabMirrorCleanupConfig } from './gitlab-mirror-cleanup.js';
@@ -49,10 +44,18 @@ export class GitLabMirror {
     logger.info(`Local mirrors dir: ${mirrorsDir}`);
     logger.info(`Log: ${logFile}`);
 
-    await this.checkDependencies(logger);
+    await checkDependencies(this.context.runner, ['git', 'curl'], logger);
 
-    const username = await this.resolveUsername(config, logger);
-    const repos = await this.fetchRepos(username, config.githubToken, config.useSsh, logger);
+    const githubClient = new GitHubApiClient(this.context.http, logger);
+    const username = await githubClient.resolveUsername(config.githubUsername, config.githubToken);
+    const allRepos = await githubClient.collectRepos(username, config.githubToken, {
+      includeArchived: false,
+    });
+    const repos = allRepos.map((repo) => ({
+      fullName: repo.fullName,
+      name: repo.name,
+      cloneUrl: config.useSsh ? repo.sshUrl : repo.cloneUrl,
+    }));
 
     let namespaceId: number | undefined;
     if (config.autoCreateProjects) {
@@ -87,63 +90,6 @@ export class GitLabMirror {
       logger.warn(`Some repos failed. See: ${errorLog}`);
       process.exitCode = 1;
     }
-  }
-
-  private async checkDependencies(logger: Logger): Promise<void> {
-    logger.info('Checking dependencies...');
-    const deps = ['git', 'curl'];
-    const missing: string[] = [];
-
-    for (const dep of deps) {
-      const result = await this.context.runner.run(dep, ['--version']);
-      if (result.exitCode !== 0) {
-        missing.push(dep);
-      }
-    }
-
-    if (missing.length > 0) {
-      logger.fatal(`Missing dependencies: ${missing.join(', ')}`);
-    }
-
-    logger.success('All dependencies found');
-  }
-
-  private async resolveUsername(config: GitLabMirrorConfig, logger: Logger): Promise<string> {
-    if (config.githubUsername) {
-      logger.success(`Using GitHub username from env: ${config.githubUsername}`);
-      return config.githubUsername;
-    }
-
-    if (config.githubToken) {
-      logger.info('Detecting GitHub username via API (/user)...');
-      const client = new GitHubApiClient(this.context.http, logger);
-      const user = await client.getAuthenticatedUser(config.githubToken);
-      logger.success(`Detected GitHub username: ${user.login}`);
-      return user.login;
-    }
-
-    logger.fatal('GitHub username is required');
-  }
-
-  private async fetchRepos(
-    username: string,
-    token: string | undefined,
-    useSsh: boolean,
-    logger: Logger,
-  ): Promise<Array<{ fullName: string; name: string; cloneUrl: string }>> {
-    logger.info(`Fetching GitHub repos (excluding archived) for: ${username}`);
-    const client = new GitHubApiClient(this.context.http, logger);
-    const repos: Array<{ fullName: string; name: string; cloneUrl: string }> = [];
-
-    for await (const repo of client.listRepos(username, token)) {
-      repos.push({
-        fullName: repo.fullName,
-        name: repo.name,
-        cloneUrl: useSsh ? repo.sshUrl : repo.cloneUrl,
-      });
-    }
-
-    return repos;
   }
 
   private async processRepo(
@@ -213,7 +159,13 @@ export class GitLabMirror {
         if (!isProtectedBranchForcePushError(String(error))) {
           throw error;
         }
-        const healed = await this.pushWithForcePushAllowed(gitlab, glPath, localPath, glUrl, glAuth);
+        const healed = await this.pushWithForcePushAllowed(
+          gitlab,
+          glPath,
+          localPath,
+          glUrl,
+          glAuth,
+        );
         if (!healed) {
           throw error;
         }
@@ -288,19 +240,7 @@ function isProtectedBranchForcePushError(message: string): boolean {
 }
 
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const git = new ProcessGitRepository(runner);
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context } = await createBackupContext();
 
   const gitlabToken = process.env.GITLAB_TOKEN;
   const gitlabNamespace = process.env.GITLAB_NAMESPACE;
@@ -328,20 +268,7 @@ async function main(): Promise<void> {
       process.env.BACKUP_ROOT || path.join(process.env.HOME || '.', 'GitHub-GitLab-Backup'),
   };
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git,
-    sync: { syncRepo: async () => ({ status: 'failed', output: 'unused' }) },
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const mirror = new GitLabMirror(context);
-  await mirror.run(config);
+  await new GitLabMirror(context).run(config);
 
   const cleanupConfig: GitLabMirrorCleanupConfig = {
     githubToken: config.githubToken,

@@ -64,56 +64,15 @@ error_exit() {
     exit 1
 }
 
-# Source shared helpers from sync-all.sh (get_default_branch, sync_repo, etc.).
-# This is done here so clone-all's log functions are defined first and are not
-# overwritten by sync-all's no-op sourced versions.
+# Source shared helpers from sync-all.sh (get_default_branch, sync_repo,
+# resolve_projects_dir, etc.). This is done here so clone-all's log functions
+# are defined first and are not overwritten by sync-all's no-op sourced
+# versions.
 SYNC_SCRIPT="$SCRIPT_DIR/sync-all.sh"
 if [[ -f "$SYNC_SCRIPT" ]]; then
     # shellcheck disable=SC1090,SC1091
     source "$SYNC_SCRIPT"
 fi
-
-# Resolves the directory where repositories live.
-# Priority:
-#   1. Positional argument passed to the script
-#   2. PROJECTS_DIR environment variable
-#   3. $HOME/Projects if it already exists
-#   4. Prompt the user for a path relative to $HOME
-resolve_projects_dir() {
-    local explicit_dir="${1:-}"
-
-    if [ -n "$explicit_dir" ]; then
-        echo "$explicit_dir"
-        return 0
-    fi
-
-    if [ -n "${PROJECTS_DIR:-}" ]; then
-        echo "$PROJECTS_DIR"
-        return 0
-    fi
-
-    local default_dir="$HOME/Projects"
-    if [ -d "$default_dir" ]; then
-        echo "$default_dir"
-        return 0
-    fi
-
-    local chosen_dir=""
-    while [ -z "$chosen_dir" ]; do
-        echo "Projects directory not found at $default_dir." >&2
-        read -r -p "Enter directory path relative to \$HOME (or absolute path): " chosen_dir
-        if [ -z "$chosen_dir" ]; then
-            echo "A directory path is required." >&2
-        fi
-    done
-
-    chosen_dir="${chosen_dir/#\~/$HOME}"
-    if [[ ! "$chosen_dir" = /* ]]; then
-        chosen_dir="$HOME/$chosen_dir"
-    fi
-
-    echo "$chosen_dir"
-}
 
 check_dependencies() {
     log_info "Checking dependencies..."

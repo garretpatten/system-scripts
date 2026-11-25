@@ -1,17 +1,13 @@
-import { loadEnvFile } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
+import { createBackupContext } from './backup-context.js';
+import { checkDependencies } from './dependencies.js';
 import { storeArchive } from './export-dir.js';
-import { ConsoleLogger, FileLogger } from './logger.js';
+import { FileLogger } from './logger.js';
 import { NotionApiClient } from './notion.js';
 import { NotionExporter } from './notion-exporter.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { formatBackupDate, formatRunTimestamp } from './utils.js';
+import { formatBackupDate, formatRunTimestamp, sanitizeFilename } from './utils.js';
 
 export interface NotionBackupConfig {
   apiToken: string;
@@ -45,7 +41,7 @@ export class NotionBackup {
     logger.info(`Export directory: ${exportDir}`);
     logger.info(`Log: ${logFile}`);
 
-    await this.checkDependencies(logger);
+    await checkDependencies(this.context.runner, ['curl', 'zip'], logger);
 
     const notionClient = new NotionApiClient(
       this.context.http,
@@ -76,7 +72,7 @@ export class NotionBackup {
       const targetDir = path.join(exportDir, parentPath);
       await this.context.fs.mkdir(targetDir, { recursive: true });
 
-      const safeTitle = sanitizeForFilename(object.title);
+      const safeTitle = sanitizeFilename(object.title);
       const outputFile = await exporter.uniqueFilePath(targetDir, safeTitle, '.md');
 
       if (object.object === 'page') {
@@ -124,25 +120,6 @@ export class NotionBackup {
     }
   }
 
-  private async checkDependencies(logger: Logger): Promise<void> {
-    logger.info('Checking dependencies...');
-    const deps = ['curl', 'zip'];
-    const missing: string[] = [];
-
-    for (const dep of deps) {
-      const result = await this.context.runner.run(dep, ['--version']);
-      if (result.exitCode !== 0) {
-        missing.push(dep);
-      }
-    }
-
-    if (missing.length > 0) {
-      logger.fatal(`Missing dependencies: ${missing.join(', ')}`);
-    }
-
-    logger.success('All dependencies found');
-  }
-
   private async createBackup(exportDirName: string, cwd: string, logger: Logger): Promise<void> {
     logger.info('Creating Notion export zip...');
     const outputFileName = `${exportDirName}.zip`;
@@ -154,27 +131,8 @@ export class NotionBackup {
   }
 }
 
-function sanitizeForFilename(name: string): string {
-  const withoutSlashes = name.replace(/[/\\]/g, '-').replace(/[\r\n]+/g, ' ');
-  // eslint-disable-next-line no-control-regex
-  const withoutControlChars = withoutSlashes.replace(/[\x00-\x1f]/g, '');
-  const trimmed = withoutControlChars.trim();
-  return trimmed.length > 0 ? trimmed : 'Untitled';
-}
-
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context, projectRoot } = await createBackupContext();
 
   const apiToken = process.env.NOTION_API_TOKEN;
   if (!apiToken) {
@@ -188,26 +146,7 @@ async function main(): Promise<void> {
     rateLimitDelayMs: parseFloat(process.env.NOTION_RATE_LIMIT_DELAY || '0.35') * 1000,
   };
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git: {
-      clone: async () => undefined,
-      remoteUpdate: async () => undefined,
-      pushMirror: async () => undefined,
-      checkout: async () => undefined,
-      getDefaultBranch: async () => null,
-    },
-    sync: { syncRepo: async () => ({ status: 'failed', output: 'unused' }) },
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const backup = new NotionBackup(context);
-  await backup.run(config);
+  await new NotionBackup(context).run(config);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

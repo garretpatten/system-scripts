@@ -64,4 +64,6 @@ Each run writes timestamped logs under `media-scripts/logs/`:
   directory after flattening completes.
 - Video files (`.mp4`, `.mov`, etc.) are kept; only `.json` metadata is
   removed by default.
-- Run with `--dry-run` first when pointing at a new takeout export.
+- Run with `--dry-run` first when pointing at a new takeout export; a clean
+  preview exits 0, while a real run exits non-zero if nested paths or
+  `.json` files remain afterward.

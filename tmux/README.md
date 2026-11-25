@@ -84,21 +84,16 @@ npm run tmux:setup-dev
 
 ### Main Session (`main`)
 
-- **home** - Welcome screen with quick commands
-- **docs** - Documentation workspace
-- **projects** - Projects directory
-- **monitor** - System monitoring (htop)
-- **tools** - Development tools workspace
+- **btop** - System monitor
+- **home** - Welcome screen with quick commands (~ + neo)
+- **projects** - Projects directory (~/Projects + lls)
 
 ### Development Session (`dev`)
 
-- **dev-home** - Development welcome screen
-- **project** - Active project with split panes (left: code, right: logs)
-- **git** - Git/version control workspace
-- **docker** - Docker containers management
-- **test** - Testing and CI workspace
-- **db** - Database and backend tools
-- **logs** - Logs and monitoring
+- **btop** - System monitor
+- **home** - Welcome screen with quick commands (~ + neo)
+- **projects** - Projects directory (~/Projects + lls)
+- **git** - Git/version control workspace (~/Projects)
 
 ## Configuration
 
@@ -162,14 +157,6 @@ The scripts are designed to work with:
 1. **Permission denied**: Make sure scripts are executable (`chmod +x *.sh`)
 2. **Tmux not found**: Install tmux (`brew install tmux` on macOS)
 3. **Session already exists**: Use `./session-manager.sh list` to see active sessions
-
-### Debug Mode
-
-Enable verbose output:
-
-```bash
-./session-manager.sh --verbose main
-```
 
 ## Contributing
 

@@ -67,9 +67,7 @@ export class NotionApiClient implements NotionClient {
       // masks a failed query reads as a successful backup.
       if (response.statusCode >= 400) {
         const detail = body.message || body.status || `HTTP ${response.statusCode}`;
-        throw new Error(
-          `Notion API error on /databases/${databaseId}/query: ${String(detail)}`,
-        );
+        throw new Error(`Notion API error on /databases/${databaseId}/query: ${String(detail)}`);
       }
 
       const results = Array.isArray(body.results) ? body.results : [];
@@ -90,12 +88,28 @@ export class NotionApiClient implements NotionClient {
       path += `?start_cursor=${encodeURIComponent(startCursor)}`;
     }
     const response = await this.apiGet(path);
-    return this.parseJson(response.body);
+    const body = this.parseJson(response.body);
+
+    // Throw instead of silently returning an error body: a page export
+    // built from it would read as a successful backup.
+    if (response.statusCode >= 400) {
+      const detail = body.message || body.status || `HTTP ${response.statusCode}`;
+      throw new Error(`Notion API error on /blocks/${blockId}/children: ${String(detail)}`);
+    }
+
+    return body;
   }
 
   async getDatabase(databaseId: string): Promise<Record<string, unknown>> {
     const response = await this.apiGet(`/databases/${databaseId}`);
-    return this.parseJson(response.body);
+    const body = this.parseJson(response.body);
+
+    if (response.statusCode >= 400) {
+      const detail = body.message || body.status || `HTTP ${response.statusCode}`;
+      throw new Error(`Notion API error on /databases/${databaseId}: ${String(detail)}`);
+    }
+
+    return body;
   }
 
   private async apiGet(path: string) {

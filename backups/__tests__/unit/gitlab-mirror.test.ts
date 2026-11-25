@@ -28,7 +28,11 @@ class StubGitRepository implements GitRepository {
     this.updates.push(path);
   }
 
-  async pushMirror(path: string, remoteUrl: string, options?: { auth?: GitRemoteAuth }): Promise<void> {
+  async pushMirror(
+    path: string,
+    remoteUrl: string,
+    options?: { auth?: GitRemoteAuth },
+  ): Promise<void> {
     this.pushes.push({ path, remoteUrl, auth: options?.auth });
     if (this.throwOnUrl === remoteUrl && this.throwAttempts++ === 0) {
       this.pushes.pop();

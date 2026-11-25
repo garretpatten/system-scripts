@@ -15,17 +15,18 @@ system-scripts/
 ├── backups/              # Repository, task, and workspace backups
 │   ├── src/              # TypeScript backup implementations
 │   ├── __tests__/        # Vitest unit tests
-  │   ├── code/             # GitHub repository backup wrappers
-  │   │   ├── code-backup-local.sh
-  │   │   ├── code-backup-gitlab.sh
-  │   │   └── code-backup-gitlab-cleanup.sh
-
-│   ├── notion/           # Notion workspace Markdown export wrapper
-│   ├── obsidian-notes/   # Obsidian notes backup wrapper
-│   ├── google-calendar/    # Google Calendar export wrapper
-│   ├── google-tasks/       # Google Tasks export wrapper
-│   ├── google-photos/      # Google Photos Takeout backup (spec + wrapper)
-│   └── run-all.sh          # Run all backups
+│   ├── code/             # GitHub repository backup wrappers
+│   │   ├── code-backup-local.sh
+│   │   ├── code-backup-gitlab.sh
+│   │   └── code-backup-gitlab-cleanup.sh
+│   ├── brave-bookmarks/   # Brave bookmarks export wrapper
+│   ├── chrome-bookmarks/  # Chrome bookmarks export wrapper
+│   ├── notion/            # Notion workspace Markdown export wrapper
+│   ├── obsidian-notes/    # Obsidian notes backup wrapper
+│   ├── google-calendar/   # Google Calendar export wrapper
+│   ├── google-tasks/      # Google Tasks export wrapper
+│   ├── google-photos/     # Google Photos Takeout backup (spec + wrapper)
+│   └── run-all.sh         # Run all backups
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
 ├── github/               # GitHub security and quality alert reporting
@@ -244,21 +245,16 @@ npm test
 
 ### Main Session
 
-- **home** - Welcome screen with quick commands
-- **docs** - Documentation workspace
-- **projects** - Projects directory
-- **monitor** - System monitoring (htop)
-- **tools** - Development tools workspace
+- **btop** - System monitoring
+- **home** - Welcome screen with quick commands (~ + neo)
+- **projects** - Projects directory (~/Projects + lls)
 
 ### Development Session
 
-- **dev-home** - Development welcome screen
-- **project** - Active project with split panes (code + logs)
-- **git** - Git/version control workspace
-- **docker** - Docker containers management
-- **test** - Testing and CI workspace
-- **db** - Database and backend tools
-- **logs** - Logs and monitoring
+- **btop** - System monitoring
+- **home** - Welcome screen with quick commands (~ + neo)
+- **projects** - Projects directory (~/Projects + lls)
+- **git** - Git/version control workspace (~/Projects)
 
 ## 🛠️ Dependencies
 

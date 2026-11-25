@@ -1,11 +1,4 @@
-import { loadEnvFile } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ProcessGitRepository, ProcessSyncClient } from './git.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
-import { ConsoleLogger } from './logger.js';
+import { createBackupContext } from './backup-context.js';
 import { ChromiumBookmarksBackup, ChromiumBookmarksBackupConfig } from './chromium-bookmarks.js';
 import { BackupContext } from './types.js';
 import path from 'node:path';
@@ -45,40 +38,14 @@ export class BraveBookmarksBackup {
 }
 
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const git = new ProcessGitRepository(runner);
-  const sync = new ProcessSyncClient(runner);
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context, projectRoot } = await createBackupContext();
 
   const config: BraveBookmarksBackupConfig = {
     homeDir: process.env.HOME || process.env.USERPROFILE || '.',
     logDir: path.join(projectRoot, 'backups', 'logs'),
   };
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git,
-    sync,
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const backup = new BraveBookmarksBackup(context);
-  await backup.run(config);
+  await new BraveBookmarksBackup(context).run(config);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

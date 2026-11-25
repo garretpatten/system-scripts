@@ -71,7 +71,11 @@ export interface GitRemoteAuth {
 }
 
 export interface GitRepository {
-  clone(url: string, path: string, options?: { mirror?: boolean; auth?: GitRemoteAuth }): Promise<void>;
+  clone(
+    url: string,
+    path: string,
+    options?: { mirror?: boolean; auth?: GitRemoteAuth },
+  ): Promise<void>;
   remoteUpdate(path: string): Promise<void>;
   pushMirror(path: string, remoteUrl: string, options?: { auth?: GitRemoteAuth }): Promise<void>;
   checkout(path: string, branch: string): Promise<void>;

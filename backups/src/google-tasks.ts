@@ -48,9 +48,7 @@ export class GoogleTasksApiClient implements GoogleTasksClient {
       // The cached access token was rejected; drop it so the next request
       // re-authenticates, then retry the collection once.
       this.auth.invalidate?.();
-      this.logger.warn(
-        `Access token rejected for ${endpoint}; refreshing token and retrying once`,
-      );
+      this.logger.warn(`Access token rejected for ${endpoint}; refreshing token and retrying once`);
       return this.fetchPages(endpoint, params);
     }
   }

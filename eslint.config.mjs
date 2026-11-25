@@ -4,7 +4,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'backups/dist/**', 'jest.config.js'],
+    ignores: ['node_modules/**', 'backups/dist/**', 'coverage/**'],
   },
   js.configs.recommended,
   tseslint.configs.recommended,
