@@ -56,7 +56,7 @@ log_error() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     log "ERROR" "${RED}$*${NC}"
-    echo -e "${timestamp} [ERROR] $*" >> "$ERROR_LOG"
+    echo -e "${timestamp} [ERROR] $*" >>"$ERROR_LOG"
 }
 
 error_exit() {
@@ -64,71 +64,30 @@ error_exit() {
     exit 1
 }
 
-# Source shared helpers from sync-all.sh (get_default_branch, sync_repo, etc.).
-# This is done here so clone-all's log functions are defined first and are not
-# overwritten by sync-all's no-op sourced versions.
+# Source shared helpers from sync-all.sh (get_default_branch, sync_repo,
+# resolve_projects_dir, etc.). This is done here so clone-all's log functions
+# are defined first and are not overwritten by sync-all's no-op sourced
+# versions.
 SYNC_SCRIPT="$SCRIPT_DIR/sync-all.sh"
 if [[ -f "$SYNC_SCRIPT" ]]; then
     # shellcheck disable=SC1090,SC1091
     source "$SYNC_SCRIPT"
 fi
 
-# Resolves the directory where repositories live.
-# Priority:
-#   1. Positional argument passed to the script
-#   2. PROJECTS_DIR environment variable
-#   3. $HOME/Projects if it already exists
-#   4. Prompt the user for a path relative to $HOME
-resolve_projects_dir() {
-    local explicit_dir="${1:-}"
-
-    if [ -n "$explicit_dir" ]; then
-        echo "$explicit_dir"
-        return 0
-    fi
-
-    if [ -n "${PROJECTS_DIR:-}" ]; then
-        echo "$PROJECTS_DIR"
-        return 0
-    fi
-
-    local default_dir="$HOME/Projects"
-    if [ -d "$default_dir" ]; then
-        echo "$default_dir"
-        return 0
-    fi
-
-    local chosen_dir=""
-    while [ -z "$chosen_dir" ]; do
-        echo "Projects directory not found at $default_dir." >&2
-        read -r -p "Enter directory path relative to \$HOME (or absolute path): " chosen_dir
-        if [ -z "$chosen_dir" ]; then
-            echo "A directory path is required." >&2
-        fi
-    done
-
-    chosen_dir="${chosen_dir/#\~/$HOME}"
-    if [[ ! "$chosen_dir" = /* ]]; then
-        chosen_dir="$HOME/$chosen_dir"
-    fi
-
-    echo "$chosen_dir"
-}
-
 check_dependencies() {
     log_info "Checking dependencies..."
 
     local missing_deps=()
 
-    if ! command -v git &> /dev/null; then
+    if ! command -v git &>/dev/null; then
         missing_deps+=("git")
     fi
 
-    if ! command -v curl &> /dev/null; then
+    if ! command -v curl &>/dev/null; then
         missing_deps+=("curl")
     fi
 
-    if ! command -v jq &> /dev/null; then
+    if ! command -v jq &>/dev/null; then
         missing_deps+=("jq")
     fi
 
@@ -147,8 +106,9 @@ get_github_username() {
 
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         log_info "Detecting GitHub username via API (/user)..."
-        local resp
-        resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user 2>>"$ERROR_LOG" || true)"
+        local resp=""
+        resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user 2>>"$ERROR_LOG")" ||
+            log_warning "GitHub API request failed; will prompt for username."
         local login
         login="$(echo "$resp" | jq -r '.login // empty' 2>>"$ERROR_LOG" || true)"
         if [ -n "$login" ] && [ "$login" != "null" ]; then
@@ -193,16 +153,22 @@ get_github_repos() {
 
         if [ -n "${GITHUB_TOKEN:-}" ]; then
             url="https://api.github.com/user/repos?page=$page&per_page=$per_page&type=all&sort=updated"
-            resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" "$url" 2>>"$ERROR_LOG" || true)"
+            if ! resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" "$url" 2>>"$ERROR_LOG")"; then
+                error_exit "GitHub API request failed (page $page). Check your network and GITHUB_TOKEN."
+            fi
         else
             url="https://api.github.com/users/$GITHUB_USERNAME/repos?page=$page&per_page=$per_page&type=all&sort=updated"
-            resp="$(curl -sS "$url" 2>>"$ERROR_LOG" || true)"
+            if ! resp="$(curl -sS "$url" 2>>"$ERROR_LOG")"; then
+                error_exit "GitHub API request failed (page $page). Check your network connection."
+            fi
         fi
 
-        if echo "$resp" | jq -e '.message? // empty' >/dev/null 2>&1; then
+        # Fail loudly on API errors and malformed responses instead of
+        # silently treating them as an empty repository list.
+        if ! echo "$resp" | jq -e 'type == "array"' >/dev/null 2>&1; then
             local msg
-            msg="$(echo "$resp" | jq -r '.message' 2>>"$ERROR_LOG" || echo "unknown")"
-            error_exit "GitHub API error: $msg"
+            msg="$(echo "$resp" | jq -r '.message // empty' 2>>"$ERROR_LOG" || echo "unknown")"
+            error_exit "GitHub API error: ${msg:-invalid response on page $page}"
         fi
 
         local jq_clone_field
@@ -212,15 +178,14 @@ get_github_repos() {
             jq_clone_field='.clone_url'
         fi
 
-        local lines
-        lines="$(echo "$resp" | jq -r --argjson _ 0 ".[] | select(.archived == false) | ${jq_clone_field}" 2>>"$ERROR_LOG" || true)"
+        echo "$resp" | jq -r ".[] | select(.archived == false) | ${jq_clone_field}" 2>>"$ERROR_LOG"
 
-        [ -n "$lines" ] || break
-
-        local count
-        count="$(echo "$lines" | wc -l | tr -d ' ')"
-        echo "$lines"
-        if [ "$count" -lt "$per_page" ]; then
+        # Paginate on the raw page size: archived repos are filtered out
+        # above, so a page can yield no clone URLs and still have more
+        # pages after it.
+        local page_size
+        page_size="$(echo "$resp" | jq 'length')"
+        if [ "$page_size" -lt "$per_page" ]; then
             break
         fi
 
@@ -235,12 +200,21 @@ clone_repository() {
     local original_dir
     original_dir=$(pwd)
 
-    local effective_clone_url="$repo_url"
+    # Credentials go through git's environment config (http.extraHeader)
+    # instead of the clone URL, so the token is never written to .git/config
+    # and never appears in process listings or error output (git 2.31+).
+    local -a git_env=(GIT_TERMINAL_PROMPT=0)
     if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
-        effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@}"
+        local basic_auth
+        basic_auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '[:space:]')"
+        git_env+=(
+            GIT_CONFIG_COUNT=1
+            GIT_CONFIG_KEY_0=http.extraHeader
+            GIT_CONFIG_VALUE_0="Authorization: Basic ${basic_auth}"
+        )
     fi
 
-    if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
+    if env "${git_env[@]}" git clone "$repo_url" "$repo_path" 2>>"$ERROR_LOG"; then
         log_success "Successfully cloned: $repo_name"
 
         if cd "$repo_path" 2>/dev/null; then
@@ -278,6 +252,12 @@ main() {
     check_dependencies
     get_github_username
 
+    # Capture the listing in the main shell: get_github_repos runs to
+    # completion (or exits fatally on API errors) before cloning starts,
+    # instead of dying quietly inside a process substitution.
+    local repos=""
+    repos="$(get_github_repos)" || error_exit "Failed to list GitHub repositories"
+
     local total=0
     local cloned=0
     local skipped=0
@@ -303,7 +283,7 @@ main() {
         else
             failed=$((failed + 1))
         fi
-    done < <(get_github_repos)
+    done <<<"$repos"
 
     if [ "$total" -eq 0 ]; then
         log_warning "No repositories found"

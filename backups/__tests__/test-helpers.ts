@@ -6,6 +6,7 @@ import {
   CommandRunner,
   DateProvider,
   FileSystem,
+  GitRemoteAuth,
   GitRepository,
   HttpClient,
   HttpResponse,
@@ -233,22 +234,30 @@ export class MockCommandRunner implements CommandRunner {
 }
 
 export class MockGitRepository implements GitRepository {
-  clones: Array<{ url: string; path: string; mirror?: boolean }> = [];
+  clones: Array<{ url: string; path: string; mirror?: boolean; auth?: GitRemoteAuth }> = [];
   updates: string[] = [];
-  pushes: Array<{ path: string; remoteUrl: string }> = [];
+  pushes: Array<{ path: string; remoteUrl: string; auth?: GitRemoteAuth }> = [];
   checkouts: Array<{ path: string; branch: string }> = [];
   defaultBranches = new Map<string, string | null>();
 
-  async clone(url: string, path: string, options?: { mirror?: boolean }): Promise<void> {
-    this.clones.push({ url, path, mirror: options?.mirror });
+  async clone(
+    url: string,
+    path: string,
+    options?: { mirror?: boolean; auth?: GitRemoteAuth },
+  ): Promise<void> {
+    this.clones.push({ url, path, mirror: options?.mirror, auth: options?.auth });
   }
 
   async remoteUpdate(path: string): Promise<void> {
     this.updates.push(path);
   }
 
-  async pushMirror(path: string, remoteUrl: string): Promise<void> {
-    this.pushes.push({ path, remoteUrl });
+  async pushMirror(
+    path: string,
+    remoteUrl: string,
+    options?: { auth?: GitRemoteAuth },
+  ): Promise<void> {
+    this.pushes.push({ path, remoteUrl, auth: options?.auth });
   }
 
   async checkout(path: string, branch: string): Promise<void> {

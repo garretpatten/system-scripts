@@ -140,6 +140,20 @@ describe('GitLabMirrorCleanup', () => {
     ).toBe(true);
   });
 
+  it('keeps mirrors whose GitLab path is the slug of the GitHub name', async () => {
+    mockGithubUser();
+    mockGithubRepos([{ full_name: 'octocat/My Repo', name: 'My Repo', archived: false }]);
+    mockGitlabNamespace();
+    mockGitlabProjects([{ id: 7, path: 'my-repo', path_with_namespace: 'octocat/my-repo' }]);
+
+    await new GitLabMirrorCleanup(context).run(baseConfig);
+
+    expect(logger.messages.some((m) => m.message.includes('Keeping mirror: octocat/my-repo'))).toBe(
+      true,
+    );
+    expect(http.requests.filter((r) => r.method === 'DELETE')).toHaveLength(0);
+  });
+
   it('deletes mirrors with no matching GitHub repo', async () => {
     mockGithubUser();
     mockGithubRepos([{ full_name: 'octocat/hello', name: 'hello', archived: false }]);

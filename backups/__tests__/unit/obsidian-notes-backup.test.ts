@@ -1,6 +1,6 @@
 import { ObsidianNotesBackup, ObsidianNotesBackupConfig } from '../../src/obsidian-notes-backup.js';
 import { resetExternalDriveMountCache } from '../../src/export-dir.js';
-import { BackupContext } from '../../src/types.js';
+import { BackupContext, FileSystem } from '../../src/types.js';
 import {
   MockArchive,
   MockCommandRunner,
@@ -9,6 +9,56 @@ import {
   MockHttpClient,
   MockLogger,
 } from '../test-helpers.js';
+
+/** Delegates to another FileSystem while recording copy/read/write calls. */
+class RecordingFileSystem implements FileSystem {
+  readonly calls: string[] = [];
+
+  constructor(private readonly inner: FileSystem) {}
+
+  async mkdir(path: string, options?: { recursive?: boolean }): Promise<void> {
+    return this.inner.mkdir(path, options);
+  }
+
+  async rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
+    return this.inner.rm(path, options);
+  }
+
+  async copyFile(source: string, destination: string): Promise<void> {
+    this.calls.push(`copyFile ${source} -> ${destination}`);
+    return this.inner.copyFile(source, destination);
+  }
+
+  async rename(source: string, destination: string): Promise<void> {
+    return this.inner.rename(source, destination);
+  }
+
+  async writeFile(path: string, data: string): Promise<void> {
+    this.calls.push(`writeFile ${path}`);
+    return this.inner.writeFile(path, data);
+  }
+
+  async appendFile(path: string, data: string): Promise<void> {
+    return this.inner.appendFile(path, data);
+  }
+
+  async readFile(path: string): Promise<string> {
+    this.calls.push(`readFile ${path}`);
+    return this.inner.readFile(path);
+  }
+
+  async exists(path: string): Promise<boolean> {
+    return this.inner.exists(path);
+  }
+
+  async readdir(path: string): Promise<string[]> {
+    return this.inner.readdir(path);
+  }
+
+  async stat(path: string): Promise<{ isDirectory(): boolean; isFile(): boolean }> {
+    return this.inner.stat(path);
+  }
+}
 
 function setupSourceFs(fs: MockFileSystem, homeDir: string): string {
   const sourceDir = `${homeDir}/Notes`;
@@ -127,6 +177,30 @@ describe('ObsidianNotesBackup', () => {
     expect(logger.messages.some((m) => m.level === 'WARN' && m.message.includes('T7 Shield'))).toBe(
       true,
     );
+  });
+
+  it('copies note files byte-for-byte instead of re-encoding text', async () => {
+    const homeDir = '/home/user';
+    setupSourceFs(fs, homeDir);
+
+    const recordingFs = new RecordingFileSystem(fs);
+    const recordingContext: BackupContext = { ...context, fs: recordingFs };
+
+    await new ObsidianNotesBackup(recordingContext).run({
+      homeDir,
+      logDir: '/logs',
+    });
+
+    expect(recordingFs.calls).toContain(
+      'copyFile /home/user/Notes/Daily Note.md -> /home/user/Obsidian-Notes_2024-06-15/Daily Note.md',
+    );
+    expect(recordingFs.calls).toContain(
+      'copyFile /home/user/Notes/Projects/Ideas.md -> /home/user/Obsidian-Notes_2024-06-15/Projects/Ideas.md',
+    );
+    expect(recordingFs.calls.filter((call) => call.startsWith('readFile '))).toHaveLength(0);
+    expect(
+      recordingFs.calls.filter((call) => call.startsWith('writeFile /home/user/Obsidian-Notes_')),
+    ).toHaveLength(0);
   });
 
   it('exits gracefully when the source directory does not exist', async () => {

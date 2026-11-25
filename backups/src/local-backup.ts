@@ -1,13 +1,8 @@
-import { loadEnvFile } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ProcessGitRepository, ProcessSyncClient } from './git.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
+import { createBackupContext } from './backup-context.js';
+import { checkDependencies } from './dependencies.js';
 import { storeArchive } from './export-dir.js';
-import { ConsoleLogger, FileLogger } from './logger.js';
-import { GitHubApiClient } from './github.js';
+import { FileLogger } from './logger.js';
+import { GitHubApiClient, githubTokenAuth } from './github.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,10 +37,17 @@ export class LocalBackup {
     logger.info(`Projects directory: ${backupDir}`);
     logger.info(`Log file: ${logFile}`);
 
-    await this.checkDependencies(logger);
+    await checkDependencies(this.context.runner, ['git', 'curl', 'zip'], logger);
 
-    const username = await this.resolveUsername(config, logger);
-    const repos = await this.fetchRepos(username, config.githubToken, config.useSsh, logger);
+    const githubClient = new GitHubApiClient(this.context.http, logger);
+    const username = await githubClient.resolveUsername(config.githubUsername, config.githubToken);
+    const allRepos = await githubClient.collectRepos(username, config.githubToken, {
+      includeArchived: false,
+    });
+    const repos = allRepos.map((repo) => ({
+      name: repo.name,
+      cloneUrl: config.useSsh ? repo.sshUrl : repo.cloneUrl,
+    }));
 
     if (repos.length === 0) {
       logger.warn('No repositories found');
@@ -86,62 +88,6 @@ export class LocalBackup {
       logger.warn(`Some repositories failed to process. Check error log: ${errorLog}`);
       process.exitCode = 1;
     }
-  }
-
-  private async checkDependencies(logger: Logger): Promise<void> {
-    logger.info('Checking dependencies...');
-    const deps = ['git', 'curl', 'zip'];
-    const missing: string[] = [];
-
-    for (const dep of deps) {
-      const result = await this.context.runner.run(dep, ['--version']);
-      if (result.exitCode !== 0) {
-        missing.push(dep);
-      }
-    }
-
-    if (missing.length > 0) {
-      logger.fatal(`Missing required dependencies: ${missing.join(', ')}`);
-    }
-
-    logger.success('All dependencies found');
-  }
-
-  private async resolveUsername(config: LocalBackupConfig, logger: Logger): Promise<string> {
-    if (config.githubUsername) {
-      logger.success(`Using GitHub username from env: ${config.githubUsername}`);
-      return config.githubUsername;
-    }
-
-    if (config.githubToken) {
-      logger.info('Detecting GitHub username via API (/user)...');
-      const client = new GitHubApiClient(this.context.http, logger);
-      const user = await client.getAuthenticatedUser(config.githubToken);
-      logger.success(`Detected GitHub username: ${user.login}`);
-      return user.login;
-    }
-
-    logger.fatal('GitHub username is required');
-  }
-
-  private async fetchRepos(
-    username: string,
-    token: string | undefined,
-    useSsh: boolean,
-    logger: Logger,
-  ): Promise<Array<{ name: string; cloneUrl: string }>> {
-    logger.info(`Fetching GitHub repos (excluding archived) for: ${username}`);
-    const client = new GitHubApiClient(this.context.http, logger);
-    const repos: Array<{ name: string; cloneUrl: string }> = [];
-
-    for await (const repo of client.listRepos(username, token)) {
-      repos.push({
-        name: repo.name,
-        cloneUrl: useSsh ? repo.sshUrl : repo.cloneUrl,
-      });
-    }
-
-    return repos;
   }
 
   private async processRepository(
@@ -200,13 +146,11 @@ export class LocalBackup {
     config: LocalBackupConfig,
     logger: Logger,
   ): Promise<boolean> {
-    let effectiveUrl = repoUrl;
-    if (!config.useSsh && config.githubToken) {
-      effectiveUrl = repoUrl.replace('https://', `https://x-access-token:${config.githubToken}@`);
-    }
+    const auth =
+      !config.useSsh && config.githubToken ? githubTokenAuth(config.githubToken) : undefined;
 
     try {
-      await this.context.git.clone(effectiveUrl, repoPath);
+      await this.context.git.clone(repoUrl, repoPath, { auth });
       logger.success(`Successfully cloned: ${repoName}`);
 
       const defaultBranch = await this.context.git.getDefaultBranch(repoPath);
@@ -245,20 +189,7 @@ export class LocalBackup {
 }
 
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const git = new ProcessGitRepository(runner);
-  const sync = new ProcessSyncClient(runner);
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context, projectRoot } = await createBackupContext();
 
   const config: LocalBackupConfig = {
     githubToken: process.env.GITHUB_TOKEN || undefined,
@@ -268,20 +199,7 @@ async function main(): Promise<void> {
     logDir: path.join(projectRoot, 'backups', 'logs'),
   };
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git,
-    sync,
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const backup = new LocalBackup(context);
-  await backup.run(config);
+  await new LocalBackup(context).run(config);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

@@ -3,7 +3,19 @@ import { request as httpsRequest } from 'node:https';
 import { URL } from 'node:url';
 import { HttpClient, HttpResponse } from './types.js';
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
 export class NodeHttpClient implements HttpClient {
+  private readonly timeoutMs: number;
+
+  /**
+   * @param timeoutMs idle-socket timeout applied to every request so a
+   * stalled connection rejects instead of hanging the whole backup run.
+   */
+  constructor(timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS) {
+    this.timeoutMs = timeoutMs;
+  }
+
   async get(url: string, headers?: Record<string, string>): Promise<HttpResponse> {
     return this.request('GET', url, undefined, headers);
   }
@@ -51,6 +63,9 @@ export class NodeHttpClient implements HttpClient {
           headers[name.toLowerCase()] = Array.isArray(value) ? value.join(', ') : String(value);
         }
         res.setEncoding('utf8');
+        res.on('error', (error: Error) => {
+          reject(new Error(`HTTP response error for ${method} ${parsed.host}: ${String(error)}`));
+        });
         res.on('data', (chunk: string) => {
           data += chunk;
         });
@@ -63,6 +78,13 @@ export class NodeHttpClient implements HttpClient {
         });
       });
 
+      // Idle timeout: a connection that stalls mid-transfer rejects instead
+      // of hanging the run forever.
+      req.setTimeout(this.timeoutMs, () => {
+        req.destroy(
+          new Error(`HTTP request timed out after ${this.timeoutMs}ms: ${method} ${parsed.host}`),
+        );
+      });
       req.on('error', reject);
 
       if (body) {

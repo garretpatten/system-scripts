@@ -1,11 +1,8 @@
-import { loadEnvFile, saveEnvValue } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
+import { createBackupContext } from './backup-context.js';
+import { checkDependencies } from './dependencies.js';
+import { saveEnvValue } from './env.js';
 import { storeArchive } from './export-dir.js';
-import { ConsoleLogger, FileLogger } from './logger.js';
+import { FileLogger } from './logger.js';
 import {
   GoogleAuth,
   GoogleAuthClient,
@@ -57,7 +54,7 @@ export class GoogleTasksBackup {
     logger.info(`Export directory: ${exportDir}`);
     logger.info(`Log: ${logFile}`);
 
-    await this.checkDependencies(logger);
+    await checkDependencies(this.context.runner, ['zip'], logger);
 
     const auth = this.createAuth(config, logger);
     const client = new GoogleTasksApiClient(this.context.http, logger, auth);
@@ -67,6 +64,7 @@ export class GoogleTasksBackup {
 
     const usedDirNames = new Set<string>();
     let totalTasks = 0;
+    let failedExports = 0;
 
     for (const taskList of taskLists) {
       const record = this.asRecord(taskList);
@@ -77,6 +75,10 @@ export class GoogleTasksBackup {
       await this.writeJson(taskListDir, 'task-list.json', taskList, logger);
 
       const tasks = await this.fetchTasks(client, taskListId, title, config, logger);
+      if (tasks === null) {
+        failedExports++;
+        continue;
+      }
       await this.writeJson(taskListDir, 'tasks.json', tasks, logger);
       totalTasks += tasks.length;
     }
@@ -96,6 +98,11 @@ export class GoogleTasksBackup {
     logger.info(`Task lists backed up: ${taskLists.length}`);
     logger.info(`Tasks backed up: ${totalTasks}`);
     logger.info(`Archive: ${archivePath}`);
+
+    if (failedExports > 0) {
+      logger.warn(`Some task lists failed to export tasks. Check error log: ${errorLog}`);
+      process.exitCode = 1;
+    }
 
     await this.context.fs.rm(exportDir, { recursive: true, force: true });
   }
@@ -136,7 +143,7 @@ export class GoogleTasksBackup {
     title: string,
     config: GoogleTasksBackupConfig,
     logger: Logger,
-  ): Promise<unknown[]> {
+  ): Promise<unknown[] | null> {
     if (!taskListId) {
       logger.warn(`Skipping tasks for task list without an id: ${title}`);
       return [];
@@ -148,8 +155,8 @@ export class GoogleTasksBackup {
         showHidden: config.showHidden,
       });
     } catch (error) {
-      logger.warn(`Failed to export tasks for task list: ${title}: ${String(error)}`);
-      return [];
+      logger.error(`Failed to export tasks for task list: ${title}: ${String(error)}`);
+      return null;
     }
   }
 
@@ -167,15 +174,6 @@ export class GoogleTasksBackup {
 
   private asRecord(value: unknown): Record<string, unknown> {
     return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-  }
-
-  private async checkDependencies(logger: Logger): Promise<void> {
-    logger.info('Checking dependencies...');
-    const result = await this.context.runner.run('zip', ['--version']);
-    if (result.exitCode !== 0) {
-      logger.fatal('Missing required dependency: zip');
-    }
-    logger.success('All dependencies found');
   }
 
   private async writeJson(
@@ -211,25 +209,18 @@ function loadCredentials(env: NodeJS.ProcessEnv): GoogleOAuthCredentials {
 }
 
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context, projectRoot } = await createBackupContext();
 
   const credentials = loadCredentials(process.env);
   if (!credentials.refreshToken) {
-    const authorizer = new GoogleAuthorizer(http, logger, new LoopbackRedirectListener());
+    const authorizer = new GoogleAuthorizer(
+      context.http,
+      context.logger,
+      new LoopbackRedirectListener(),
+    );
     credentials.refreshToken = await authorizer.authorize(credentials);
-    await saveEnvValue(fs, projectRoot, 'GOOGLE_REFRESH_TOKEN', credentials.refreshToken);
-    logger.success('Saved GOOGLE_REFRESH_TOKEN to .env');
+    await saveEnvValue(context.fs, projectRoot, 'GOOGLE_REFRESH_TOKEN', credentials.refreshToken);
+    context.logger.success('Saved GOOGLE_REFRESH_TOKEN to .env');
   }
 
   const config: GoogleTasksBackupConfig = {
@@ -242,26 +233,7 @@ async function main(): Promise<void> {
     showHidden: (process.env.GOOGLE_TASKS_SHOW_HIDDEN || 'true').toLowerCase() !== 'false',
   };
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git: {
-      clone: async () => undefined,
-      remoteUpdate: async () => undefined,
-      pushMirror: async () => undefined,
-      checkout: async () => undefined,
-      getDefaultBranch: async () => null,
-    },
-    sync: { syncRepo: async () => ({ status: 'failed', output: 'unused' }) },
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const backup = new GoogleTasksBackup(context);
-  await backup.run(config);
+  await new GoogleTasksBackup(context).run(config);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

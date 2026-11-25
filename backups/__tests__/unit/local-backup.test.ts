@@ -1,6 +1,6 @@
 import { LocalBackup, LocalBackupConfig } from '../../src/local-backup.js';
 import { resetExternalDriveMountCache } from '../../src/export-dir.js';
-import { BackupContext, GitRepository, SyncClient } from '../../src/types.js';
+import { BackupContext, GitRemoteAuth, GitRepository, SyncClient } from '../../src/types.js';
 import {
   MockArchive,
   MockCommandRunner,
@@ -11,12 +11,16 @@ import {
 } from '../test-helpers.js';
 
 class StubGitRepository implements GitRepository {
-  clones: Array<{ url: string; path: string; mirror?: boolean }> = [];
+  clones: Array<{ url: string; path: string; mirror?: boolean; auth?: GitRemoteAuth }> = [];
   checkouts: Array<{ path: string; branch: string }> = [];
   defaultBranches = new Map<string, string | null>();
 
-  async clone(url: string, path: string, options?: { mirror?: boolean }): Promise<void> {
-    this.clones.push({ url, path, mirror: options?.mirror });
+  async clone(
+    url: string,
+    path: string,
+    options?: { mirror?: boolean; auth?: GitRemoteAuth },
+  ): Promise<void> {
+    this.clones.push({ url, path, mirror: options?.mirror, auth: options?.auth });
   }
 
   async remoteUpdate(): Promise<void> {}
@@ -115,7 +119,8 @@ describe('LocalBackup', () => {
     await new LocalBackup(context).run(config);
 
     expect(git.clones).toHaveLength(1);
-    expect(git.clones[0].url).toContain('x-access-token:token123@');
+    expect(git.clones[0].url).toBe('https://github.com/octocat/hello.git');
+    expect(git.clones[0].auth).toEqual({ username: 'x-access-token', password: 'token123' });
     expect(git.checkouts[0].branch).toBe('main');
     expect(archive.calls).toHaveLength(1);
     expect(archive.calls[0].sourceDirName).toBe('Code-Export_2024-06-15');
@@ -203,7 +208,7 @@ describe('LocalBackup', () => {
     };
 
     await expect(new LocalBackup(context).run(config)).rejects.toThrow(
-      'Missing required dependencies',
+      'Missing required dependency: git',
     );
   });
 });

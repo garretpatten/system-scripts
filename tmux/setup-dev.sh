@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=tmux-utils.sh
+# shellcheck source=tmux-utils.sh disable=SC1091
 source "${SCRIPT_DIR}/tmux-utils.sh"
 
 readonly SESSION_NAME='dev'

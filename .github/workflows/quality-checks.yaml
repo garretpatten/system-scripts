@@ -1,7 +1,10 @@
 ---
 name: 'Quality Checks'
 
-on: [pull_request]
+on:
+  pull_request:
+  push:
+    branches: [master]
 
 permissions:
   contents: read
@@ -10,4 +13,11 @@ jobs:
   quality-checks:
     name: 'Linters'
     # yamllint disable-line rule:line-length
-    uses: garretpatten/quality-checks/.github/workflows/quality-checks.yaml@78294799f20fc78703fe62488a7d11a6903214b5  # v2
+    uses: garretpatten/quality-checks/.github/workflows/quality-checks.yaml@78294799f20fc78703fe62488a7d11a6903214b5 # v2
+    with:
+      # Pull requests lint only the diff. Pushes to master additionally lint
+      # the whole repository by diffing against the repo's root commit
+      # (505d6554, the initial import), so files that never appear in a PR
+      # diff are still covered.
+      # yamllint disable-line rule:line-length
+      diff_base: ${{ github.event_name == 'push' && '505d65545917202856ae315e54d6aeb24e48b0d8' || '' }}

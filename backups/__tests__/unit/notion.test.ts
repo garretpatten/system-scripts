@@ -61,6 +61,40 @@ describe('NotionApiClient', () => {
     });
   });
 
+  describe('queryDatabase', () => {
+    it('throws on API errors instead of returning nothing', async () => {
+      http.setResponse('POST', 'https://api.notion.com/v1/databases/db-1/query', {
+        statusCode: 401,
+        body: JSON.stringify({ message: 'Unauthorized' }),
+      });
+
+      const generator = client.queryDatabase('db-1');
+      await expect(generator.next()).rejects.toThrow(
+        'Notion API error on /databases/db-1/query: Unauthorized',
+      );
+    });
+
+    it('yields rows across pagination', async () => {
+      http.setResponseSequence('POST', 'https://api.notion.com/v1/databases/db-1/query', [
+        {
+          statusCode: 200,
+          body: JSON.stringify({ results: [{ id: 'row-1' }], next_cursor: 'cursor-1' }),
+        },
+        {
+          statusCode: 200,
+          body: JSON.stringify({ results: [{ id: 'row-2' }], next_cursor: null }),
+        },
+      ]);
+
+      const rows = [];
+      for await (const row of client.queryDatabase('db-1')) {
+        rows.push(row);
+      }
+
+      expect(rows).toEqual([{ id: 'row-1' }, { id: 'row-2' }]);
+    });
+  });
+
   describe('getBlockChildren', () => {
     it('returns parsed block children', async () => {
       http.setResponse('GET', 'https://api.notion.com/v1/blocks/page-1/children', {

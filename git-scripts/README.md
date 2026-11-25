@@ -27,7 +27,10 @@ already present under `~/Projects` (or `$PROJECTS_DIR`).
 
 ### clone-all Features
 
-- Lists non-archived repos via the GitHub API
+- Lists non-archived repos via the GitHub API (fails loudly on API errors
+  instead of reporting "no repositories found")
+- Paginates on the raw API page size, so pages full of archived repos do
+  not end listing early
 - Skips repositories that already exist locally
 - Checks out each new clone's default branch
 - Logs progress and errors under `git-scripts/logs/`
@@ -43,6 +46,10 @@ For private repositories, set a GitHub Personal Access Token:
 ```bash
 export GITHUB_TOKEN="your_token_here"
 ```
+
+The token is passed to git per invocation through environment
+configuration (`http.extraHeader`) — it is never embedded in clone URLs, so
+it never lands in `.git/config`, process listings, or log files.
 
 Optional environment variables:
 
@@ -90,9 +97,10 @@ and pulls the latest changes.
 - Automatic default branch detection (main/master/HEAD)
 - Skips repos with uncommitted changes
 - Prunes deleted remote branches during fetch
+- Tallies failures and exits non-zero when any repo fails to sync
 
-Can also be sourced by other scripts; `sync_repo` and `get_default_branch` are
-available when sourced.
+Can also be sourced by other scripts; `sync_repo`, `get_default_branch`, and
+`resolve_projects_dir` are available when sourced.
 
 ### sync-all Requirements
 

@@ -1,12 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadEnvFile } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
-import { ConsoleLogger, FileLogger } from './logger.js';
+import { createBackupContext } from './backup-context.js';
+import { FileLogger } from './logger.js';
 import { BackupContext, Logger } from './types.js';
 import { formatBackupDate, formatRunTimestamp } from './utils.js';
 import { MediaFs, RealMediaFs } from './google-photos-media-fs.js';
@@ -280,44 +275,14 @@ export function parseArgs(
 }
 
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const mediaFs = new RealMediaFs();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context, projectRoot } = await createBackupContext();
 
   const homeDir = process.env.HOME || process.env.USERPROFILE || '.';
   const config = parseArgs(process.argv.slice(2), process.env, homeDir);
 
   config.logDir = path.join(projectRoot, 'backups', 'logs');
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git: {
-      clone: async () => undefined,
-      remoteUpdate: async () => undefined,
-      pushMirror: async () => undefined,
-      checkout: async () => undefined,
-      getDefaultBranch: async () => null,
-    },
-    sync: { syncRepo: async () => ({ status: 'failed', output: 'unused' }) },
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const backup = new GooglePhotosBackup(context, mediaFs);
+  const backup = new GooglePhotosBackup(context, new RealMediaFs());
   await backup.run(config);
 }
 

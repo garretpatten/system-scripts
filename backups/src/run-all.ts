@@ -1,11 +1,5 @@
-import { loadEnvFile } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ProcessGitRepository, ProcessSyncClient } from './git.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
-import { ConsoleLogger, FileLogger } from './logger.js';
+import { createBackupContext, resolveProjectRoot } from './backup-context.js';
+import { FileLogger } from './logger.js';
 import { LocalBackup, LocalBackupConfig } from './local-backup.js';
 import { GitLabMirror, GitLabMirrorConfig } from './gitlab-mirror.js';
 import { NotionBackup, NotionBackupConfig } from './notion-backup.js';
@@ -25,6 +19,9 @@ interface RunAllConfig {
   logDir: string;
 }
 
+/** Per-backup outcome: ran and succeeded, ran and failed, or never ran. */
+type RunStatus = 'ok' | 'failed' | 'skipped';
+
 export class BackupOrchestrator {
   constructor(private readonly context: BackupContext) {}
 
@@ -40,7 +37,7 @@ export class BackupOrchestrator {
     logger.info('Starting all backups');
     logger.info(`Log: ${logFile}`);
 
-    const results: Record<string, boolean> = {};
+    const results: Record<string, RunStatus> = {};
 
     results['code-local'] = await this.runLocalBackup(logger);
     results['code-gitlab'] = await this.runGitlabMirror(logger);
@@ -52,11 +49,11 @@ export class BackupOrchestrator {
     results['google-tasks'] = await this.runGoogleTasksBackup(logger);
 
     logger.info('Backup summary:');
-    for (const [name, ok] of Object.entries(results)) {
-      logger.info(`  ${name.padEnd(17)}: ${ok ? 'OK' : 'FAILED'}`);
+    for (const [name, status] of Object.entries(results)) {
+      logger.info(`  ${name.padEnd(17)}: ${status.toUpperCase()}`);
     }
 
-    if (Object.values(results).some((ok) => !ok)) {
+    if (Object.values(results).some((status) => status === 'failed')) {
       logger.warn(`One or more backups failed. See: ${logFile}`);
       process.exitCode = 1;
     } else {
@@ -64,7 +61,7 @@ export class BackupOrchestrator {
     }
   }
 
-  private async runLocalBackup(logger: Logger): Promise<boolean> {
+  private async runLocalBackup(logger: Logger): Promise<RunStatus> {
     try {
       const config: LocalBackupConfig = {
         githubToken: this.context.env.GITHUB_TOKEN || undefined,
@@ -74,21 +71,28 @@ export class BackupOrchestrator {
         logDir: this.getLogDir(),
       };
       await new LocalBackup(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: code-local: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
-  private async runGitlabMirror(logger: Logger): Promise<boolean> {
+  private async runGitlabMirror(logger: Logger): Promise<RunStatus> {
+    // Skip rather than run with empty credentials, which would fail every
+    // API call with confusing errors.
+    if (!this.context.env.GITLAB_TOKEN || !this.context.env.GITLAB_NAMESPACE) {
+      logger.warn('Skipping code-gitlab: GITLAB_TOKEN and GITLAB_NAMESPACE are not configured');
+      return 'skipped';
+    }
+
     try {
       const config: GitLabMirrorConfig = {
         githubToken: this.context.env.GITHUB_TOKEN || undefined,
         githubUsername: this.context.env.GITHUB_USERNAME || undefined,
         useSsh: (this.context.env.USE_GITHUB_SSH || 'false').toLowerCase() === 'true',
-        gitlabToken: this.context.env.GITLAB_TOKEN || '',
-        gitlabNamespace: this.context.env.GITLAB_NAMESPACE || '',
+        gitlabToken: this.context.env.GITLAB_TOKEN,
+        gitlabNamespace: this.context.env.GITLAB_NAMESPACE,
         autoCreateProjects:
           (this.context.env.AUTO_CREATE_GITLAB_PROJECTS || 'true').toLowerCase() === 'true',
         gitlabVisibility: this.context.env.GITLAB_VISIBILITY || 'private',
@@ -98,72 +102,77 @@ export class BackupOrchestrator {
           path.join(this.context.env.HOME || '.', 'GitHub-GitLab-Backup'),
       };
       await new GitLabMirror(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: code-gitlab: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
-  private async runNotionBackup(logger: Logger): Promise<boolean> {
+  private async runNotionBackup(logger: Logger): Promise<RunStatus> {
+    if (!this.context.env.NOTION_API_TOKEN) {
+      logger.warn('Skipping notion: NOTION_API_TOKEN is not configured');
+      return 'skipped';
+    }
+
     try {
       const config: NotionBackupConfig = {
-        apiToken: this.context.env.NOTION_API_TOKEN || '',
+        apiToken: this.context.env.NOTION_API_TOKEN,
         homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
         logDir: this.getLogDir(),
         rateLimitDelayMs: parseFloat(this.context.env.NOTION_RATE_LIMIT_DELAY || '0.35') * 1000,
       };
       await new NotionBackup(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: notion: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
-  private async runBraveBookmarksBackup(logger: Logger): Promise<boolean> {
+  private async runBraveBookmarksBackup(logger: Logger): Promise<RunStatus> {
     try {
       const config: BraveBookmarksBackupConfig = {
         homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
         logDir: this.getLogDir(),
       };
       await new BraveBookmarksBackup(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: brave-bookmarks: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
-  private async runChromeBookmarksBackup(logger: Logger): Promise<boolean> {
+  private async runChromeBookmarksBackup(logger: Logger): Promise<RunStatus> {
     try {
       const config: ChromeBookmarksBackupConfig = {
         homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
         logDir: this.getLogDir(),
       };
       await new ChromeBookmarksBackup(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: chrome-bookmarks: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
-  private async runObsidianNotesBackup(logger: Logger): Promise<boolean> {
+  private async runObsidianNotesBackup(logger: Logger): Promise<RunStatus> {
     try {
       const config: ObsidianNotesBackupConfig = {
         homeDir: this.context.env.HOME || this.context.env.USERPROFILE || '.',
         logDir: this.getLogDir(),
       };
       await new ObsidianNotesBackup(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: obsidian-notes: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
-  private async runGoogleCalendarBackup(logger: Logger): Promise<boolean> {
+  private async runGoogleCalendarBackup(logger: Logger): Promise<RunStatus> {
     try {
       const config: GoogleCalendarBackupConfig = {
         credentials: this.loadGoogleCredentials(),
@@ -174,14 +183,14 @@ export class BackupOrchestrator {
           (this.context.env.GOOGLE_CALENDAR_SHOW_DELETED || 'false').toLowerCase() === 'true',
       };
       await new GoogleCalendarBackup(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: google-calendar: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
-  private async runGoogleTasksBackup(logger: Logger): Promise<boolean> {
+  private async runGoogleTasksBackup(logger: Logger): Promise<RunStatus> {
     try {
       const config: GoogleTasksBackupConfig = {
         credentials: this.loadGoogleCredentials(),
@@ -195,10 +204,10 @@ export class BackupOrchestrator {
         showHidden: (this.context.env.GOOGLE_TASKS_SHOW_HIDDEN || 'true').toLowerCase() !== 'false',
       };
       await new GoogleTasksBackup(this.context).run(config);
-      return true;
+      return 'ok';
     } catch (error) {
       logger.warn(`Backup failed or had errors: google-tasks: ${String(error)}`);
-      return false;
+      return 'failed';
     }
   }
 
@@ -215,47 +224,19 @@ export class BackupOrchestrator {
   }
 
   private getProjectRoot(): string {
-    const currentFile = fileURLToPath(import.meta.url);
-    const srcDir = path.dirname(currentFile);
-    return path.resolve(srcDir, '..', '..');
+    return resolveProjectRoot();
   }
 }
 
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const git = new ProcessGitRepository(runner);
-  const sync = new ProcessSyncClient(runner);
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context, projectRoot } = await createBackupContext();
 
   const config: RunAllConfig = {
     homeDir: process.env.HOME || process.env.USERPROFILE || '.',
     logDir: path.join(projectRoot, 'backups', 'logs'),
   };
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git,
-    sync,
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const orchestrator = new BackupOrchestrator(context);
-  await orchestrator.run(config);
+  await new BackupOrchestrator(context).run(config);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

@@ -13,7 +13,6 @@ google-tasks-*.log
 notion-*.log
 
 # Backup output directories and archives
-$HOME/
 GitHub-GitLab-Backup/
 Code-Export_*.zip
 Code-Export_*/

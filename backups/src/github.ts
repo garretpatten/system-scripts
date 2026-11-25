@@ -1,9 +1,25 @@
-import { GitHubRepo, HttpClient, Logger } from './types.js';
+import { GitHubRepo, GitRemoteAuth, HttpClient, Logger } from './types.js';
 
 export interface GitHubClient {
   getAuthenticatedUser(token?: string): Promise<{ login: string }>;
+  resolveUsername(username?: string, token?: string): Promise<string>;
   listRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown>;
   listAllRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown>;
+  collectRepos(
+    username: string,
+    token: string | undefined,
+    options: { includeArchived: boolean },
+  ): Promise<GitHubRepo[]>;
+}
+
+/**
+ * HTTP Basic credentials git expects for GitHub personal access tokens over
+ * HTTPS. Equivalent to the previous `https://x-access-token:<token>@` URL
+ * form, but passed per invocation so the token is never persisted in remote
+ * URLs or `.git/config`.
+ */
+export function githubTokenAuth(token: string): GitRemoteAuth {
+  return { username: 'x-access-token', password: token };
 }
 
 export class GitHubApiClient implements GitHubClient {
@@ -24,6 +40,49 @@ export class GitHubApiClient implements GitHubClient {
       throw new Error('Could not detect GitHub username from token');
     }
     return { login: String(body.login) };
+  }
+
+  /**
+   * Resolves the GitHub account to operate on: an explicit username wins,
+   * then the token's owner, otherwise the run fails. Previously this logic
+   * was copy-pasted into each backup module.
+   */
+  async resolveUsername(username?: string, token?: string): Promise<string> {
+    if (username) {
+      this.logger.success(`Using GitHub username from env: ${username}`);
+      return username;
+    }
+
+    if (token) {
+      this.logger.info('Detecting GitHub username via API (/user)...');
+      const user = await this.getAuthenticatedUser(token);
+      this.logger.success(`Detected GitHub username: ${user.login}`);
+      return user.login;
+    }
+
+    this.logger.fatal('GitHub username is required');
+  }
+
+  /**
+   * Collects the account's repositories in one array, optionally including
+   * archived ones. Previously each backup module re-implemented this loop.
+   */
+  async collectRepos(
+    username: string,
+    token: string | undefined,
+    options: { includeArchived: boolean },
+  ): Promise<GitHubRepo[]> {
+    this.logger.info(
+      `Fetching GitHub repos (${options.includeArchived ? 'including' : 'excluding'} archived) for: ${username}`,
+    );
+    const repos: GitHubRepo[] = [];
+    const source = options.includeArchived
+      ? this.listAllRepos(username, token)
+      : this.listRepos(username, token);
+    for await (const repo of source) {
+      repos.push(repo);
+    }
+    return repos;
   }
 
   async *listRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown> {

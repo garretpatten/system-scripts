@@ -121,9 +121,9 @@ describe('GitLabApiClient', () => {
         {
           statusCode: 200,
           body: JSON.stringify([
-            { id: 1, path_with_namespace: 'octocat/hello' },
-            { id: 2, path_with_namespace: 'octocat/world' },
-            { id: 3, path_with_namespace: 'other-user/other' },
+            { id: 1, path: 'hello', path_with_namespace: 'octocat/hello' },
+            { id: 2, path: 'world', path_with_namespace: 'octocat/world' },
+            { id: 3, path: 'other', path_with_namespace: 'other-user/other' },
           ]),
         },
       );
@@ -134,8 +134,8 @@ describe('GitLabApiClient', () => {
       }
 
       expect(projects).toHaveLength(2);
-      expect(projects[0]).toEqual({ id: 1, pathWithNamespace: 'octocat/hello' });
-      expect(projects[1]).toEqual({ id: 2, pathWithNamespace: 'octocat/world' });
+      expect(projects[0]).toEqual({ id: 1, path: 'hello', pathWithNamespace: 'octocat/hello' });
+      expect(projects[1]).toEqual({ id: 2, path: 'world', pathWithNamespace: 'octocat/world' });
     });
 
     it('includes subgroup projects matching the namespace prefix', async () => {
@@ -145,8 +145,8 @@ describe('GitLabApiClient', () => {
         {
           statusCode: 200,
           body: JSON.stringify([
-            { id: 1, path_with_namespace: 'octocat/hello' },
-            { id: 2, path_with_namespace: 'octocat/group/sub/repo' },
+            { id: 1, path: 'hello', path_with_namespace: 'octocat/hello' },
+            { id: 2, path: 'repo', path_with_namespace: 'octocat/group/sub/repo' },
           ]),
         },
       );
@@ -157,7 +157,11 @@ describe('GitLabApiClient', () => {
       }
 
       expect(projects).toHaveLength(1);
-      expect(projects[0]).toEqual({ id: 2, pathWithNamespace: 'octocat/group/sub/repo' });
+      expect(projects[0]).toEqual({
+        id: 2,
+        path: 'repo',
+        pathWithNamespace: 'octocat/group/sub/repo',
+      });
     });
 
     it('paginates until a short page is reached', async () => {
@@ -211,10 +215,8 @@ describe('GitLabApiClient', () => {
   });
 
   describe('buildRemoteUrl', () => {
-    it('returns an oauth2 authenticated URL', () => {
-      expect(client.buildRemoteUrl('octocat/hello')).toBe(
-        'https://oauth2:token123@gitlab.com/octocat/hello.git',
-      );
+    it('returns a clean HTTPS URL without credentials', () => {
+      expect(client.buildRemoteUrl('octocat/hello')).toBe('https://gitlab.com/octocat/hello.git');
     });
 
     it('honors a custom host', () => {
@@ -225,8 +227,14 @@ describe('GitLabApiClient', () => {
         'token123',
       );
       expect(selfHosted.buildRemoteUrl('octocat/hello')).toBe(
-        'https://oauth2:token123@gitlab.example.com/octocat/hello.git',
+        'https://gitlab.example.com/octocat/hello.git',
       );
+    });
+  });
+
+  describe('remoteAuth', () => {
+    it('returns oauth2 basic credentials for git over HTTPS', () => {
+      expect(client.remoteAuth()).toEqual({ username: 'oauth2', password: 'token123' });
     });
   });
 });

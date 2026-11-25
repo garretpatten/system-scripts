@@ -1,11 +1,8 @@
-import { loadEnvFile, saveEnvValue } from './env.js';
-import { RealFileSystem } from './fs.js';
-import { ProcessCommandRunner } from './command-runner.js';
-import { NodeHttpClient } from './http.js';
-import { ZipArchive } from './archive.js';
-import { SystemDateProvider } from './date.js';
+import { createBackupContext } from './backup-context.js';
+import { checkDependencies } from './dependencies.js';
+import { saveEnvValue } from './env.js';
 import { storeArchive } from './export-dir.js';
-import { ConsoleLogger, FileLogger } from './logger.js';
+import { FileLogger } from './logger.js';
 import {
   GoogleAuth,
   GoogleAuthClient,
@@ -55,7 +52,7 @@ export class GoogleCalendarBackup {
     logger.info(`Export directory: ${exportDir}`);
     logger.info(`Log: ${logFile}`);
 
-    await this.checkDependencies(logger);
+    await checkDependencies(this.context.runner, ['zip'], logger);
 
     const auth = this.createAuth(config, logger);
     const client = new GoogleCalendarApiClient(this.context.http, logger, auth);
@@ -65,6 +62,7 @@ export class GoogleCalendarBackup {
 
     const usedDirNames = new Set<string>();
     let totalEvents = 0;
+    let failedExports = 0;
 
     for (const calendar of calendars) {
       const record = this.asRecord(calendar);
@@ -75,6 +73,10 @@ export class GoogleCalendarBackup {
       await this.writeJson(calendarDir, 'calendar.json', calendar, logger);
 
       const events = await this.fetchEvents(client, calendarId, summary, config, logger);
+      if (events === null) {
+        failedExports++;
+        continue;
+      }
       await this.writeJson(calendarDir, 'events.json', events, logger);
       totalEvents += events.length;
     }
@@ -94,6 +96,11 @@ export class GoogleCalendarBackup {
     logger.info(`Calendars backed up: ${calendars.length}`);
     logger.info(`Events backed up: ${totalEvents}`);
     logger.info(`Archive: ${archivePath}`);
+
+    if (failedExports > 0) {
+      logger.warn(`Some calendars failed to export events. Check error log: ${errorLog}`);
+      process.exitCode = 1;
+    }
 
     await this.context.fs.rm(exportDir, { recursive: true, force: true });
   }
@@ -134,7 +141,7 @@ export class GoogleCalendarBackup {
     summary: string,
     config: GoogleCalendarBackupConfig,
     logger: Logger,
-  ): Promise<unknown[]> {
+  ): Promise<unknown[] | null> {
     if (!calendarId) {
       logger.warn(`Skipping events for calendar without an id: ${summary}`);
       return [];
@@ -142,8 +149,8 @@ export class GoogleCalendarBackup {
     try {
       return await client.fetchEvents(calendarId, { showDeleted: config.showDeleted });
     } catch (error) {
-      logger.warn(`Failed to export events for calendar: ${summary}: ${String(error)}`);
-      return [];
+      logger.error(`Failed to export events for calendar: ${summary}: ${String(error)}`);
+      return null;
     }
   }
 
@@ -161,15 +168,6 @@ export class GoogleCalendarBackup {
 
   private asRecord(value: unknown): Record<string, unknown> {
     return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-  }
-
-  private async checkDependencies(logger: Logger): Promise<void> {
-    logger.info('Checking dependencies...');
-    const result = await this.context.runner.run('zip', ['--version']);
-    if (result.exitCode !== 0) {
-      logger.fatal('Missing required dependency: zip');
-    }
-    logger.success('All dependencies found');
   }
 
   private async writeJson(
@@ -205,25 +203,18 @@ function loadCredentials(env: NodeJS.ProcessEnv): GoogleOAuthCredentials {
 }
 
 async function main(): Promise<void> {
-  const fs = new RealFileSystem();
-  const runner = new ProcessCommandRunner();
-  const http = new NodeHttpClient();
-  const archive = new ZipArchive(runner);
-  const dateProvider = new SystemDateProvider();
-  const logger = new ConsoleLogger();
-
-  const currentFile = fileURLToPath(import.meta.url);
-  const srcDir = path.dirname(currentFile);
-  const projectRoot = path.resolve(srcDir, '..', '..');
-
-  await loadEnvFile(fs, process.env, projectRoot);
+  const { context, projectRoot } = await createBackupContext();
 
   const credentials = loadCredentials(process.env);
   if (!credentials.refreshToken) {
-    const authorizer = new GoogleAuthorizer(http, logger, new LoopbackRedirectListener());
+    const authorizer = new GoogleAuthorizer(
+      context.http,
+      context.logger,
+      new LoopbackRedirectListener(),
+    );
     credentials.refreshToken = await authorizer.authorize(credentials);
-    await saveEnvValue(fs, projectRoot, 'GOOGLE_REFRESH_TOKEN', credentials.refreshToken);
-    logger.success('Saved GOOGLE_REFRESH_TOKEN to .env');
+    await saveEnvValue(context.fs, projectRoot, 'GOOGLE_REFRESH_TOKEN', credentials.refreshToken);
+    context.logger.success('Saved GOOGLE_REFRESH_TOKEN to .env');
   }
 
   const config: GoogleCalendarBackupConfig = {
@@ -234,26 +225,7 @@ async function main(): Promise<void> {
     showDeleted: (process.env.GOOGLE_CALENDAR_SHOW_DELETED || 'false').toLowerCase() === 'true',
   };
 
-  const context: BackupContext = {
-    logger,
-    fs,
-    http,
-    git: {
-      clone: async () => undefined,
-      remoteUpdate: async () => undefined,
-      pushMirror: async () => undefined,
-      checkout: async () => undefined,
-      getDefaultBranch: async () => null,
-    },
-    sync: { syncRepo: async () => ({ status: 'failed', output: 'unused' }) },
-    archive,
-    dateProvider,
-    env: process.env,
-    runner,
-  };
-
-  const backup = new GoogleCalendarBackup(context);
-  await backup.run(config);
+  await new GoogleCalendarBackup(context).run(config);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);

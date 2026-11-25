@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sync All Git Repositories
-# Finds all git repositories within a given path, 
+# Finds all git repositories within a given path,
 # switches to the default branch, and pulls latest changes.
 
 set -euo pipefail
@@ -15,25 +15,25 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     readonly BLUE='\033[0;34m'
     readonly NC='\033[0m' # No Color
 
-    log_info()    { echo -e "${BLUE}[INFO]${NC} $*" >&2; }
+    log_info() { echo -e "${BLUE}[INFO]${NC} $*" >&2; }
     log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*" >&2; }
     log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*" >&2; }
-    log_error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 else
     # When sourced, only define no-op log functions if the sourcing script has not
     # already provided its own. This prevents a sourced script from clobbering
     # an existing logger (for example, when sync-all.sh is sourced by clone-all.sh).
-    if ! command -v log_info &> /dev/null; then
-        log_info()    { :; }
+    if ! command -v log_info &>/dev/null; then
+        log_info() { :; }
     fi
-    if ! command -v log_success &> /dev/null; then
+    if ! command -v log_success &>/dev/null; then
         log_success() { :; }
     fi
-    if ! command -v log_warning &> /dev/null; then
+    if ! command -v log_warning &>/dev/null; then
         log_warning() { :; }
     fi
-    if ! command -v log_error &> /dev/null; then
-        log_error()   { :; }
+    if ! command -v log_error &>/dev/null; then
+        log_error() { :; }
     fi
 fi
 
@@ -162,7 +162,7 @@ sync_repo() {
     # Switch to default branch
     local current_branch
     current_branch=$(git branch --show-current)
-    
+
     if [[ "$current_branch" != "$default_branch" ]]; then
         echo "INFO: Switching from '$current_branch' to '$default_branch'..."
         if ! git checkout "$default_branch" >/dev/null 2>&1; then
@@ -201,17 +201,23 @@ main() {
     search_dir=$(cd "$input_dir" && pwd)
     log_info "Searching for git repositories in: $search_dir"
 
-    # Find all .git directories and get their parent directories
-    find "$search_dir" -name ".git" -type d -prune | while read -r git_dir; do
+    local processed=0
+    local failed=0
+
+    # Read into the main shell (not a pipe) so failure counts survive the
+    # loop, and track sync_repo's exit status instead of swallowing it.
+    while IFS= read -r -d '' git_dir; do
         local repo_path
         repo_path=$(dirname "$git_dir")
         local result_output
+        local repo_failed=0
 
         # Call sync_repo and capture its stdout/stderr
-        result_output=$(sync_repo "$repo_path" 2>&1 || true)
+        result_output=$(sync_repo "$repo_path" 2>&1) || repo_failed=1
+        processed=$((processed + 1))
 
         # Process the captured output for logging
-        echo "$result_output" | while IFS= read -r line; do
+        while IFS= read -r line; do
             if [[ "$line" =~ ^---[[:space:]]Processing:.* ]]; then
                 echo -e "\n${BLUE}$line${NC}"
             elif [[ "$line" =~ ^INFO:.* ]]; then
@@ -225,8 +231,19 @@ main() {
             else
                 echo "$line"
             fi
-        done
-    done
+        done <<<"$result_output"
+
+        if [[ "$repo_failed" -ne 0 ]]; then
+            failed=$((failed + 1))
+        fi
+    done < <(find "$search_dir" -name ".git" -type d -prune -print0)
+
+    log_info "Repositories processed: $processed"
+    if [[ "$failed" -gt 0 ]]; then
+        log_error "Failed to sync $failed of $processed repositories"
+        return 1
+    fi
+    log_success "All repositories synced successfully"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

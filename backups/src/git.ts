@@ -1,11 +1,18 @@
-import { CommandRunner, GitRepository, SyncClient, SyncResult } from './types.js';
+import { CommandRunner, GitRemoteAuth, GitRepository, SyncClient, SyncResult } from './types.js';
+import { basicAuthEnv } from './git-auth.js';
 
 export class ProcessGitRepository implements GitRepository {
   constructor(private readonly runner: CommandRunner) {}
 
-  async clone(url: string, path: string, options?: { mirror?: boolean }): Promise<void> {
+  async clone(
+    url: string,
+    path: string,
+    options?: { mirror?: boolean; auth?: GitRemoteAuth },
+  ): Promise<void> {
     const args = options?.mirror ? ['clone', '--mirror', url, path] : ['clone', url, path];
-    const result = await this.runner.run('git', args);
+    const result = await this.runner.run('git', args, {
+      env: options?.auth ? basicAuthEnv(options.auth) : undefined,
+    });
     if (result.exitCode !== 0) {
       throw new Error(`git clone failed: ${result.stderr}`);
     }
@@ -18,22 +25,30 @@ export class ProcessGitRepository implements GitRepository {
     }
   }
 
-  async pushMirror(path: string, remoteUrl: string): Promise<void> {
+  async pushMirror(
+    path: string,
+    remoteUrl: string,
+    options?: { auth?: GitRemoteAuth },
+  ): Promise<void> {
     // Push explicit heads/tags refspecs instead of `--mirror`:
     // - `--mirror` would also send GitHub's read-only `refs/pull/*` refs,
     //   which servers reject (and which GitLab's all-or-nothing pre-receive
     //   hook turns into a whole-push rejection).
     // - Forcing protected branches is handled by the caller on failure.
-    const result = await this.runner.run('git', [
-      '-C',
-      path,
-      'push',
-      '--prune',
-      '--force',
-      remoteUrl,
-      'refs/heads/*:refs/heads/*',
-      'refs/tags/*:refs/tags/*',
-    ]);
+    const result = await this.runner.run(
+      'git',
+      [
+        '-C',
+        path,
+        'push',
+        '--prune',
+        '--force',
+        remoteUrl,
+        'refs/heads/*:refs/heads/*',
+        'refs/tags/*:refs/tags/*',
+      ],
+      { env: options?.auth ? basicAuthEnv(options.auth) : undefined },
+    );
     if (result.exitCode !== 0) {
       throw new Error(`git push mirror failed: ${result.stderr}`);
     }

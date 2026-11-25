@@ -11,12 +11,12 @@ tooling so newly published packages are not installed immediately.
 
 ### Targets
 
-| Tool    | File                    | Setting             | Value    |
-| ------- | ----------------------- | ------------------- | -------- |
-| Bundler | `~/.bundle/config`      | `BUNDLE_COOLDOWN`   | `"7"`    |
-| npm     | `~/.npmrc`              | `min-release-age`   | `7`      |
-| pip     | `~/.config/pip/pip.ini` | `uploaded-prior-to` | `P7D`    |
-| uv      | `~/.config/uv/uv.toml`  | `exclude-newer`     | `7 days` |
+| Tool    | File                     | Setting             | Value    |
+| ------- | ------------------------ | ------------------- | -------- |
+| Bundler | `~/.bundle/config`       | `BUNDLE_COOLDOWN`   | `"7"`    |
+| npm     | `~/.npmrc`               | `min-release-age`   | `7`      |
+| pip     | `~/.config/pip/pip.conf` | `uploaded-prior-to` | `P7D`    |
+| uv      | `~/.config/uv/uv.toml`   | `exclude-newer`     | `7 days` |
 
 ### Behavior
 
