@@ -192,16 +192,22 @@ describe('GoogleCalendarBackup', () => {
     await new GoogleCalendarBackup(context).run(config);
 
     const exportDir = '/home/user/Google-Calendar-Export_2024-06-15';
-    expect(fs.files.get(`${exportDir}/Broken/events.json`)).toBe('[]');
+    expect(fs.files.get(`${exportDir}/Broken/events.json`)).toBeUndefined();
     expect(fs.files.get(`${exportDir}/Personal/events.json`)).toBe(
       JSON.stringify([{ id: 'evt1', summary: 'One' }], null, 2),
     );
     expect(
       logger.messages.some(
-        (m) => m.level === 'WARN' && m.message.includes('Failed to export events for calendar'),
+        (m) => m.level === 'ERROR' && m.message.includes('Failed to export events for calendar'),
       ),
     ).toBe(true);
+    expect(logger.messages.some((m) => m.message.includes('Some calendars failed to export'))).toBe(
+      true,
+    );
+    expect(process.exitCode).toBe(1);
     expect(archive.calls).toHaveLength(1);
+
+    process.exitCode = undefined;
   });
 
   it('throws when Google client credentials are missing', async () => {

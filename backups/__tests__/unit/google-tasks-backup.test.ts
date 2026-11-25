@@ -181,16 +181,22 @@ describe('GoogleTasksBackup', () => {
     await new GoogleTasksBackup(context).run(config);
 
     const exportDir = '/home/user/Google-Tasks-Export_2024-06-15';
-    expect(fs.files.get(`${exportDir}/Broken/tasks.json`)).toBe('[]');
+    expect(fs.files.get(`${exportDir}/Broken/tasks.json`)).toBeUndefined();
     expect(fs.files.get(`${exportDir}/My Tasks/tasks.json`)).toBe(
       JSON.stringify([{ id: 'task1', title: 'Buy milk' }], null, 2),
     );
     expect(
       logger.messages.some(
-        (m) => m.level === 'WARN' && m.message.includes('Failed to export tasks for task list'),
+        (m) => m.level === 'ERROR' && m.message.includes('Failed to export tasks for task list'),
       ),
     ).toBe(true);
+    expect(logger.messages.some((m) => m.message.includes('Some task lists failed to export'))).toBe(
+      true,
+    );
+    expect(process.exitCode).toBe(1);
     expect(archive.calls).toHaveLength(1);
+
+    process.exitCode = undefined;
   });
 
   it('throws when Google client credentials are missing', async () => {

@@ -69,6 +69,7 @@ export class NotionBackup {
 
     let exportedPages = 0;
     let exportedDatabases = 0;
+    let failedExports = 0;
 
     for (const object of objects) {
       const parentPath = exporter.getParentPath(object.id);
@@ -84,7 +85,8 @@ export class NotionBackup {
           await exporter.exportPage(object.id, object.title, outputFile);
           exportedPages++;
         } catch (error) {
-          logger.warn(`Failed to export page: ${object.title}: ${String(error)}`);
+          logger.error(`Failed to export page: ${object.title}: ${String(error)}`);
+          failedExports++;
         }
       } else {
         logger.info(`Exporting database: ${object.title} -> ${outputFile}`);
@@ -92,7 +94,8 @@ export class NotionBackup {
           await exporter.exportDatabase(object.id, object.title, outputFile);
           exportedDatabases++;
         } catch (error) {
-          logger.warn(`Failed to export database: ${object.title}: ${String(error)}`);
+          logger.error(`Failed to export database: ${object.title}: ${String(error)}`);
+          failedExports++;
         }
       }
     }
@@ -114,6 +117,11 @@ export class NotionBackup {
     logger.info(`Pages exported: ${exportedPages}`);
     logger.info(`Databases exported: ${exportedDatabases}`);
     logger.info(`Archive: ${archivePath}`);
+
+    if (failedExports > 0) {
+      logger.warn(`Some objects failed to export. Check error log: ${errorLog}`);
+      process.exitCode = 1;
+    }
   }
 
   private async checkDependencies(logger: Logger): Promise<void> {

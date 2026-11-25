@@ -54,6 +54,39 @@ describe('GoogleAuthClient', () => {
     expect(http.requests).toHaveLength(1);
   });
 
+  it('refreshes the token once it is past its expiry window', async () => {
+    let fakeNow = Date.now();
+    const clock = () => fakeNow;
+    const expiringAuth = new GoogleAuthClient(http, logger, credentials, clock);
+
+    http.setResponseSequence('POST', 'https://oauth2.googleapis.com/token', [
+      { statusCode: 200, body: JSON.stringify({ access_token: 'token-1', expires_in: 3600 }) },
+      { statusCode: 200, body: JSON.stringify({ access_token: 'token-2', expires_in: 3600 }) },
+    ]);
+
+    const first = await expiringAuth.getAccessToken();
+    expect(first).toBe('token-1');
+
+    fakeNow += 3600 * 1000;
+    const second = await expiringAuth.getAccessToken();
+    expect(second).toBe('token-2');
+    expect(http.requests).toHaveLength(2);
+  });
+
+  it('refreshes after invalidate() even when the token is young', async () => {
+    http.setResponseSequence('POST', 'https://oauth2.googleapis.com/token', [
+      { statusCode: 200, body: JSON.stringify({ access_token: 'token-1', expires_in: 3600 }) },
+      { statusCode: 200, body: JSON.stringify({ access_token: 'token-2', expires_in: 3600 }) },
+    ]);
+
+    await auth.getAccessToken();
+    auth.invalidate();
+    const second = await auth.getAccessToken();
+
+    expect(second).toBe('token-2');
+    expect(http.requests).toHaveLength(2);
+  });
+
   it('throws on OAuth error responses', async () => {
     http.setResponse('POST', 'https://oauth2.googleapis.com/token', {
       statusCode: 400,
@@ -297,6 +330,20 @@ describe('GoogleAuthManager', () => {
 
     expect(token).toBe('access-token');
     expect(authorizer.calls).toHaveLength(0);
+  });
+
+  it('reuses the cached token across calls instead of refreshing per request', async () => {
+    http.setResponse('POST', 'https://oauth2.googleapis.com/token', {
+      statusCode: 200,
+      body: JSON.stringify({ access_token: 'access-token', expires_in: 3600 }),
+    });
+
+    const manager = createManager();
+    await manager.getAccessToken();
+    const second = await manager.getAccessToken();
+
+    expect(second).toBe('access-token');
+    expect(http.requests).toHaveLength(1);
   });
 
   it('re-authorizes and retries when the refresh token is invalid', async () => {

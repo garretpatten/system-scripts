@@ -29,11 +29,13 @@ export class ProcessCommandRunner implements CommandRunner {
         reject(error);
       });
 
-      child.on('close', (exitCode: number | null) => {
+      child.on('close', (exitCode: number | null, signal: NodeJS.Signals | null) => {
+        // A null exit code means the process was killed by a signal (e.g. an
+        // OOM-killed zip or git). Treat that as a failure, not success.
         resolve({
           stdout: stdout.trim(),
-          stderr: stderr.trim(),
-          exitCode: exitCode ?? 0,
+          stderr: signal ? `${stderr.trim()} (terminated by ${signal})`.trim() : stderr.trim(),
+          exitCode: exitCode ?? 1,
         });
       });
     });

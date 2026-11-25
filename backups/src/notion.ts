@@ -63,9 +63,13 @@ export class NotionApiClient implements NotionClient {
       const response = await this.apiPost(`/databases/${databaseId}/query`, payload);
       const body = this.parseJson(response.body);
 
+      // Throw instead of silently returning: an empty database export that
+      // masks a failed query reads as a successful backup.
       if (response.statusCode >= 400) {
-        this.logger.warn(`Notion API query failed for database ${databaseId}`);
-        return;
+        const detail = body.message || body.status || `HTTP ${response.statusCode}`;
+        throw new Error(
+          `Notion API error on /databases/${databaseId}/query: ${String(detail)}`,
+        );
       }
 
       const results = Array.isArray(body.results) ? body.results : [];

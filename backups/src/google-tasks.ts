@@ -1,4 +1,5 @@
 import { GoogleAuth } from './google-auth.js';
+import { GoogleApiError } from './google-api-error.js';
 import { HttpClient, Logger } from './types.js';
 
 export interface GoogleTasksClient {
@@ -38,6 +39,23 @@ export class GoogleTasksApiClient implements GoogleTasksClient {
     endpoint: string,
     params: Record<string, string>,
   ): Promise<unknown[]> {
+    try {
+      return await this.fetchPages(endpoint, params);
+    } catch (error) {
+      if (!GoogleApiError.isUnauthorized(error)) {
+        throw error;
+      }
+      // The cached access token was rejected; drop it so the next request
+      // re-authenticates, then retry the collection once.
+      this.auth.invalidate?.();
+      this.logger.warn(
+        `Access token rejected for ${endpoint}; refreshing token and retrying once`,
+      );
+      return this.fetchPages(endpoint, params);
+    }
+  }
+
+  private async fetchPages(endpoint: string, params: Record<string, string>): Promise<unknown[]> {
     const results: unknown[] = [];
     let pageToken: string | null = null;
 
@@ -78,7 +96,7 @@ export class GoogleTasksApiClient implements GoogleTasksClient {
         body.error && typeof body.error === 'object'
           ? String((body.error as Record<string, unknown>).message || 'Unknown error')
           : String(body.message || `HTTP ${statusCode}`);
-      throw new Error(`Google Tasks API error: ${detail}`);
+      throw new GoogleApiError(`Google Tasks API error: ${detail}`, statusCode);
     }
     const items = Array.isArray(body.items) ? (body.items as unknown[]) : [];
     return {

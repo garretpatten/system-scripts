@@ -67,6 +67,7 @@ export class GoogleTasksBackup {
 
     const usedDirNames = new Set<string>();
     let totalTasks = 0;
+    let failedExports = 0;
 
     for (const taskList of taskLists) {
       const record = this.asRecord(taskList);
@@ -77,6 +78,10 @@ export class GoogleTasksBackup {
       await this.writeJson(taskListDir, 'task-list.json', taskList, logger);
 
       const tasks = await this.fetchTasks(client, taskListId, title, config, logger);
+      if (tasks === null) {
+        failedExports++;
+        continue;
+      }
       await this.writeJson(taskListDir, 'tasks.json', tasks, logger);
       totalTasks += tasks.length;
     }
@@ -96,6 +101,11 @@ export class GoogleTasksBackup {
     logger.info(`Task lists backed up: ${taskLists.length}`);
     logger.info(`Tasks backed up: ${totalTasks}`);
     logger.info(`Archive: ${archivePath}`);
+
+    if (failedExports > 0) {
+      logger.warn(`Some task lists failed to export tasks. Check error log: ${errorLog}`);
+      process.exitCode = 1;
+    }
 
     await this.context.fs.rm(exportDir, { recursive: true, force: true });
   }
@@ -136,7 +146,7 @@ export class GoogleTasksBackup {
     title: string,
     config: GoogleTasksBackupConfig,
     logger: Logger,
-  ): Promise<unknown[]> {
+  ): Promise<unknown[] | null> {
     if (!taskListId) {
       logger.warn(`Skipping tasks for task list without an id: ${title}`);
       return [];
@@ -148,8 +158,8 @@ export class GoogleTasksBackup {
         showHidden: config.showHidden,
       });
     } catch (error) {
-      logger.warn(`Failed to export tasks for task list: ${title}: ${String(error)}`);
-      return [];
+      logger.error(`Failed to export tasks for task list: ${title}: ${String(error)}`);
+      return null;
     }
   }
 

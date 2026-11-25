@@ -65,6 +65,7 @@ export class GoogleCalendarBackup {
 
     const usedDirNames = new Set<string>();
     let totalEvents = 0;
+    let failedExports = 0;
 
     for (const calendar of calendars) {
       const record = this.asRecord(calendar);
@@ -75,6 +76,10 @@ export class GoogleCalendarBackup {
       await this.writeJson(calendarDir, 'calendar.json', calendar, logger);
 
       const events = await this.fetchEvents(client, calendarId, summary, config, logger);
+      if (events === null) {
+        failedExports++;
+        continue;
+      }
       await this.writeJson(calendarDir, 'events.json', events, logger);
       totalEvents += events.length;
     }
@@ -94,6 +99,11 @@ export class GoogleCalendarBackup {
     logger.info(`Calendars backed up: ${calendars.length}`);
     logger.info(`Events backed up: ${totalEvents}`);
     logger.info(`Archive: ${archivePath}`);
+
+    if (failedExports > 0) {
+      logger.warn(`Some calendars failed to export events. Check error log: ${errorLog}`);
+      process.exitCode = 1;
+    }
 
     await this.context.fs.rm(exportDir, { recursive: true, force: true });
   }
@@ -134,7 +144,7 @@ export class GoogleCalendarBackup {
     summary: string,
     config: GoogleCalendarBackupConfig,
     logger: Logger,
-  ): Promise<unknown[]> {
+  ): Promise<unknown[] | null> {
     if (!calendarId) {
       logger.warn(`Skipping events for calendar without an id: ${summary}`);
       return [];
@@ -142,8 +152,8 @@ export class GoogleCalendarBackup {
     try {
       return await client.fetchEvents(calendarId, { showDeleted: config.showDeleted });
     } catch (error) {
-      logger.warn(`Failed to export events for calendar: ${summary}: ${String(error)}`);
-      return [];
+      logger.error(`Failed to export events for calendar: ${summary}: ${String(error)}`);
+      return null;
     }
   }
 

@@ -227,48 +227,70 @@ flatten_files() {
     done < <(find "$TARGET_DIR" -mindepth 2 -type f -print0)
 }
 
+# Removes all but the best-named file among a group of duplicate content
+# paths. Keeper preference: names without a _NNN collision suffix win, then
+# lexicographic order.
+dedupe_group() {
+    local keeper=""
+    local best_rank=""
+    local candidate=""
+    local candidate_rank=""
+    local -a group=("$@")
+
+    ((${#group[@]} <= 1)) && return 0
+
+    keeper="${group[0]}"
+    best_rank=$(keeper_rank "$(basename -- "$keeper")")
+
+    for candidate in "${group[@]:1}"; do
+        candidate_rank=$(keeper_rank "$(basename -- "$candidate")")
+
+        if [[ "$candidate_rank" < "$best_rank" ]]; then
+            keeper="$candidate"
+            best_rank="$candidate_rank"
+        fi
+    done
+
+    for candidate in "${group[@]}"; do
+        [[ "$candidate" == "$keeper" ]] && continue
+
+        DEDUPED=$((DEDUPED + 1))
+        log_info "Removing duplicate content: $candidate (keeping $(basename -- "$keeper"))"
+
+        if [[ "$DRY_RUN" == true ]]; then
+            log_info "[dry-run] rm -- $candidate"
+        else
+            rm -- "$candidate"
+        fi
+    done
+}
+
 dedupe_existing_files() {
     local hash=""
-    local keeper=""
-    local candidate=""
-    local best_rank=""
-    local candidate_rank=""
+    local file=""
+    local current_hash=""
+    local -a group=()
 
     log_info "Removing duplicate content in target directory"
 
-    while IFS= read -r hash; do
+    # One sorted pass over the hash file: grouping adjacent equal hashes is
+    # linear, where the previous per-hash awk rescan was quadratic on
+    # large libraries.
+    while IFS=$'\t' read -r hash file; do
         [[ -n "$hash" ]] || continue
 
-        mapfile -t group < <(awk -F '\t' -v h="$hash" '$1 == h { print $2 }' "$HASH_FILE")
-        if ((${#group[@]} <= 1)); then
-            continue
+        if [[ "$hash" != "$current_hash" && ${#group[@]} -gt 0 ]]; then
+            dedupe_group "${group[@]}"
+            group=()
         fi
 
-        keeper="${group[0]}"
-        best_rank=$(keeper_rank "$(basename -- "$keeper")")
+        current_hash="$hash"
+        group+=("$file")
+    done < <(sort -t$'\t' -k1,1 "$HASH_FILE")
 
-        for candidate in "${group[@]:1}"; do
-            candidate_rank=$(keeper_rank "$(basename -- "$candidate")")
-
-            if [[ "$candidate_rank" < "$best_rank" ]]; then
-                keeper="$candidate"
-                best_rank="$candidate_rank"
-            fi
-        done
-
-        for candidate in "${group[@]}"; do
-            [[ "$candidate" == "$keeper" ]] && continue
-
-            DEDUPED=$((DEDUPED + 1))
-            log_info "Removing duplicate content: $candidate (keeping $(basename -- "$keeper"))"
-
-            if [[ "$DRY_RUN" == true ]]; then
-                log_info "[dry-run] rm -- $candidate"
-            else
-                rm -- "$candidate"
-            fi
-        done
-    done < <(cut -f1 "$HASH_FILE" | sort -u)
+    if [[ ${#group[@]} -gt 0 ]]; then
+        dedupe_group "${group[@]}"
+    fi
 }
 
 remove_empty_dirs() {
@@ -344,6 +366,13 @@ print_summary() {
     log_info "Remaining nested directories: $remaining_nested_dirs"
     log_info "Remaining .json files: $remaining_json"
     log_info "Log file: $LOG_FILE"
+
+    # A dry run changes nothing, so leftovers are the expected pre-state
+    # rather than a failure.
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "Dry run complete; no files were changed"
+        return 0
+    fi
 
     if [[ "$remaining_nested_files" -gt 0 || "$remaining_nested_dirs" -gt 0 ]]; then
         log_warning "Some nested paths remain; inspect the target directory manually."

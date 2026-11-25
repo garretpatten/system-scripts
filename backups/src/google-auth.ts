@@ -6,6 +6,10 @@ import { FileSystem, HttpClient, Logger } from './types.js';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const AUTHORIZATION_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const DEFAULT_AUTHORIZATION_TIMEOUT_MS = 5 * 60 * 1000;
+// Refresh slightly before the reported lifetime so a token is never used
+// in the window where Google might already reject it.
+const TOKEN_EXPIRY_MARGIN_MS = 60_000;
+const DEFAULT_TOKEN_LIFETIME_S = 3600;
 
 export const GOOGLE_BACKUP_SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
@@ -20,19 +24,23 @@ export interface GoogleOAuthCredentials {
 
 export interface GoogleAuth {
   getAccessToken(): Promise<string>;
+  /** Drops a cached access token so the next call re-authenticates. */
+  invalidate?(): void;
 }
 
 export class GoogleAuthClient implements GoogleAuth {
   private accessToken: string | null = null;
+  private expiresAtMs = 0;
 
   constructor(
     private readonly http: HttpClient,
     private readonly logger: Logger,
     private readonly credentials: GoogleOAuthCredentials,
+    private readonly now: () => number = () => Date.now(),
   ) {}
 
   async getAccessToken(): Promise<string> {
-    if (this.accessToken) {
+    if (this.accessToken && this.now() < this.expiresAtMs) {
       return this.accessToken;
     }
 
@@ -57,8 +65,19 @@ export class GoogleAuthClient implements GoogleAuth {
       throw new Error('Google OAuth token response missing access_token');
     }
 
+    const lifetimeS =
+      typeof parsed.expires_in === 'number' && parsed.expires_in > 0
+        ? parsed.expires_in
+        : DEFAULT_TOKEN_LIFETIME_S;
+
     this.accessToken = parsed.access_token;
+    this.expiresAtMs = this.now() + Math.max(lifetimeS * 1000 - TOKEN_EXPIRY_MARGIN_MS, 0);
     return this.accessToken;
+  }
+
+  invalidate(): void {
+    this.accessToken = null;
+    this.expiresAtMs = 0;
   }
 }
 
@@ -254,6 +273,7 @@ export class GoogleAuthManager implements GoogleAuth {
   private credentials: GoogleOAuthCredentials;
   private readonly projectRoot: string;
   private readonly maxRetries: number;
+  private client: GoogleAuthClient | null = null;
 
   constructor(
     private readonly http: HttpClient,
@@ -267,11 +287,26 @@ export class GoogleAuthManager implements GoogleAuth {
     this.maxRetries = config.maxRetries ?? 3;
   }
 
+  /**
+   * Reuses a single GoogleAuthClient across calls so its cached access
+   * token survives paginated API requests; constructing one per call
+   * triggered a redundant OAuth refresh POST on every request.
+   */
+  private get authClient(): GoogleAuthClient {
+    if (!this.client) {
+      this.client = new GoogleAuthClient(this.http, this.logger, this.credentials);
+    }
+    return this.client;
+  }
+
+  invalidate(): void {
+    this.client?.invalidate();
+  }
+
   async getAccessToken(): Promise<string> {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const client = new GoogleAuthClient(this.http, this.logger, this.credentials);
-        return await client.getAccessToken();
+        return await this.authClient.getAccessToken();
       } catch (error) {
         this.logger.warn(
           `Google token refresh failed (attempt ${attempt}/${this.maxRetries}): ${String(error)}`,
@@ -292,6 +327,8 @@ export class GoogleAuthManager implements GoogleAuth {
             process.env.GOOGLE_REFRESH_TOKEN = newRefreshToken;
           }
           this.logger.success('Saved GOOGLE_REFRESH_TOKEN to .env');
+          // The cached client still holds the old refresh token.
+          this.client = null;
         } catch (authError) {
           this.logger.warn(
             `Google re-authorization failed (attempt ${attempt}/${this.maxRetries}): ${String(authError)}`,

@@ -201,17 +201,23 @@ main() {
     search_dir=$(cd "$input_dir" && pwd)
     log_info "Searching for git repositories in: $search_dir"
 
-    # Find all .git directories and get their parent directories
-    find "$search_dir" -name ".git" -type d -prune | while read -r git_dir; do
+    local processed=0
+    local failed=0
+
+    # Read into the main shell (not a pipe) so failure counts survive the
+    # loop, and track sync_repo's exit status instead of swallowing it.
+    while IFS= read -r -d '' git_dir; do
         local repo_path
         repo_path=$(dirname "$git_dir")
         local result_output
+        local repo_failed=0
 
         # Call sync_repo and capture its stdout/stderr
-        result_output=$(sync_repo "$repo_path" 2>&1 || true)
+        result_output=$(sync_repo "$repo_path" 2>&1) || repo_failed=1
+        processed=$((processed + 1))
 
         # Process the captured output for logging
-        echo "$result_output" | while IFS= read -r line; do
+        while IFS= read -r line; do
             if [[ "$line" =~ ^---[[:space:]]Processing:.* ]]; then
                 echo -e "\n${BLUE}$line${NC}"
             elif [[ "$line" =~ ^INFO:.* ]]; then
@@ -225,8 +231,19 @@ main() {
             else
                 echo "$line"
             fi
-        done
-    done
+        done <<< "$result_output"
+
+        if [[ "$repo_failed" -ne 0 ]]; then
+            failed=$((failed + 1))
+        fi
+    done < <(find "$search_dir" -name ".git" -type d -prune -print0)
+
+    log_info "Repositories processed: $processed"
+    if [[ "$failed" -gt 0 ]]; then
+        log_error "Failed to sync $failed of $processed repositories"
+        return 1
+    fi
+    log_success "All repositories synced successfully"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
