@@ -13,6 +13,8 @@ const DEFAULT_TOKEN_LIFETIME_S = 3600;
 
 export const GOOGLE_BACKUP_SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/contacts.other.readonly',
+  'https://www.googleapis.com/auth/contacts.readonly',
   'https://www.googleapis.com/auth/tasks.readonly',
 ];
 

@@ -145,6 +145,26 @@ describe('BackupOrchestrator', () => {
         body: JSON.stringify({ items: [] }),
       },
     );
+    http.setResponse(
+      'GET',
+      'https://people.googleapis.com/v1/people/me/connections?personFields=*&pageSize=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ connections: [] }),
+      },
+    );
+    http.setResponse('GET', 'https://people.googleapis.com/v1/contactGroups?pageSize=1000', {
+      statusCode: 200,
+      body: JSON.stringify({ contactGroups: [] }),
+    });
+    http.setResponse(
+      'GET',
+      'https://people.googleapis.com/v1/otherContacts?readMask=*&pageSize=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ otherContacts: [] }),
+      },
+    );
 
     const orchestrator = new BackupOrchestrator(context);
     await orchestrator.run({ homeDir: '/home/user', logDir: '/logs' });
@@ -190,6 +210,26 @@ describe('BackupOrchestrator', () => {
       {
         statusCode: 200,
         body: JSON.stringify({ items: [] }),
+      },
+    );
+    http.setResponse(
+      'GET',
+      'https://people.googleapis.com/v1/people/me/connections?personFields=*&pageSize=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ connections: [] }),
+      },
+    );
+    http.setResponse('GET', 'https://people.googleapis.com/v1/contactGroups?pageSize=1000', {
+      statusCode: 200,
+      body: JSON.stringify({ contactGroups: [] }),
+    });
+    http.setResponse(
+      'GET',
+      'https://people.googleapis.com/v1/otherContacts?readMask=*&pageSize=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ otherContacts: [] }),
       },
     );
 
@@ -253,6 +293,26 @@ describe('BackupOrchestrator', () => {
       {
         statusCode: 200,
         body: JSON.stringify({ items: [] }),
+      },
+    );
+    http.setResponse(
+      'GET',
+      'https://people.googleapis.com/v1/people/me/connections?personFields=*&pageSize=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ connections: [] }),
+      },
+    );
+    http.setResponse('GET', 'https://people.googleapis.com/v1/contactGroups?pageSize=1000', {
+      statusCode: 200,
+      body: JSON.stringify({ contactGroups: [] }),
+    });
+    http.setResponse(
+      'GET',
+      'https://people.googleapis.com/v1/otherContacts?readMask=*&pageSize=1000',
+      {
+        statusCode: 200,
+        body: JSON.stringify({ otherContacts: [] }),
       },
     );
 
