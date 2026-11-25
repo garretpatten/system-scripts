@@ -147,8 +147,9 @@ get_github_username() {
 
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         log_info "Detecting GitHub username via API (/user)..."
-        local resp
-        resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user 2>>"$ERROR_LOG" || true)"
+        local resp=""
+        resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user 2>>"$ERROR_LOG")" ||
+            log_warning "GitHub API request failed; will prompt for username."
         local login
         login="$(echo "$resp" | jq -r '.login // empty' 2>>"$ERROR_LOG" || true)"
         if [ -n "$login" ] && [ "$login" != "null" ]; then
@@ -193,16 +194,22 @@ get_github_repos() {
 
         if [ -n "${GITHUB_TOKEN:-}" ]; then
             url="https://api.github.com/user/repos?page=$page&per_page=$per_page&type=all&sort=updated"
-            resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" "$url" 2>>"$ERROR_LOG" || true)"
+            if ! resp="$(curl -sS -H "Authorization: token $GITHUB_TOKEN" "$url" 2>>"$ERROR_LOG")"; then
+                error_exit "GitHub API request failed (page $page). Check your network and GITHUB_TOKEN."
+            fi
         else
             url="https://api.github.com/users/$GITHUB_USERNAME/repos?page=$page&per_page=$per_page&type=all&sort=updated"
-            resp="$(curl -sS "$url" 2>>"$ERROR_LOG" || true)"
+            if ! resp="$(curl -sS "$url" 2>>"$ERROR_LOG")"; then
+                error_exit "GitHub API request failed (page $page). Check your network connection."
+            fi
         fi
 
-        if echo "$resp" | jq -e '.message? // empty' >/dev/null 2>&1; then
+        # Fail loudly on API errors and malformed responses instead of
+        # silently treating them as an empty repository list.
+        if ! echo "$resp" | jq -e 'type == "array"' >/dev/null 2>&1; then
             local msg
-            msg="$(echo "$resp" | jq -r '.message' 2>>"$ERROR_LOG" || echo "unknown")"
-            error_exit "GitHub API error: $msg"
+            msg="$(echo "$resp" | jq -r '.message // empty' 2>>"$ERROR_LOG" || echo "unknown")"
+            error_exit "GitHub API error: ${msg:-invalid response on page $page}"
         fi
 
         local jq_clone_field
@@ -212,15 +219,14 @@ get_github_repos() {
             jq_clone_field='.clone_url'
         fi
 
-        local lines
-        lines="$(echo "$resp" | jq -r --argjson _ 0 ".[] | select(.archived == false) | ${jq_clone_field}" 2>>"$ERROR_LOG" || true)"
+        echo "$resp" | jq -r ".[] | select(.archived == false) | ${jq_clone_field}" 2>>"$ERROR_LOG"
 
-        [ -n "$lines" ] || break
-
-        local count
-        count="$(echo "$lines" | wc -l | tr -d ' ')"
-        echo "$lines"
-        if [ "$count" -lt "$per_page" ]; then
+        # Paginate on the raw page size: archived repos are filtered out
+        # above, so a page can yield no clone URLs and still have more
+        # pages after it.
+        local page_size
+        page_size="$(echo "$resp" | jq 'length')"
+        if [ "$page_size" -lt "$per_page" ]; then
             break
         fi
 
@@ -287,6 +293,12 @@ main() {
     check_dependencies
     get_github_username
 
+    # Capture the listing in the main shell: get_github_repos runs to
+    # completion (or exits fatally on API errors) before cloning starts,
+    # instead of dying quietly inside a process substitution.
+    local repos=""
+    repos="$(get_github_repos)" || error_exit "Failed to list GitHub repositories"
+
     local total=0
     local cloned=0
     local skipped=0
@@ -312,7 +324,7 @@ main() {
         else
             failed=$((failed + 1))
         fi
-    done < <(get_github_repos)
+    done <<< "$repos"
 
     if [ "$total" -eq 0 ]; then
         log_warning "No repositories found"

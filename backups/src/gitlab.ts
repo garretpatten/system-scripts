@@ -182,6 +182,7 @@ export class GitLabApiClient implements GitLabClient {
       const projects: GitLabProject[] = parsed
         .map((project) => ({
           id: Number((project as Record<string, unknown>).id),
+          path: String((project as Record<string, unknown>).path ?? ''),
           pathWithNamespace: String((project as Record<string, unknown>).path_with_namespace),
         }))
         .filter(

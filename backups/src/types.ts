@@ -97,6 +97,7 @@ export interface GitHubRepo {
 
 export interface GitLabProject {
   id: number;
+  path: string;
   pathWithNamespace: string;
 }
 

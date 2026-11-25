@@ -95,8 +95,9 @@ export class ObsidianNotesBackup {
       const destDir = path.join(backupDir, path.dirname(entry.relativePath));
       await this.context.fs.mkdir(destDir, { recursive: true });
 
-      const content = await this.context.fs.readFile(entry.sourcePath);
-      await this.context.fs.writeFile(path.join(backupDir, entry.relativePath), content);
+      // Byte-preserving copy: reading and writing as utf8 text would
+      // silently corrupt binary attachments (PNGs, PDFs, Excalidraw).
+      await this.context.fs.copyFile(entry.sourcePath, path.join(backupDir, entry.relativePath));
       count++;
     }
 

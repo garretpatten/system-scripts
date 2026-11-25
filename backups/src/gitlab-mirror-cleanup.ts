@@ -11,7 +11,7 @@ import { GitLabApiClient } from './gitlab.js';
 import { BackupContext, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { formatRunTimestamp } from './utils.js';
+import { formatRunTimestamp, slugifyRepoPath } from './utils.js';
 
 export interface GitLabMirrorCleanupConfig {
   githubToken?: string;
@@ -49,7 +49,20 @@ export class GitLabMirrorCleanup {
       return;
     }
 
-    const githubRepoByName = new Map(githubRepos.map((repo) => [repo.name, repo]));
+    // Match mirrors to GitHub repos by the GitLab project path. Mirrors are
+    // created with the GitHub repo *name*, but GitLab auto-slugifies the
+    // path (e.g. "My Repo" -> "my-repo"), so accept both the raw name and
+    // its slugified form to avoid deleting valid mirrors.
+    const githubRepoByKey = new Map<string, { name: string; archived: boolean }>();
+    for (const repo of githubRepos) {
+      if (!githubRepoByKey.has(repo.name)) {
+        githubRepoByKey.set(repo.name, repo);
+      }
+      const slug = slugifyRepoPath(repo.name);
+      if (!githubRepoByKey.has(slug)) {
+        githubRepoByKey.set(slug, repo);
+      }
+    }
 
     const gitlab = new GitLabApiClient(
       this.context.http,
@@ -58,11 +71,11 @@ export class GitLabMirrorCleanup {
       config.gitlabToken,
     );
 
-    const gitlabProjects: Array<{ id: number; name: string; pathWithNamespace: string }> = [];
+    const gitlabProjects: Array<{ id: number; path: string; pathWithNamespace: string }> = [];
     for await (const project of gitlab.listProjects(config.gitlabNamespace)) {
       gitlabProjects.push({
         id: project.id,
-        name: path.basename(project.pathWithNamespace),
+        path: project.path || path.basename(project.pathWithNamespace),
         pathWithNamespace: project.pathWithNamespace,
       });
     }
@@ -72,7 +85,7 @@ export class GitLabMirrorCleanup {
     let failed = 0;
 
     for (const project of gitlabProjects) {
-      const githubRepo = githubRepoByName.get(project.name);
+      const githubRepo = githubRepoByKey.get(project.path);
       const shouldDelete = !githubRepo || githubRepo.archived;
 
       if (!shouldDelete) {

@@ -27,6 +27,15 @@ export function sanitizeFilename(name: string): string {
   return trimmed.length > 0 ? trimmed : 'Untitled';
 }
 
+/**
+ * Slugifies a GitHub repository name the way GitLab slugifies a project
+ * path on creation: lowercase, with each character outside GitLab's
+ * allowed set replaced by a hyphen ("My Repo" -> "my-repo").
+ */
+export function slugifyRepoPath(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9_.-]/g, '-');
+}
+
 export function uniqueFilePath(
   dir: string,
   base: string,

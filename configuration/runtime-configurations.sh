@@ -44,33 +44,38 @@ else
   fi
 fi
 
-### 3. ~/.config/pip/pip.ini  —  [global] / uploaded-prior-to = P7D
-PIP_INI="$HOME/.config/pip/pip.ini"
+### 3. ~/.config/pip/pip.conf  —  [global] / uploaded-prior-to = P7D
+# pip on macOS/Linux reads ~/.config/pip/pip.conf (pip.ini is the Windows
+# filename, and writing it here was a silent no-op).
+PIP_CONF="$HOME/.config/pip/pip.conf"
 PIP_KEY="uploaded-prior-to"
 PIP_LINE="${PIP_KEY} = P7D"
 
-if [[ ! -f "$PIP_INI" ]]; then
-  mkdir -p "$(dirname "$PIP_INI")"
-  printf '[global]\n%s\n' "$PIP_LINE" >"$PIP_INI"
-  echo "Created $PIP_INI"
-elif ! grep -q "^[[:space:]]*${PIP_KEY}[[:space:]]*=" "$PIP_INI"; then
-  if grep -q '^\[global\]' "$PIP_INI"; then
-    awk -v line="$PIP_LINE" '/^\[global\]/{print; print line; next}1' "$PIP_INI" >"$PIP_INI.tmp" &&
-      mv "$PIP_INI.tmp" "$PIP_INI"
+if [[ ! -f "$PIP_CONF" ]]; then
+  mkdir -p "$(dirname "$PIP_CONF")"
+  printf '[global]\n%s\n' "$PIP_LINE" >"$PIP_CONF"
+  echo "Created $PIP_CONF"
+elif ! grep -q "^[[:space:]]*${PIP_KEY}[[:space:]]*=" "$PIP_CONF"; then
+  if grep -q '^\[global\]' "$PIP_CONF"; then
+    awk -v line="$PIP_LINE" '/^\[global\]/{print; print line; next}1' "$PIP_CONF" >"$PIP_CONF.tmp" &&
+      mv "$PIP_CONF.tmp" "$PIP_CONF"
   else
-    printf '\n[global]\n%s\n' "$PIP_LINE" >>"$PIP_INI"
+    printf '\n[global]\n%s\n' "$PIP_LINE" >>"$PIP_CONF"
   fi
-  echo "Appended $PIP_KEY to $PIP_INI"
+  echo "Appended $PIP_KEY to $PIP_CONF"
 else
-  current_raw=$(grep "^[[:space:]]*${PIP_KEY}[[:space:]]*=" "$PIP_INI" |
+  current_raw=$(grep "^[[:space:]]*${PIP_KEY}[[:space:]]*=" "$PIP_CONF" |
     sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')
   # Extract N from P<N>D (ISO 8601 days duration)
-  current_days=$(echo "$current_raw" | sed 's/^P\([0-9]*\)D$/\1/')
+  current_days="$current_raw"
+  if [[ "$current_days" =~ ^P([0-9]+)D$ ]]; then
+    current_days="${BASH_REMATCH[1]}"
+  fi
   if [[ "$current_days" =~ ^[0-9]+$ ]] && ((current_days < 7)); then
-    sed -i.bak "s|^[[:space:]]*${PIP_KEY}[[:space:]]*=.*|${PIP_LINE}|" "$PIP_INI"
-    echo "Updated $PIP_KEY in $PIP_INI ($current_raw -> P7D)"
+    sed -i.bak "s|^[[:space:]]*${PIP_KEY}[[:space:]]*=.*|${PIP_LINE}|" "$PIP_CONF"
+    echo "Updated $PIP_KEY in $PIP_CONF ($current_raw -> P7D)"
   else
-    echo "$PIP_INI: $PIP_KEY is already $current_raw (>= P7D), no change"
+    echo "$PIP_CONF: $PIP_KEY is already $current_raw (>= P7D), no change"
   fi
 fi
 
