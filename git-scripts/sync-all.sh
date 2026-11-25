@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sync All Git Repositories
-# Finds all git repositories within a given path, 
+# Finds all git repositories within a given path,
 # switches to the default branch, and pulls latest changes.
 
 set -euo pipefail
@@ -15,25 +15,25 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     readonly BLUE='\033[0;34m'
     readonly NC='\033[0m' # No Color
 
-    log_info()    { echo -e "${BLUE}[INFO]${NC} $*" >&2; }
+    log_info() { echo -e "${BLUE}[INFO]${NC} $*" >&2; }
     log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*" >&2; }
     log_warning() { echo -e "${YELLOW}[WARNING]${NC} $*" >&2; }
-    log_error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+    log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 else
     # When sourced, only define no-op log functions if the sourcing script has not
     # already provided its own. This prevents a sourced script from clobbering
     # an existing logger (for example, when sync-all.sh is sourced by clone-all.sh).
-    if ! command -v log_info &> /dev/null; then
-        log_info()    { :; }
+    if ! command -v log_info &>/dev/null; then
+        log_info() { :; }
     fi
-    if ! command -v log_success &> /dev/null; then
+    if ! command -v log_success &>/dev/null; then
         log_success() { :; }
     fi
-    if ! command -v log_warning &> /dev/null; then
+    if ! command -v log_warning &>/dev/null; then
         log_warning() { :; }
     fi
-    if ! command -v log_error &> /dev/null; then
-        log_error()   { :; }
+    if ! command -v log_error &>/dev/null; then
+        log_error() { :; }
     fi
 fi
 
@@ -162,7 +162,7 @@ sync_repo() {
     # Switch to default branch
     local current_branch
     current_branch=$(git branch --show-current)
-    
+
     if [[ "$current_branch" != "$default_branch" ]]; then
         echo "INFO: Switching from '$current_branch' to '$default_branch'..."
         if ! git checkout "$default_branch" >/dev/null 2>&1; then
@@ -231,7 +231,7 @@ main() {
             else
                 echo "$line"
             fi
-        done <<< "$result_output"
+        done <<<"$result_output"
 
         if [[ "$repo_failed" -ne 0 ]]; then
             failed=$((failed + 1))

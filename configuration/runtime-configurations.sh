@@ -7,20 +7,20 @@ BUNDLE_KEY="cooldown"
 BUNDLE_LINE='cooldown: "7"'
 
 if [[ ! -f "$BUNDLE_CONFIG" ]]; then
-  mkdir -p "$(dirname "$BUNDLE_CONFIG")"
-  echo "$BUNDLE_LINE" >"$BUNDLE_CONFIG"
-  echo "Created $BUNDLE_CONFIG"
+    mkdir -p "$(dirname "$BUNDLE_CONFIG")"
+    echo "$BUNDLE_LINE" >"$BUNDLE_CONFIG"
+    echo "Created $BUNDLE_CONFIG"
 elif ! grep -q "^${BUNDLE_KEY}:" "$BUNDLE_CONFIG"; then
-  echo "$BUNDLE_LINE" >>"$BUNDLE_CONFIG"
-  echo "Appended $BUNDLE_KEY to $BUNDLE_CONFIG"
+    echo "$BUNDLE_LINE" >>"$BUNDLE_CONFIG"
+    echo "Appended $BUNDLE_KEY to $BUNDLE_CONFIG"
 else
-  current=$(grep "^${BUNDLE_KEY}:" "$BUNDLE_CONFIG" | sed 's/.*"\([0-9]*\)".*/\1/')
-  if [[ "$current" =~ ^[0-9]+$ ]] && ((current < 7)); then
-    sed -i.bak "s|^${BUNDLE_KEY}:.*|${BUNDLE_LINE}|" "$BUNDLE_CONFIG"
-    echo "Updated $BUNDLE_KEY in $BUNDLE_CONFIG ($current -> 7)"
-  else
-    echo "$BUNDLE_CONFIG: $BUNDLE_KEY is already ${current} day(s), no change"
-  fi
+    current=$(grep "^${BUNDLE_KEY}:" "$BUNDLE_CONFIG" | sed 's/.*"\([0-9]*\)".*/\1/')
+    if [[ "$current" =~ ^[0-9]+$ ]] && ((current < 7)); then
+        sed -i.bak "s|^${BUNDLE_KEY}:.*|${BUNDLE_LINE}|" "$BUNDLE_CONFIG"
+        echo "Updated $BUNDLE_KEY in $BUNDLE_CONFIG ($current -> 7)"
+    else
+        echo "$BUNDLE_CONFIG: $BUNDLE_KEY is already ${current} day(s), no change"
+    fi
 fi
 
 ### 2. ~/.npmrc  —  min-release-age=7
@@ -29,19 +29,19 @@ NPMRC_KEY="min-release-age"
 NPMRC_LINE="${NPMRC_KEY}=7"
 
 if [[ ! -f "$NPMRC" ]]; then
-  echo "$NPMRC_LINE" >"$NPMRC"
-  echo "Created $NPMRC"
+    echo "$NPMRC_LINE" >"$NPMRC"
+    echo "Created $NPMRC"
 elif ! grep -q "^${NPMRC_KEY}=" "$NPMRC"; then
-  echo "$NPMRC_LINE" >>"$NPMRC"
-  echo "Appended $NPMRC_KEY to $NPMRC"
+    echo "$NPMRC_LINE" >>"$NPMRC"
+    echo "Appended $NPMRC_KEY to $NPMRC"
 else
-  current=$(grep "^${NPMRC_KEY}=" "$NPMRC" | sed "s/${NPMRC_KEY}=//")
-  if [[ "$current" =~ ^[0-9]+$ ]] && ((current < 7)); then
-    sed -i.bak "s|^${NPMRC_KEY}=.*|${NPMRC_LINE}|" "$NPMRC"
-    echo "Updated $NPMRC_KEY in $NPMRC ($current -> 7)"
-  else
-    echo "$NPMRC: $NPMRC_KEY is already ${current} day(s), no change"
-  fi
+    current=$(grep "^${NPMRC_KEY}=" "$NPMRC" | sed "s/${NPMRC_KEY}=//")
+    if [[ "$current" =~ ^[0-9]+$ ]] && ((current < 7)); then
+        sed -i.bak "s|^${NPMRC_KEY}=.*|${NPMRC_LINE}|" "$NPMRC"
+        echo "Updated $NPMRC_KEY in $NPMRC ($current -> 7)"
+    else
+        echo "$NPMRC: $NPMRC_KEY is already ${current} day(s), no change"
+    fi
 fi
 
 ### 3. ~/.config/pip/pip.conf  —  [global] / uploaded-prior-to = P7D
@@ -52,31 +52,31 @@ PIP_KEY="uploaded-prior-to"
 PIP_LINE="${PIP_KEY} = P7D"
 
 if [[ ! -f "$PIP_CONF" ]]; then
-  mkdir -p "$(dirname "$PIP_CONF")"
-  printf '[global]\n%s\n' "$PIP_LINE" >"$PIP_CONF"
-  echo "Created $PIP_CONF"
+    mkdir -p "$(dirname "$PIP_CONF")"
+    printf '[global]\n%s\n' "$PIP_LINE" >"$PIP_CONF"
+    echo "Created $PIP_CONF"
 elif ! grep -q "^[[:space:]]*${PIP_KEY}[[:space:]]*=" "$PIP_CONF"; then
-  if grep -q '^\[global\]' "$PIP_CONF"; then
-    awk -v line="$PIP_LINE" '/^\[global\]/{print; print line; next}1' "$PIP_CONF" >"$PIP_CONF.tmp" &&
-      mv "$PIP_CONF.tmp" "$PIP_CONF"
-  else
-    printf '\n[global]\n%s\n' "$PIP_LINE" >>"$PIP_CONF"
-  fi
-  echo "Appended $PIP_KEY to $PIP_CONF"
+    if grep -q '^\[global\]' "$PIP_CONF"; then
+        awk -v line="$PIP_LINE" '/^\[global\]/{print; print line; next}1' "$PIP_CONF" >"$PIP_CONF.tmp" &&
+            mv "$PIP_CONF.tmp" "$PIP_CONF"
+    else
+        printf '\n[global]\n%s\n' "$PIP_LINE" >>"$PIP_CONF"
+    fi
+    echo "Appended $PIP_KEY to $PIP_CONF"
 else
-  current_raw=$(grep "^[[:space:]]*${PIP_KEY}[[:space:]]*=" "$PIP_CONF" |
-    sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')
-  # Extract N from P<N>D (ISO 8601 days duration)
-  current_days="$current_raw"
-  if [[ "$current_days" =~ ^P([0-9]+)D$ ]]; then
-    current_days="${BASH_REMATCH[1]}"
-  fi
-  if [[ "$current_days" =~ ^[0-9]+$ ]] && ((current_days < 7)); then
-    sed -i.bak "s|^[[:space:]]*${PIP_KEY}[[:space:]]*=.*|${PIP_LINE}|" "$PIP_CONF"
-    echo "Updated $PIP_KEY in $PIP_CONF ($current_raw -> P7D)"
-  else
-    echo "$PIP_CONF: $PIP_KEY is already $current_raw (>= P7D), no change"
-  fi
+    current_raw=$(grep "^[[:space:]]*${PIP_KEY}[[:space:]]*=" "$PIP_CONF" |
+        sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')
+    # Extract N from P<N>D (ISO 8601 days duration)
+    current_days="$current_raw"
+    if [[ "$current_days" =~ ^P([0-9]+)D$ ]]; then
+        current_days="${BASH_REMATCH[1]}"
+    fi
+    if [[ "$current_days" =~ ^[0-9]+$ ]] && ((current_days < 7)); then
+        sed -i.bak "s|^[[:space:]]*${PIP_KEY}[[:space:]]*=.*|${PIP_LINE}|" "$PIP_CONF"
+        echo "Updated $PIP_KEY in $PIP_CONF ($current_raw -> P7D)"
+    else
+        echo "$PIP_CONF: $PIP_KEY is already $current_raw (>= P7D), no change"
+    fi
 fi
 
 ### 4. ~/.config/uv/uv.toml  —  exclude-newer = "7 days"
@@ -85,23 +85,23 @@ UV_KEY="exclude-newer"
 UV_LINE="${UV_KEY} = \"7 days\""
 
 if [[ ! -f "$UV_TOML" ]]; then
-  mkdir -p "$(dirname "$UV_TOML")"
-  echo "$UV_LINE" >"$UV_TOML"
-  echo "Created $UV_TOML"
+    mkdir -p "$(dirname "$UV_TOML")"
+    echo "$UV_LINE" >"$UV_TOML"
+    echo "Created $UV_TOML"
 elif ! grep -q "^${UV_KEY}[[:space:]]*=" "$UV_TOML"; then
-  echo "$UV_LINE" >>"$UV_TOML"
-  echo "Appended $UV_KEY to $UV_TOML"
+    echo "$UV_LINE" >>"$UV_TOML"
+    echo "Appended $UV_KEY to $UV_TOML"
 else
-  current_raw=$(grep "^${UV_KEY}[[:space:]]*=" "$UV_TOML" |
-    sed 's/.*=[[:space:]]*//' | tr -d '"')
-  # Extract leading integer from "N days" (or "N d", etc.)
-  current_days=$(echo "$current_raw" | grep -oE '^[0-9]+' || true)
-  if [[ "$current_days" =~ ^[0-9]+$ ]] && ((current_days < 7)); then
-    sed -i.bak "s|^${UV_KEY}[[:space:]]*=.*|${UV_LINE}|" "$UV_TOML"
-    echo "Updated $UV_KEY in $UV_TOML ($current_raw -> 7 days)"
-  else
-    echo "$UV_TOML: $UV_KEY is already '$current_raw' (>= 7 days), no change"
-  fi
+    current_raw=$(grep "^${UV_KEY}[[:space:]]*=" "$UV_TOML" |
+        sed 's/.*=[[:space:]]*//' | tr -d '"')
+    # Extract leading integer from "N days" (or "N d", etc.)
+    current_days=$(echo "$current_raw" | grep -oE '^[0-9]+' || true)
+    if [[ "$current_days" =~ ^[0-9]+$ ]] && ((current_days < 7)); then
+        sed -i.bak "s|^${UV_KEY}[[:space:]]*=.*|${UV_LINE}|" "$UV_TOML"
+        echo "Updated $UV_KEY in $UV_TOML ($current_raw -> 7 days)"
+    else
+        echo "$UV_TOML: $UV_KEY is already '$current_raw' (>= 7 days), no change"
+    fi
 fi
 
 echo "Done."

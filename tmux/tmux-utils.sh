@@ -69,9 +69,9 @@ source_user_runtime_config() {
     local rc_file=""
 
     case "${shell_base}" in
-        zsh) rc_file="${HOME}/.zshrc" ;;
-        bash) rc_file="${HOME}/.bashrc" ;;
-        *) return 0 ;;
+    zsh) rc_file="${HOME}/.zshrc" ;;
+    bash) rc_file="${HOME}/.bashrc" ;;
+    *) return 0 ;;
     esac
 
     [[ -f "${rc_file}" ]] &&

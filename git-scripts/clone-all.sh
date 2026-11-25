@@ -56,7 +56,7 @@ log_error() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     log "ERROR" "${RED}$*${NC}"
-    echo -e "${timestamp} [ERROR] $*" >> "$ERROR_LOG"
+    echo -e "${timestamp} [ERROR] $*" >>"$ERROR_LOG"
 }
 
 error_exit() {
@@ -79,15 +79,15 @@ check_dependencies() {
 
     local missing_deps=()
 
-    if ! command -v git &> /dev/null; then
+    if ! command -v git &>/dev/null; then
         missing_deps+=("git")
     fi
 
-    if ! command -v curl &> /dev/null; then
+    if ! command -v curl &>/dev/null; then
         missing_deps+=("curl")
     fi
 
-    if ! command -v jq &> /dev/null; then
+    if ! command -v jq &>/dev/null; then
         missing_deps+=("jq")
     fi
 
@@ -283,7 +283,7 @@ main() {
         else
             failed=$((failed + 1))
         fi
-    done <<< "$repos"
+    done <<<"$repos"
 
     if [ "$total" -eq 0 ]; then
         log_warning "No repositories found"

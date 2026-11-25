@@ -60,7 +60,7 @@ log_error() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     log "ERROR" "${RED}$*${NC}"
-    echo -e "${timestamp} [ERROR] $*" >> "$ERROR_LOG"
+    echo -e "${timestamp} [ERROR] $*" >>"$ERROR_LOG"
 }
 
 error_exit() {
@@ -145,7 +145,7 @@ register_hash() {
     local hash="$1"
     local file="$2"
     HASH_INDEX["$hash"]="$file"
-    printf '%s\t%s\n' "$hash" "$file" >> "$HASH_FILE"
+    printf '%s\t%s\n' "$hash" "$file" >>"$HASH_FILE"
 }
 
 hash_exists() {
@@ -164,15 +164,15 @@ build_hash_index() {
         if ! hash_exists "$hash"; then
             register_hash "$hash" "$file"
         else
-            printf '%s\t%s\n' "$hash" "$file" >> "$HASH_FILE"
+            printf '%s\t%s\n' "$hash" "$file" >>"$HASH_FILE"
         fi
     done < <(find "$TARGET_DIR" -maxdepth 1 -type f -print0)
 }
 
 prepare_logs() {
     mkdir -p "$LOG_DIR"
-    : > "$LOG_FILE"
-    : > "$ERROR_LOG"
+    : >"$LOG_FILE"
+    : >"$ERROR_LOG"
 }
 
 validate_target() {
@@ -390,30 +390,30 @@ parse_args() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -n | --dry-run)
-                DRY_RUN=true
-                shift
-                ;;
-            -k | --keep-json)
-                KEEP_JSON=true
-                shift
-                ;;
-            -h | --help)
-                usage
-                exit 0
-                ;;
-            --)
-                shift
-                break
-                ;;
-            -*)
-                error_exit "Unknown option: $1"
-                ;;
-            *)
-                TARGET_DIR=$1
-                shift
-                break
-                ;;
+        -n | --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -k | --keep-json)
+            KEEP_JSON=true
+            shift
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            error_exit "Unknown option: $1"
+            ;;
+        *)
+            TARGET_DIR=$1
+            shift
+            break
+            ;;
         esac
     done
 

@@ -17,7 +17,7 @@ readonly DEV_SESSION='dev'
 
 # Usage function
 show_usage() {
-    cat << EOF
+    cat <<EOF
 Usage: $0 [OPTIONS] [SESSION_TYPE]
 
 Session Types:
@@ -84,15 +84,15 @@ handle_session() {
         attach_to_session "${session_name}"
     else
         case "${session_type}" in
-            "main")
-                create_main_session
-                ;;
-            "dev")
-                create_dev_session
-                ;;
-            *)
-                error_exit "Unknown session type: ${session_type}"
-                ;;
+        "main")
+            create_main_session
+            ;;
+        "dev")
+            create_dev_session
+            ;;
+        *)
+            error_exit "Unknown session type: ${session_type}"
+            ;;
         esac
         tmux select-window -t "${session_name}:home"
         attach_to_session "${session_name}"
@@ -106,20 +106,20 @@ main() {
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -h|--help)
-                show_usage
-                exit 0
-                ;;
-            main|dev|list|kill|killall|info)
-                session_type="$1"
-                shift
-                break
-                ;;
-            *)
-                echo -e "${RED}Unknown option: $1${NC}" >&2
-                show_usage
-                exit 1
-                ;;
+        -h | --help)
+            show_usage
+            exit 0
+            ;;
+        main | dev | list | kill | killall | info)
+            session_type="$1"
+            shift
+            break
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}" >&2
+            show_usage
+            exit 1
+            ;;
         esac
     done
 
@@ -127,38 +127,38 @@ main() {
     check_tmux_installed
 
     case "${session_type}" in
-        "main")
-            handle_session "${MAIN_SESSION}" "main"
-            ;;
-        "dev")
-            handle_session "${DEV_SESSION}" "dev"
-            ;;
-        "list")
-            list_sessions
-            ;;
-        "kill")
-            if [[ $# -eq 0 ]]; then
-                error_exit "Please specify a session to kill"
-            fi
-            kill_session "$1"
-            ;;
-        "killall")
-            kill_all_sessions
-            ;;
-        "info")
-            if [[ $# -eq 0 ]]; then
-                error_exit "Please specify a session to show info for"
-            fi
-            show_session_info "$1"
-            ;;
-        "")
-            echo -e "${YELLOW}No session type specified. Use -h for help.${NC}"
-            show_usage
-            exit 1
-            ;;
-        *)
-            error_exit "Unknown session type: ${session_type}"
-            ;;
+    "main")
+        handle_session "${MAIN_SESSION}" "main"
+        ;;
+    "dev")
+        handle_session "${DEV_SESSION}" "dev"
+        ;;
+    "list")
+        list_sessions
+        ;;
+    "kill")
+        if [[ $# -eq 0 ]]; then
+            error_exit "Please specify a session to kill"
+        fi
+        kill_session "$1"
+        ;;
+    "killall")
+        kill_all_sessions
+        ;;
+    "info")
+        if [[ $# -eq 0 ]]; then
+            error_exit "Please specify a session to show info for"
+        fi
+        show_session_info "$1"
+        ;;
+    "")
+        echo -e "${YELLOW}No session type specified. Use -h for help.${NC}"
+        show_usage
+        exit 1
+        ;;
+    *)
+        error_exit "Unknown session type: ${session_type}"
+        ;;
     esac
 }
 

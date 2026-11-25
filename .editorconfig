@@ -1,0 +1,8 @@
+# EditorConfig — honored by shfmt (quality-checks CI) and editors alike.
+# Declares the repository's existing shell style so the shfmt gate enforces
+# the convention these scripts already follow instead of default tabs.
+root = true
+
+[*.sh]
+indent_style = space
+indent_size = 4
