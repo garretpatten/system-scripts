@@ -1,5 +1,9 @@
 import { GoogleAuth } from '../../src/google-auth.js';
-import { GoogleContactsApiClient } from '../../src/google-contacts.js';
+import {
+  GoogleContactsApiClient,
+  OTHER_CONTACTS_READ_MASK,
+  PERSON_FIELDS,
+} from '../../src/google-contacts.js';
 import { MockHttpClient, MockLogger } from '../test-helpers.js';
 
 const auth: GoogleAuth = { getAccessToken: async () => 'token123' };
@@ -7,6 +11,9 @@ const auth: GoogleAuth = { getAccessToken: async () => 'token123' };
 const CONNECTIONS_URL = 'https://people.googleapis.com/v1/people/me/connections';
 const CONTACT_GROUPS_URL = 'https://people.googleapis.com/v1/contactGroups';
 const OTHER_CONTACTS_URL = 'https://people.googleapis.com/v1/otherContacts';
+
+const CONNECTIONS_QUERY = `personFields=${encodeURIComponent(PERSON_FIELDS)}&pageSize=1000`;
+const OTHER_CONTACTS_QUERY = `readMask=${encodeURIComponent(OTHER_CONTACTS_READ_MASK)}&pageSize=1000`;
 
 describe('GoogleContactsApiClient', () => {
   let http: MockHttpClient;
@@ -21,14 +28,14 @@ describe('GoogleContactsApiClient', () => {
 
   describe('fetchContacts', () => {
     it('returns all connections across pages', async () => {
-      http.setResponse('GET', `${CONNECTIONS_URL}?personFields=*&pageSize=1000`, {
+      http.setResponse('GET', `${CONNECTIONS_URL}?${CONNECTIONS_QUERY}`, {
         statusCode: 200,
         body: JSON.stringify({
           connections: [{ resourceName: 'people/c1' }],
           nextPageToken: 'page2',
         }),
       });
-      http.setResponse('GET', `${CONNECTIONS_URL}?personFields=*&pageSize=1000&pageToken=page2`, {
+      http.setResponse('GET', `${CONNECTIONS_URL}?${CONNECTIONS_QUERY}&pageToken=page2`, {
         statusCode: 200,
         body: JSON.stringify({ connections: [{ resourceName: 'people/c2' }] }),
       });
@@ -39,8 +46,22 @@ describe('GoogleContactsApiClient', () => {
       expect(http.requests[0].headers).toEqual({ Authorization: 'Bearer token123' });
     });
 
+    it('requests the full documented field list, not a wildcard mask', async () => {
+      http.setResponse('GET', `${CONNECTIONS_URL}?${CONNECTIONS_QUERY}`, {
+        statusCode: 200,
+        body: JSON.stringify({ connections: [] }),
+      });
+
+      await client.fetchContacts();
+
+      const requestedFields = new URL(http.requests[0].url).searchParams.get('personFields');
+      expect(requestedFields).toBe(PERSON_FIELDS);
+      expect(requestedFields).toContain('memberships');
+      expect(requestedFields).not.toContain('*');
+    });
+
     it('returns an empty list when connections is missing', async () => {
-      http.setResponse('GET', `${CONNECTIONS_URL}?personFields=*&pageSize=1000`, {
+      http.setResponse('GET', `${CONNECTIONS_URL}?${CONNECTIONS_QUERY}`, {
         statusCode: 200,
         body: JSON.stringify({}),
       });
@@ -51,7 +72,7 @@ describe('GoogleContactsApiClient', () => {
     });
 
     it('throws on API error', async () => {
-      http.setResponse('GET', `${CONNECTIONS_URL}?personFields=*&pageSize=1000`, {
+      http.setResponse('GET', `${CONNECTIONS_URL}?${CONNECTIONS_QUERY}`, {
         statusCode: 403,
         body: JSON.stringify({
           error: { message: 'Request had insufficient authentication scopes.' },
@@ -90,15 +111,15 @@ describe('GoogleContactsApiClient', () => {
   });
 
   describe('fetchOtherContacts', () => {
-    it('requests all fields via readMask and paginates', async () => {
-      http.setResponse('GET', `${OTHER_CONTACTS_URL}?readMask=*&pageSize=1000`, {
+    it('requests the documented read mask and paginates', async () => {
+      http.setResponse('GET', `${OTHER_CONTACTS_URL}?${OTHER_CONTACTS_QUERY}`, {
         statusCode: 200,
         body: JSON.stringify({
           otherContacts: [{ resourceName: 'people/o1' }],
           nextPageToken: 'page2',
         }),
       });
-      http.setResponse('GET', `${OTHER_CONTACTS_URL}?readMask=*&pageSize=1000&pageToken=page2`, {
+      http.setResponse('GET', `${OTHER_CONTACTS_URL}?${OTHER_CONTACTS_QUERY}&pageToken=page2`, {
         statusCode: 200,
         body: JSON.stringify({ otherContacts: [{ resourceName: 'people/o2' }] }),
       });
@@ -106,7 +127,9 @@ describe('GoogleContactsApiClient', () => {
       const otherContacts = await client.fetchOtherContacts();
 
       expect(otherContacts).toEqual([{ resourceName: 'people/o1' }, { resourceName: 'people/o2' }]);
-      expect(http.requests[0].url).toBe(`${OTHER_CONTACTS_URL}?readMask=*&pageSize=1000`);
+      const requestedMask = new URL(http.requests[0].url).searchParams.get('readMask');
+      expect(requestedMask).toBe(OTHER_CONTACTS_READ_MASK);
+      expect(requestedMask).not.toContain('*');
     });
   });
 
@@ -116,7 +139,7 @@ describe('GoogleContactsApiClient', () => {
       getAccessToken: async () => 'token123',
       invalidate,
     });
-    const url = `${CONNECTIONS_URL}?personFields=*&pageSize=1000`;
+    const url = `${CONNECTIONS_URL}?${CONNECTIONS_QUERY}`;
     http.setResponseSequence('GET', url, [
       { statusCode: 401, body: JSON.stringify({ error: { message: 'Invalid Credentials' } }) },
       {
