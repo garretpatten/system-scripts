@@ -58,7 +58,7 @@ export class MockFileSystem implements FileSystem {
     }
   }
 
-  async rm(path: string): Promise<void> {
+  async rm(path: string, _options?: { recursive?: boolean; force?: boolean }): Promise<void> {
     this.files.delete(path);
     this.directories.delete(path);
     this.existsPaths.delete(path);
