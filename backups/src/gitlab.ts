@@ -1,4 +1,4 @@
-import { GitLabProject, HttpClient, Logger } from './types.js';
+import { GitLabProject, GitRemoteAuth, HttpClient, Logger } from './types.js';
 
 export interface GitLabProtectedBranch {
   name: string;
@@ -19,6 +19,7 @@ export interface GitLabClient {
   deleteProject(projectId: number): Promise<void>;
   listProjects(namespace: string): AsyncGenerator<GitLabProject, void, unknown>;
   buildRemoteUrl(pathWithNamespace: string): string;
+  remoteAuth(): GitRemoteAuth;
 }
 
 export class GitLabApiClient implements GitLabClient {
@@ -203,7 +204,17 @@ export class GitLabApiClient implements GitLabClient {
 
   buildRemoteUrl(pathWithNamespace: string): string {
     const host = new URL(this.host).host;
-    return `https://oauth2:${this.token}@${host}/${pathWithNamespace}.git`;
+    return `https://${host}/${pathWithNamespace}.git`;
+  }
+
+  /**
+   * HTTP Basic credentials git expects for GitLab personal access or OAuth
+   * tokens over HTTPS. Equivalent to the previous
+   * `https://oauth2:<token>@` URL form, but passed per invocation so the
+   * token is never persisted in remote URLs or `.git/config`.
+   */
+  remoteAuth(): GitRemoteAuth {
+    return { username: 'oauth2', password: this.token };
   }
 
   private parseJson(text: string): Record<string, unknown> {

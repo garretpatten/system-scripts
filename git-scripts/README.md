@@ -44,6 +44,10 @@ For private repositories, set a GitHub Personal Access Token:
 export GITHUB_TOKEN="your_token_here"
 ```
 
+The token is passed to git per invocation through environment
+configuration (`http.extraHeader`) — it is never embedded in clone URLs, so
+it never lands in `.git/config`, process listings, or log files.
+
 Optional environment variables:
 
 ```bash

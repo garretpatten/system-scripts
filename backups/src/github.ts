@@ -1,9 +1,19 @@
-import { GitHubRepo, HttpClient, Logger } from './types.js';
+import { GitHubRepo, GitRemoteAuth, HttpClient, Logger } from './types.js';
 
 export interface GitHubClient {
   getAuthenticatedUser(token?: string): Promise<{ login: string }>;
   listRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown>;
   listAllRepos(username: string, token?: string): AsyncGenerator<GitHubRepo, void, unknown>;
+}
+
+/**
+ * HTTP Basic credentials git expects for GitHub personal access tokens over
+ * HTTPS. Equivalent to the previous `https://x-access-token:<token>@` URL
+ * form, but passed per invocation so the token is never persisted in remote
+ * URLs or `.git/config`.
+ */
+export function githubTokenAuth(token: string): GitRemoteAuth {
+  return { username: 'x-access-token', password: token };
 }
 
 export class GitHubApiClient implements GitHubClient {

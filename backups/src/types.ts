@@ -59,10 +59,21 @@ export interface DateProvider {
   now(): Date;
 }
 
+/**
+ * HTTP Basic credentials git uses for authenticated HTTPS remotes. Passed
+ * per invocation instead of being embedded in remote URLs, which would
+ * persist tokens in `.git/config` and leak them through `ps` and error
+ * output.
+ */
+export interface GitRemoteAuth {
+  username: string;
+  password: string;
+}
+
 export interface GitRepository {
-  clone(url: string, path: string, options?: { mirror?: boolean }): Promise<void>;
+  clone(url: string, path: string, options?: { mirror?: boolean; auth?: GitRemoteAuth }): Promise<void>;
   remoteUpdate(path: string): Promise<void>;
-  pushMirror(path: string, remoteUrl: string): Promise<void>;
+  pushMirror(path: string, remoteUrl: string, options?: { auth?: GitRemoteAuth }): Promise<void>;
   checkout(path: string, branch: string): Promise<void>;
   getDefaultBranch(path: string): Promise<string | null>;
 }

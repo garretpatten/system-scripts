@@ -1,5 +1,5 @@
 import { GitLabMirror, GitLabMirrorConfig } from '../../src/gitlab-mirror.js';
-import { BackupContext, GitRepository } from '../../src/types.js';
+import { BackupContext, GitRemoteAuth, GitRepository } from '../../src/types.js';
 import {
   MockArchive,
   MockCommandRunner,
@@ -10,22 +10,26 @@ import {
 } from '../test-helpers.js';
 
 class StubGitRepository implements GitRepository {
-  clones: Array<{ url: string; path: string; mirror?: boolean }> = [];
+  clones: Array<{ url: string; path: string; mirror?: boolean; auth?: GitRemoteAuth }> = [];
   updates: string[] = [];
-  pushes: Array<{ path: string; remoteUrl: string }> = [];
+  pushes: Array<{ path: string; remoteUrl: string; auth?: GitRemoteAuth }> = [];
   throwOnUrl: string | null = null;
   private throwAttempts = 0;
 
-  async clone(url: string, path: string, options?: { mirror?: boolean }): Promise<void> {
-    this.clones.push({ url, path, mirror: options?.mirror });
+  async clone(
+    url: string,
+    path: string,
+    options?: { mirror?: boolean; auth?: GitRemoteAuth },
+  ): Promise<void> {
+    this.clones.push({ url, path, mirror: options?.mirror, auth: options?.auth });
   }
 
   async remoteUpdate(path: string): Promise<void> {
     this.updates.push(path);
   }
 
-  async pushMirror(path: string, remoteUrl: string): Promise<void> {
-    this.pushes.push({ path, remoteUrl });
+  async pushMirror(path: string, remoteUrl: string, options?: { auth?: GitRemoteAuth }): Promise<void> {
+    this.pushes.push({ path, remoteUrl, auth: options?.auth });
     if (this.throwOnUrl === remoteUrl && this.throwAttempts++ === 0) {
       this.pushes.pop();
       throw new Error(
@@ -135,9 +139,11 @@ describe('GitLabMirror', () => {
 
     expect(git.clones).toHaveLength(1);
     expect(git.clones[0].mirror).toBe(true);
-    expect(git.clones[0].url).toContain('x-access-token:gh-token@');
+    expect(git.clones[0].url).toBe('https://github.com/octocat/hello.git');
+    expect(git.clones[0].auth).toEqual({ username: 'x-access-token', password: 'gh-token' });
     expect(git.pushes).toHaveLength(1);
-    expect(git.pushes[0].remoteUrl).toBe('https://oauth2:gl-token@gitlab.com/octocat/hello.git');
+    expect(git.pushes[0].remoteUrl).toBe('https://gitlab.com/octocat/hello.git');
+    expect(git.pushes[0].auth).toEqual({ username: 'oauth2', password: 'gl-token' });
   });
 
   it('reuses a stable mirrors directory across runs', async () => {
@@ -168,7 +174,7 @@ describe('GitLabMirror', () => {
       body: JSON.stringify({ name: 'master', allow_force_push: true }),
     });
 
-    git.throwOnUrl = 'https://oauth2:gl-token@gitlab.com/octocat/protected-repo.git';
+    git.throwOnUrl = 'https://gitlab.com/octocat/protected-repo.git';
 
     await new GitLabMirror(context).run(baseConfig());
 
@@ -197,7 +203,7 @@ describe('GitLabMirror', () => {
       body: JSON.stringify({ message: '403 Forbidden' }),
     });
 
-    git.throwOnUrl = 'https://oauth2:gl-token@gitlab.com/octocat/blocked.git';
+    git.throwOnUrl = 'https://gitlab.com/octocat/blocked.git';
 
     await new GitLabMirror(context).run(baseConfig());
 

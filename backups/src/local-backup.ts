@@ -7,8 +7,8 @@ import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
 import { storeArchive } from './export-dir.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
-import { GitHubApiClient } from './github.js';
-import { BackupContext, Logger } from './types.js';
+import { GitHubApiClient, githubTokenAuth } from './github.js';
+import { BackupContext, GitRemoteAuth, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatBackupDate, formatRunTimestamp } from './utils.js';
@@ -200,13 +200,11 @@ export class LocalBackup {
     config: LocalBackupConfig,
     logger: Logger,
   ): Promise<boolean> {
-    let effectiveUrl = repoUrl;
-    if (!config.useSsh && config.githubToken) {
-      effectiveUrl = repoUrl.replace('https://', `https://x-access-token:${config.githubToken}@`);
-    }
+    const auth =
+      !config.useSsh && config.githubToken ? githubTokenAuth(config.githubToken) : undefined;
 
     try {
-      await this.context.git.clone(effectiveUrl, repoPath);
+      await this.context.git.clone(repoUrl, repoPath, { auth });
       logger.success(`Successfully cloned: ${repoName}`);
 
       const defaultBranch = await this.context.git.getDefaultBranch(repoPath);

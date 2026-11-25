@@ -235,12 +235,21 @@ clone_repository() {
     local original_dir
     original_dir=$(pwd)
 
-    local effective_clone_url="$repo_url"
+    # Credentials go through git's environment config (http.extraHeader)
+    # instead of the clone URL, so the token is never written to .git/config
+    # and never appears in process listings or error output (git 2.31+).
+    local -a git_env=(GIT_TERMINAL_PROMPT=0)
     if [ "$USE_GITHUB_SSH" != "true" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
-        effective_clone_url="${repo_url//https:\/\//https:\/\/x-access-token:${GITHUB_TOKEN}@}"
+        local basic_auth
+        basic_auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '[:space:]')"
+        git_env+=(
+            GIT_CONFIG_COUNT=1
+            GIT_CONFIG_KEY_0=http.extraHeader
+            GIT_CONFIG_VALUE_0="Authorization: Basic ${basic_auth}"
+        )
     fi
 
-    if git clone "$effective_clone_url" "$repo_path" 2>>"$ERROR_LOG"; then
+    if env "${git_env[@]}" git clone "$repo_url" "$repo_path" 2>>"$ERROR_LOG"; then
         log_success "Successfully cloned: $repo_name"
 
         if cd "$repo_path" 2>/dev/null; then

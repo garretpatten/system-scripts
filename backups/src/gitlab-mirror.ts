@@ -6,10 +6,10 @@ import { ProcessGitRepository } from './git.js';
 import { ZipArchive } from './archive.js';
 import { SystemDateProvider } from './date.js';
 import { ConsoleLogger, FileLogger } from './logger.js';
-import { GitHubApiClient } from './github.js';
+import { GitHubApiClient, githubTokenAuth } from './github.js';
 import { GitLabApiClient, GitLabProtectedBranch } from './gitlab.js';
 import { GitLabMirrorCleanup, GitLabMirrorCleanupConfig } from './gitlab-mirror-cleanup.js';
-import { BackupContext, Logger } from './types.js';
+import { BackupContext, GitRemoteAuth, Logger } from './types.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatRunTimestamp } from './utils.js';
@@ -158,12 +158,9 @@ export class GitLabMirror {
 
     logger.info(`Repo: ${repo.fullName}  -> GitLab: ${glPath}`);
 
-    let effectiveCloneUrl = repo.cloneUrl;
+    const cloneOptions: { mirror: boolean; auth?: GitRemoteAuth } = { mirror: true };
     if (!config.useSsh && config.githubToken) {
-      effectiveCloneUrl = repo.cloneUrl.replace(
-        'https://',
-        `https://x-access-token:${config.githubToken}@`,
-      );
+      cloneOptions.auth = githubTokenAuth(config.githubToken);
     }
 
     try {
@@ -172,7 +169,7 @@ export class GitLabMirror {
         await this.context.git.remoteUpdate(localPath);
       } else {
         logger.info(`Cloning local mirror: ${repo.name}`);
-        await this.context.git.clone(effectiveCloneUrl, localPath, { mirror: true });
+        await this.context.git.clone(repo.cloneUrl, localPath, cloneOptions);
       }
     } catch (error) {
       logger.error(`Failed to clone/update mirror for ${repo.name}: ${String(error)}`);
@@ -208,14 +205,15 @@ export class GitLabMirror {
       }
 
       const glUrl = gitlab.buildRemoteUrl(glPath);
+      const glAuth = gitlab.remoteAuth();
       logger.info(`Pushing mirror to GitLab (all refs): ${glPath}`);
       try {
-        await this.context.git.pushMirror(localPath, glUrl);
+        await this.context.git.pushMirror(localPath, glUrl, { auth: glAuth });
       } catch (error) {
         if (!isProtectedBranchForcePushError(String(error))) {
           throw error;
         }
-        const healed = await this.pushWithForcePushAllowed(gitlab, glPath, localPath, glUrl);
+        const healed = await this.pushWithForcePushAllowed(gitlab, glPath, localPath, glUrl, glAuth);
         if (!healed) {
           throw error;
         }
@@ -240,6 +238,7 @@ export class GitLabMirror {
     glPath: string,
     localPath: string,
     glUrl: string,
+    glAuth: GitRemoteAuth,
   ): Promise<boolean> {
     let lockedBranches: GitLabProtectedBranch[] = [];
     try {
@@ -260,7 +259,7 @@ export class GitLabMirror {
       }
 
       try {
-        await this.context.git.pushMirror(localPath, glUrl);
+        await this.context.git.pushMirror(localPath, glUrl, { auth: glAuth });
         return true;
       } finally {
         for (const branch of lockedBranches) {

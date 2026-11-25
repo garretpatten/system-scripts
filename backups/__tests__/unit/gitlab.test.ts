@@ -211,9 +211,9 @@ describe('GitLabApiClient', () => {
   });
 
   describe('buildRemoteUrl', () => {
-    it('returns an oauth2 authenticated URL', () => {
+    it('returns a clean HTTPS URL without credentials', () => {
       expect(client.buildRemoteUrl('octocat/hello')).toBe(
-        'https://oauth2:token123@gitlab.com/octocat/hello.git',
+        'https://gitlab.com/octocat/hello.git',
       );
     });
 
@@ -225,8 +225,14 @@ describe('GitLabApiClient', () => {
         'token123',
       );
       expect(selfHosted.buildRemoteUrl('octocat/hello')).toBe(
-        'https://oauth2:token123@gitlab.example.com/octocat/hello.git',
+        'https://gitlab.example.com/octocat/hello.git',
       );
+    });
+  });
+
+  describe('remoteAuth', () => {
+    it('returns oauth2 basic credentials for git over HTTPS', () => {
+      expect(client.remoteAuth()).toEqual({ username: 'oauth2', password: 'token123' });
     });
   });
 });
