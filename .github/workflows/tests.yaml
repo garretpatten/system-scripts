@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   test:
-    name: 'Jest'
+    name: 'Vitest'
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout'
