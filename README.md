@@ -6,110 +6,86 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/garretpatten/system-scripts/tests.yaml?branch=master&label=CI&logo=github&style=flat-square)](https://github.com/garretpatten/system-scripts/actions/workflows/tests.yaml)
 
 A collection of system administration and development workflow scripts for
-macOS/Linux environments.
+macOS/Linux environments. This repository is an **incubator**: it holds one-off
+and underdeveloped concepts until they mature enough to graduate into their own
+repository, at which point the in-repo module is replaced by a git submodule so
+existing entry points keep working (see [Module lifecycle](#-module-lifecycle)).
+
+## 🧬 Module Lifecycle
+
+`system-scripts` incubates small, personal automation concepts. When a module
+outgrows the incubator — its own test suite, its own release cadence, or simply
+enough weight to deserve first-class treatment — it is broken out into a
+dedicated repository, and the in-repo copy is replaced by a pinned git
+submodule. Consumers keep the same entry points (npm scripts, shell wrappers,
+cron jobs); development moves to the graduated repository.
+
+| Module     | Status    | Graduated to                                                                             | Replaced by             |
+| ---------- | --------- | ---------------------------------------------------------------------------------------- | ----------------------- |
+| `backups/` | Graduated | [garretpatten/backup-manager](https://github.com/garretpatten/backup-manager) (Nov 2026) | submodule at `backups/` |
+
+Graduation is not removal: `npm run backup:all` and friends still work here,
+executing inside the submodule. Bump the submodule pin deliberately, by pull
+request, when you want newer backup releases.
 
 ## 📁 Project Structure
 
 ```text
 system-scripts/
-├── backups/              # Repository, task, and workspace backups
-│   ├── src/              # TypeScript backup implementations
-│   ├── __tests__/        # Vitest unit tests
-│   ├── code/             # GitHub repository backup wrappers
-│   │   ├── code-backup-local.sh
-│   │   ├── code-backup-gitlab.sh
-│   │   └── code-backup-gitlab-cleanup.sh
-│   ├── brave-bookmarks/   # Brave bookmarks export wrapper
-│   ├── chrome-bookmarks/  # Chrome bookmarks export wrapper
-│   ├── notion/            # Notion workspace Markdown export wrapper
-│   ├── obsidian-notes/    # Obsidian notes backup wrapper
-│   ├── google-calendar/   # Google Calendar export wrapper
-│   ├── google-tasks/      # Google Tasks export wrapper
-│   ├── google-contacts/   # Google Contacts export wrapper
-│   ├── google-photos/     # Google Photos Takeout backup (spec + wrapper)
-│   └── run-all.sh         # Run all backups
+├── backups/              # SUBMODULE → garretpatten/backup-manager
+│   │                     # (TypeScript backup implementations, tests,
+│   │                     #  per-service shell wrappers, run-all.sh)
+│   ├── src/              # TypeScript backup implementations (submodule)
+│   ├── __tests__/        # Vitest unit tests (submodule)
+│   ├── code/             # GitHub repository backup wrappers (submodule)
+│   └── ...               # notion/, google-*/, bookmarks wrappers (submodule)
 ├── configuration/        # Machine-wide runtime tool settings
 ├── git-scripts/          # Git repository utilities
-├── github/               # GitHub security and quality alert reporting
+├── github/                # GitHub security and quality alert reporting
 ├── media-scripts/        # Photo library organization utilities
-├── tmux/                 # Enhanced tmux session management
+├── tmux/                  # Enhanced tmux session management
 └── README.md            # This file
 ```
 
+> Clone with `git clone --recurse-submodules`, or run
+> `git submodule update --init --recursive` after a plain clone.
+
 ## 🔧 Scripts Overview
 
-### 📦 Backups (`backups/`)
+### 📦 Backups (`backups/` — submodule)
 
-Comprehensive backup module for code repositories, Notion workspaces, browser
-bookmarks, Obsidian notes, Google Calendars, Google Tasks, and Google
-Contacts.
+The backups module matured enough to graduate into its own repository:
+**[garretpatten/backup-manager](https://github.com/garretpatten/backup-manager)**.
+It is consumed here as a pinned git submodule at `backups/`, so every entry
+point keeps working unchanged — `npm run backup:all` and the individual
+`npm run backup:*` scripts execute inside the submodule, cron jobs and shell
+wrappers behave exactly as before, and the same root `.env` still feeds them.
 
-**Code backups:**
+**What the module backs up** (see the
+[backup-manager README](https://github.com/garretpatten/backup-manager#readme)
+for full usage, configuration, and troubleshooting):
 
-- Automated git operations (pull, push, status checking)
-- Selective repository filtering
-- GitLab mirror cleanup for archived or deleted GitHub repos
-- Detailed logging and error handling
-- Progress tracking and reporting
-
-**Notion export:**
-
-- Exports accessible pages and databases as Markdown
-- Uses nested folders that mirror the workspace structure
-- Creates timestamped zip archives
-
-**Brave bookmarks export:**
-
-- Converts Brave bookmarks to Netscape Bookmark File Format HTML
-- Preserves folder hierarchy and basic metadata
-- Creates dated HTML and JSON copies in the home directory
-
-**Chrome bookmarks export:**
-
-- Converts Google Chrome bookmarks to Netscape Bookmark File Format HTML
-- Preserves folder hierarchy and basic metadata
-- Creates dated HTML and JSON copies in the home directory
-
-**Obsidian notes export:**
-
-- Backs up the Obsidian notes vault at `~/Notes/`
-- Preserves folder hierarchy and creates a dated zip archive
-
-**Google Calendar export:**
-
-- Exports all accessible calendars and their events via the Google Calendar API
-- Expands recurring events into instances; optionally includes deleted events
-- Creates timestamped zip archives
-
-**Google Tasks export:**
-
-- Exports all task lists and tasks via the Google Tasks API
-- Includes completed, deleted, and hidden tasks (configurable)
-- Creates timestamped zip archives
-
-**Google Contacts export:**
-
-- Exports all contacts, contact groups (labels), and auto-saved "Other
-  contacts" via the Google People API
-- Captures contact photos as metadata only (no image downloads)
-- Creates timestamped zip archives
-
-**Google Photos backup:**
-
-- Downloads Google Takeout archive slices with resume, retry, and size
-  verification
-- Extracts slices and merges media into a flat, deduplicated local library
-- Keeps a SHA-256 state manifest so repeat exports only copy new photos
-- Records titles, capture dates, camera info, and albums in the manifest
+- Code repositories: local zipped clones of all non-archived GitHub repos,
+  plus full GitLab mirrors with stale-mirror cleanup
+- Notion workspaces as Markdown exports in dated zip archives
+- Brave and Chrome bookmarks as Netscape HTML with dated JSON copies
+- The Obsidian notes vault as a dated zip archive
+- Google Calendar, Google Tasks, and Google Contacts as complete JSON
+  exports via read-only OAuth scopes
+- Google Photos Takeout archives, downloaded with resume support and merged
+  into a flat, deduplicated local library
 
 **Key Features:**
 
-- ✅ Intelligent repository detection
-- ✅ Git status validation before operations
-- ✅ Comprehensive logging system
-- ✅ Error handling and recovery
-- ✅ Progress indicators and reporting
-- ✅ Single command to run all backups
+- ✅ Single command to run all backups (`npm run backup:all`)
+- ✅ Credentials-aware orchestration (skips unconfigured backups with a
+  warning)
+- ✅ Comprehensive logging under `backups/logs/`
+- ✅ Unit-tested TypeScript implementations
+
+**Developing the backups:** changes belong in the `backup-manager`
+repository now. Make them there, cut a release, then bump this repository's
+submodule pin by pull request.
 
 ### 🛡️ GitHub Security Reports (`github/`)
 
@@ -216,6 +192,11 @@ Enhanced tmux session management following bash and tmux best practices:
 
 ### Running Backups
 
+These commands delegate into the `backups/` submodule; configuration comes
+from this repository's root `.env`, and logs land under `backups/logs/` as
+before. Full documentation lives in the
+[backup-manager README](https://github.com/garretpatten/backup-manager#readme).
+
 ```bash
 # Run all backups (code-local, code-gitlab, notion, bookmarks, obsidian-notes,
 # google-calendar, google-tasks, google-contacts)
@@ -278,7 +259,8 @@ npm test
 All scripts include comprehensive logging:
 
 - `~/.tmux-session-*.log` - Tmux session logs
-- `backups/logs/` - Backup operation logs
+- `backups/logs/` - Backup operation logs (inside the submodule, gitignored
+  there)
 - `github/logs/` - GitHub security report logs
 - Colored output for better visibility
 - Timestamped entries with context
@@ -292,13 +274,15 @@ All scripts include comprehensive logging:
 
 ### Backups
 
-- Configure tokens and options in `.env`
+- Configure tokens and options in `.env` (backup-specific variables are
+  documented in the submodule's `.env.example`)
 - Adjust backup schedules and options
 - Customize logging and reporting
 
 ## 📚 Documentation
 
-- [Backups Documentation](backups/README.md)
+- [Backups Documentation](https://github.com/garretpatten/backup-manager#readme)
+  (the `backups/` submodule; also readable locally at `backups/README.md`)
 - [Configuration Documentation](configuration/README.md)
 - [GitHub Security Report Documentation](github/README.md)
 - [Git Scripts Documentation](git-scripts/README.md)
@@ -314,6 +298,10 @@ When modifying scripts:
 3. Update documentation and logging
 4. Test with different scenarios
 5. Keep consistent code style
+
+Backups changes are made in
+[garretpatten/backup-manager](https://github.com/garretpatten/backup-manager);
+bump this repository's submodule pin by pull request to consume a release.
 
 ## 📄 License
 

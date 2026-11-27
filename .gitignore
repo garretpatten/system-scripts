@@ -3,16 +3,10 @@
 .env.local
 
 # Log files
-logs/
-backups/logs/
 *.log
-errors-*.log
-code-backup-*.log
-google-calendar-*.log
-google-tasks-*.log
-notion-*.log
 
 # Backup output directories and archives
+# (These land in $HOME, not in the repository; kept as defensive entries.)
 GitHub-GitLab-Backup/
 Code-Export_*.zip
 Code-Export_*/
