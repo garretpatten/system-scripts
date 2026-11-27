@@ -17,11 +17,6 @@
     "isolatedModules": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": [
-    "backups/src/**/*",
-    "backups/__tests__/**/*",
-    "github/src/**/*",
-    "github/__tests__/**/*"
-  ],
+  "include": ["backups/src/**/*", "github/src/**/*", "github/__tests__/**/*"],
   "exclude": ["node_modules", "backups/dist"]
 }

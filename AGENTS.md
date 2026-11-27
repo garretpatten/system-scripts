@@ -1,9 +1,11 @@
 # Agent guidance
 
 This repository holds **shell scripts** for macOS/Linux: **tmux** session
-helpers under `tmux/`, **backup** utilities under `backups/`, and
+helpers under `tmux/`, **backup** utilities under the `backups/` git submodule
+([backup-manager](https://github.com/garretpatten/backup-manager)), and
 **runtime configuration** helpers under `configuration/`. There is no
-application runtime; changes are almost always Bash and documentation.
+application runtime; changes are almost always Bash and documentation, plus
+the TypeScript `github/` module.
 
 ## Repository standards
 
@@ -35,36 +37,29 @@ metadata, CI and quality, and exceptions.
 
 ## Layout
 
-- **`backups/`** — backup module (TypeScript under `src/`, Jest tests under
-  `__tests__/`, thin shell wrappers per service)
-  - **`src/`** — backup implementations (`local-backup.ts`,
-    `gitlab-mirror.ts`, `notion-backup.ts`, `brave-bookmarks-backup.ts`,
-    `chrome-bookmarks-backup.ts`, `obsidian-notes-backup.ts`,
-    `google-calendar-backup.ts`, `google-tasks-backup.ts`,
-    `google-photos-backup.ts`), API clients, and shared helpers
-    (`google-auth.ts` holds the shared Google OAuth 2.0 token refresh and the
-    first-run interactive authorization flow)
-  - **`gitlab-mirror-cleanup.ts`** — removes GitLab mirrors for repos archived or
-    deleted on GitHub
-  - **`code/`**, **`notion/`**, **`brave-bookmarks/`**, **`chrome-bookmarks/`**,
-    **`obsidian-notes/`**, **`google-calendar/`**, **`google-tasks/`** — thin shell
-    wrappers around
-    the TypeScript entry points
-  - **`google-photos/`** — Google Photos Takeout backup wrapper
-    (user-initiated, not part of `run-all.sh`)
-  - **`run-all.sh`** — orchestrates all backups (thin wrapper around
-    `src/run-all.ts`)
+- **`backups/`** — **git submodule** pointing at
+  [garretpatten/backup-manager](https://github.com/garretpatten/backup-manager)
+  (pinned; TypeScript backup implementations under `src/`, Vitest tests under
+  `__tests__/`, thin shell wrappers per service, `run-all.sh` orchestrator).
+  The backups module graduated from this repository in November 2026;
+  development happens in `backup-manager`, and this repository consumes
+  releases by bumping the submodule pin in a pull request.
+  - The `npm run backup:*` scripts in this repository delegate into the
+    submodule; configuration still comes from this repository's root `.env`
+    and logs still land under `backups/logs/`.
 - **`configuration/`** — `runtime-configurations.sh`
 - **`git-scripts/`** — `clone-all.sh`, `sync-all.sh`
-- **`github/`** — GitHub security report (TypeScript under `src/`, Jest tests
+- **`github/`** — GitHub security report (TypeScript under `src/`, Vitest tests
   under `__tests__/`, `npm run github:security-report`; reuses shared runtime
-  helpers from `backups/src/`)
+  helpers from the `backups/` submodule's `src/`)
 - **`media-scripts/`** — `flatten-photos.sh`
 - **`tmux/`** — `setup-main.sh`, `setup-dev.sh`, `session-manager.sh`;
   shared helpers in `tmux-utils.sh`
 - **`.github/workflows/`** — PR quality checks (reusable workflow)
 
-See [README.md](README.md), [backups/README.md](backups/README.md),
+See [README.md](README.md),
+[backup-manager's README](https://github.com/garretpatten/backup-manager#readme)
+(readable locally at [backups/README.md](backups/README.md)),
 [configuration/README.md](configuration/README.md),
 [git-scripts/README.md](git-scripts/README.md),
 [media-scripts/README.md](media-scripts/README.md), and

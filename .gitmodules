@@ -1,0 +1,3 @@
+[submodule "backups"]
+	path = backups
+	url = https://github.com/garretpatten/backup-manager.git

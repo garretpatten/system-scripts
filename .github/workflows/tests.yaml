@@ -20,6 +20,10 @@ jobs:
         # actions/checkout v7.0.1
         # yamllint disable-line rule:line-length
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # The backups module lives in the backup-manager submodule; the
+          # github/src helpers import from it and typecheck needs it present.
+          submodules: recursive
 
       - name: 'Set up Node.js'
         # yamllint disable-line rule:line-length
